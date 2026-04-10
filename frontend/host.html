@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Host Dashboard - btranslate</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="glass-panel">
+      <h2 class="title-primary" style="font-size: 2rem;">Host Dashboard</h2>
+      
+      <div id="setup-section">
+        <p class="subtitle" style="margin-bottom: 1rem;">Create a new broadcast session</p>
+        <button class="btn-primary" id="btn-create" onclick="createSession()">Generate Event Code</button>
+      </div>
+
+      <div id="broadcast-section" style="display: none;">
+        <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center;">
+          <p style="color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 0.9em;">YOUR EVENT CODE</p>
+          <h1 id="display-code" style="font-size: 3rem; letter-spacing: 4px; color: var(--accent-color);"></h1>
+          <p style="font-size: 0.85em; color: var(--text-secondary); margin-top: 0.5rem;">Share this code with participants</p>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 1rem;">
+          <button class="btn-primary" id="btn-start" onclick="startBroadcast()">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path></svg>
+            Start Microphone
+          </button>
+          <button class="btn-primary btn-danger" id="btn-stop" onclick="stopBroadcast()" style="display: none;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"></rect></svg>
+            Stop Broadcast
+          </button>
+        </div>
+
+        <div id="status-indicator" style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-top: 1rem;">
+          Status: Ready to broadcast
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentEventCode = null;
+    let mediaRecorder = null;
+    let socket = null;
+
+    async function createSession() {
+      try {
+        const response = await fetch('/api/sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ source_language: "auto" })
+        });
+        const data = await response.json();
+        currentEventCode = data.event_code;
+        
+        document.getElementById('setup-section').style.display = 'none';
+        document.getElementById('broadcast-section').style.display = 'block';
+        document.getElementById('display-code').innerText = currentEventCode;
+      } catch (err) {
+        alert("Failed to create session. Is the server running?");
+      }
+    }
+
+    async function startBroadcast() {
+      if (!currentEventCode) return;
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Setup WebSocket
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        socket = new WebSocket(`${protocol}//${window.location.host}/ws/host/${currentEventCode}`);
+        
+        socket.onopen = () => {
+          document.getElementById('status-indicator').innerText = "Status: Broadcasting 🔴";
+          document.getElementById('btn-start').style.display = 'none';
+          document.getElementById('btn-stop').style.display = 'inline-flex';
+          document.getElementById('display-code').parentElement.classList.add('recording');
+          
+          // Audio MIME type optimized for Whisper
+          let mimeType = 'audio/webm;codecs=opus';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = 'audio/mp4'; 
+          }
+          
+          mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+          
+          mediaRecorder.ondataavailable = async (event) => {
+            if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+              const buffer = await event.data.arrayBuffer();
+              socket.send(buffer);
+            }
+          };
+
+          // Capture audio in 3-second chunks (3000ms)
+          mediaRecorder.start(3000);
+        };
+
+        socket.onerror = (e) => {
+          document.getElementById('status-indicator').innerText = "Status: Connection Error";
+          stopBroadcast();
+        };
+
+        socket.onclose = () => {
+          stopBroadcast();
+        };
+
+      } catch (err) {
+        alert("Microphone access denied or not available.");
+        console.error(err);
+      }
+    }
+
+    function stopBroadcast() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+      }
+      if (socket) {
+        socket.close();
+      }
+      document.getElementById('status-indicator').innerText = "Status: Broadcast Stopped";
+      document.getElementById('btn-start').style.display = 'inline-flex';
+      document.getElementById('btn-stop').style.display = 'none';
+      document.getElementById('display-code').parentElement.classList.remove('recording');
+    }
+  </script>
+</body>
+</html>

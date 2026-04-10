@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>btranslate - Real-Time AI Translation</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <meta name="description" content="Real-time multi-language translation using AI.">
+</head>
+<body>
+  <div class="container">
+    <div class="glass-panel" style="text-align: center; margin-top: 10vh;">
+      <h1 class="title-primary">btranslate</h1>
+      <p class="subtitle">Real-Time AI Audio Translation & Streaming</p>
+      
+      <div style="display: flex; flex-direction: column; gap: 1rem; max-width: 300px; margin: 0 auto;">
+        <button class="btn-primary" onclick="window.location.href='/host'">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          Start Broadcast (Host)
+        </button>
+        
+        <div style="margin: 1rem 0; color: var(--text-secondary); font-size: 0.9em;">OR</div>
+        
+        <div class="form-group" style="text-align: left;">
+          <label for="eventCode">Event Code</label>
+          <input type="text" id="eventCode" placeholder="e.g. 8A9B2C3D" autocomplete="off" style="text-transform: uppercase;">
+        </div>
+        <button class="btn-primary" style="background-color: var(--surface-color-solid);" onclick="joinEvent()">
+          Join as Participant
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    function joinEvent() {
+      const code = document.getElementById('eventCode').value.trim().toUpperCase();
+      if (!code) {
+        alert('Please enter an Event Code');
+        return;
+      }
+      window.location.href = `/participant?code=${code}`;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Feed - btranslate</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <style>
+    /* Full-screen focus mode for participants */
+    body {
+      margin: 0;
+      padding: 0;
+      justify-content: flex-start;
+      padding-top: 2rem;
+    }
+    .feed-container {
+      height: 60vh;
+      margin-top: 1rem;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="container" style="max-width: 900px; margin-top: 0;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h2 class="title-primary" style="font-size: 1.8rem; margin: 0; text-align: left;">Live Feed</h2>
+      
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <span id="connection-status" style="color: var(--text-secondary); font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-secondary); display: inline-block;"></span>
+          Disconnected
+        </span>
+        <select id="lang-select" onchange="changeLanguage()" style="background: rgba(30,41,59,0.9);">
+          <option value="en">English</option>
+          <option value="tr">Turkish</option>
+          <option value="de">German</option>
+          <option value="fr">French</option>
+          <option value="es">Spanish</option>
+          <option value="zh">Chinese</option>
+          <option value="ja">Japanese</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="feed-container" id="feed">
+      <div style="text-align: center; color: var(--text-secondary); margin-top: auto; margin-bottom: auto; opacity: 0.5;">
+        Waiting for transmission...
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const eventCode = urlParams.get('code');
+    let socket = null;
+
+    if (!eventCode) {
+      alert("Invalid Event Code.");
+      window.location.href = '/';
+    }
+
+    function connectWebSocket(lang) {
+      if (socket) {
+        socket.close();
+      }
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      socket = new WebSocket(`${protocol}//${window.location.host}/ws/participant/${eventCode}/${lang}`);
+      
+      const statusDot = document.querySelector('#connection-status span:first-child');
+      const statusText = document.querySelector('#connection-status');
+
+      socket.onopen = () => {
+        statusDot.style.background = 'var(--success-color)';
+        statusDot.style.boxShadow = '0 0 8px var(--success-color)';
+        statusText.innerHTML = statusDot.outerHTML + ` Connected to ${eventCode}`;
+        
+        // Clear "Waiting..." message if present
+        const feed = document.getElementById('feed');
+        if (feed.innerText.includes('Waiting for transmission')) {
+          feed.innerHTML = '';
+        }
+      };
+
+      socket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        appendFeedItem(data.original, data.translated);
+      };
+
+      socket.onclose = () => {
+        statusDot.style.background = 'var(--danger-color)';
+        statusDot.style.boxShadow = 'none';
+        statusText.innerHTML = statusDot.outerHTML + ` Disconnected`;
+      };
+      
+      socket.onerror = (err) => {
+        console.error("WebSocket Error:", err);
+      };
+    }
+
+    function appendFeedItem(originalText, translatedText) {
+      const feed = document.getElementById('feed');
+      
+      const item = document.createElement('div');
+      item.className = 'feed-item';
+      
+      const orig = document.createElement('div');
+      orig.className = 'original';
+      orig.innerText = originalText;
+      
+      const trans = document.createElement('div');
+      trans.className = 'translated';
+      trans.innerText = translatedText;
+      trans.style.fontSize = '1.2rem';
+      trans.style.fontWeight = '500';
+      trans.style.marginTop = '0.5rem';
+      trans.style.lineHeight = '1.5';
+      
+      item.appendChild(orig);
+      item.appendChild(trans);
+      feed.appendChild(item);
+      
+      // Auto-scroll to bottom smoothly
+      feed.scrollTo({
+        top: feed.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+
+    function changeLanguage() {
+      const newLang = document.getElementById('lang-select').value;
+      connectWebSocket(newLang);
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      const initialLang = document.getElementById('lang-select').value;
+      connectWebSocket(initialLang);
+    });
+  </script>
+</body>
+</html>
