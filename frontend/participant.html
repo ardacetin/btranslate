@@ -278,11 +278,11 @@
         
         let selectedVoice = null;
         
-        // Premium female voice identifiers across OS/Browsers
-        const premiumFemaleNames = ["Natural", "Female", "Google Türkçe", "Google US English", "Google UK English Female", "Yelda", "Emel", "Zira", "Tessa", "Samantha", "Victoria", "Google"];
+        // Premium female/regional voice identifiers across OS/Browsers
+        const premiumFemaleNames = ["Natural", "Female", "Google Türkçe", "Google US English", "Google UK English Female", "Yelda", "Emel", "Zira", "Tessa", "Samantha", "Victoria", "Maha", "Laila", "Hoda", "Google"];
         
         for (let keyword of premiumFemaleNames) {
-            const foundVoice = langVoices.find(v => v.name.includes(keyword));
+            const foundVoice = langVoices.find(v => v.name.includes(keyword) || v.name.includes("العربية"));
             if (foundVoice) {
                 selectedVoice = foundVoice;
                 break;
@@ -294,6 +294,7 @@
             selectedVoice = langVoices.find(v => !v.name.toLowerCase().includes("tolga") && !v.name.toLowerCase().includes("cem")) || langVoices[0];
         }
 
+        // Extremely safe fallback if NO voice matches locale (prevents silent fail on missing OS fonts)
         if (selectedVoice) {
            msg.voice = selectedVoice;
         }
