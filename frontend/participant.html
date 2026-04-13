@@ -201,6 +201,7 @@
       
       const orig = document.createElement('div');
       orig.className = 'original';
+      orig.setAttribute('translate', 'no'); // Prevent Chrome auto-translate from duplicating Arabic text
       orig.innerText = originalText;
       
       const trans = document.createElement('div');
@@ -210,6 +211,12 @@
       trans.style.fontWeight = '500';
       trans.style.marginTop = '0.5rem';
       trans.style.lineHeight = '1.5';
+
+      // Support Right-to-Left formatting for Arabic and Urdu
+      if (currentLang === 'ar' || currentLang === 'ur') {
+         trans.style.direction = 'rtl';
+         trans.style.fontFamily = 'Arial, sans-serif'; 
+      }
       
       item.appendChild(orig);
       item.appendChild(trans);
@@ -281,13 +288,17 @@
         msg.volume = ttsVolume;
 
         const voices = speechSynthesis.getVoices();
-        // Filter by language prefix (e.g. 'tr', 'en')
-        const langVoices = voices.filter(v => v.lang.startsWith(targetLocale) || v.lang.replace('-', '_').startsWith(targetLocale));
+        // Filter by language prefix (e.g. 'tr', 'en', 'ar', 'ur')
+        let langVoices = voices.filter(v => v.lang.startsWith(targetLocale) || v.lang.replace('-', '_').startsWith(targetLocale));
         
+        // Extended Urdu / Arabic backup
+        if (lang === 'ur' && langVoices.length === 0) langVoices = voices.filter(v => v.lang.startsWith('hi') || v.name.includes("Urdu") || v.name.includes("أردو"));
+        if (lang === 'ar' && langVoices.length === 0) langVoices = voices.filter(v => v.name.includes("Arabic") || v.name.includes("العربية"));
+
         let selectedVoice = null;
         
         // Premium female/regional voice identifiers across OS/Browsers
-        const premiumFemaleNames = ["Natural", "Female", "Google Türkçe", "Google US English", "Google UK English Female", "Yelda", "Emel", "Zira", "Tessa", "Samantha", "Victoria", "Maha", "Laila", "Hoda", "Google"];
+        const premiumFemaleNames = ["Natural", "Female", "Google Türkçe", "Google US English", "Google UK English Female", "Yelda", "Emel", "Zira", "Tessa", "Samantha", "Victoria", "Maha", "Laila", "Tarik", "Maged", "Hoda", "Naayf", "Google"];
         
         for (let keyword of premiumFemaleNames) {
             const foundVoice = langVoices.find(v => v.name.includes(keyword) || v.name.includes("العربية"));
@@ -305,6 +316,9 @@
         // Extremely safe fallback if NO voice matches locale (prevents silent fail on missing OS fonts)
         if (selectedVoice) {
            msg.voice = selectedVoice;
+        } else {
+           // Notify user quietly in console if native language is completely missing on their computer
+           console.warn(`[TTS] No compatible voice found natively for ${lang}. System will try to render characters with default voice.`);
         }
         
         window.speechSynthesis.speak(msg);
