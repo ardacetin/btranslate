@@ -54,7 +54,10 @@ const translations = {
     "mode_title": "How would you like to participate?",
     "mode_text": "Read Text",
     "mode_audio": "Listen Aloud",
-    "mode_desc": "Listen mode will read the translated subtitles aloud as they arrive."
+    "mode_desc": "Listen mode will read the translated subtitles aloud as they arrive.",
+    "lbl_audio_enabled": "Audio Enabled",
+    "btn_play": "Play",
+    "btn_stop": "Stop"
   },
   "tr": {
     "nav_title": "B-Translate",
@@ -111,7 +114,10 @@ const translations = {
     "mode_title": "Deneyiminizi nasıl seçmek istersiniz?",
     "mode_text": "Yazılı Oku",
     "mode_audio": "Sesli Dinle",
-    "mode_desc": "Sesli mod, konuşmacının cümleleri çevrildikçe seçtiğiniz dilde size okunmasını sağlar."
+    "mode_desc": "Sesli mod, konuşmacının cümleleri çevrildikçe seçtiğiniz dilde size okunmasını sağlar.",
+    "lbl_audio_enabled": "Sesli Okuma Açık",
+    "btn_play": "Oynat",
+    "btn_stop": "Durdur"
   }
 };
 

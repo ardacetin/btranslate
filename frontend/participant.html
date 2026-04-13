@@ -41,7 +41,7 @@
       <h2 style="font-size: 2rem; color: var(--text-color); margin-bottom: 2rem;" data-i18n="mode_title">How would you like to participate?</h2>
       <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
         <button class="btn-primary" style="padding: 1rem 2rem; font-size: 1.2rem; background: #1e3a8a; color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s opacity;" onclick="setMode('text')" data-i18n="mode_text">Read Text</button>
-        <button class="btn-primary" style="padding: 1rem 2rem; font-size: 1.2rem; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s opacity;" onclick="setMode('audio')" data-i18n="mode_audio">Listen Aloud</button>
+        <button class="btn-primary" style="padding: 1rem 2rem; font-size: 1.2rem; background: #7A232C; color: white; border: none; border-radius: 6px; cursor: pointer; transition: 0.2s opacity;" onclick="setMode('audio')" data-i18n="mode_audio">Listen Aloud</button>
       </div>
       <p style="margin-top: 2rem; color: var(--text-secondary); max-width: 400px; line-height: 1.5;" data-i18n="mode_desc">Listen mode will read the translations aloud as they arrive.</p>
     </div>
@@ -65,6 +65,8 @@
             <option value="de">German</option>
             <option value="fr">French</option>
             <option value="es">Spanish</option>
+            <option value="ar">Arabic</option>
+            <option value="ur">Urdu</option>
             <option value="zh">Chinese</option>
             <option value="ja">Japanese</option>
           </select>
@@ -77,13 +79,20 @@
       
       <!-- Audio Controls (Visible only in Audio mode) -->
       <div id="audio-controls-panel" style="display: none; background: rgba(255,255,255,0.9); border: 1px solid var(--border-color); padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; align-items: center; justify-content: space-between;">
-        <span style="color: var(--text-secondary); font-weight: 500; font-size: 0.9em;">Audio Enabled</span>
+        <span style="color: var(--text-secondary); font-weight: 500; font-size: 0.9em;" data-i18n="lbl_audio_enabled">Audio Enabled</span>
         <div style="display: flex; gap: 1.5rem; align-items: center;">
           <div style="display: flex; align-items: center; gap: 0.75rem;">
             <label style="font-size: 0.9em; color: var(--text-secondary);">Volume</label>
-            <input type="range" id="tts-volume" min="0" max="1" step="0.1" value="1" onchange="updateVolume(this.value)" style="width: 100px; accent-color: var(--accent-color);">
+            <input type="range" id="tts-volume" min="0" max="1" step="0.1" value="1" onchange="updateVolume(this.value)" style="width: 100px; accent-color: #7A232C;">
           </div>
-          <button id="btn-audio-toggle" onclick="toggleAudio()" style="background: var(--accent-color); color: white; border: none; padding: 0.5rem 1.2rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s;">Stop TTS (Mute)</button>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="btn-play" onclick="resumeAudio()" style="background: #1e3a8a; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s opacity; display: flex; align-items: center; gap: 4px;">
+              ▶ <span data-i18n="btn_play">Play</span>
+            </button>
+            <button id="btn-stop" onclick="stopAudio()" style="background: #7A232C; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s opacity; display: flex; align-items: center; gap: 4px;">
+              ⏹ <span data-i18n="btn_stop">Stop</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -226,17 +235,17 @@
       }
     }
     
-    function toggleAudio() {
-      isTTSMuted = !isTTSMuted;
-      const btn = document.getElementById('btn-audio-toggle');
-      if (isTTSMuted) {
-        btn.innerText = "Play / Resume (Unmute)";
-        btn.style.background = "#1e3a8a"; // Blue for play
-        window.speechSynthesis.cancel();
-      } else {
-        btn.innerText = "Stop TTS (Mute)";
-        btn.style.background = "var(--accent-color)"; // Red for stop
-      }
+    function resumeAudio() {
+      isTTSMuted = false;
+      document.getElementById('btn-play').style.opacity = '1';
+      document.getElementById('btn-stop').style.opacity = '0.5';
+    }
+    
+    function stopAudio() {
+      isTTSMuted = true;
+      document.getElementById('btn-play').style.opacity = '0.5';
+      document.getElementById('btn-stop').style.opacity = '1';
+      window.speechSynthesis.cancel();
     }
 
     function updateVolume(val) {
@@ -253,6 +262,8 @@
            'de': 'de-DE',
            'fr': 'fr-FR',
            'es': 'es-ES',
+           'ar': 'ar-SA',
+           'ur': 'ur-PK',
            'zh': 'zh-CN',
            'ja': 'ja-JP'
         };
