@@ -36,8 +36,8 @@
     <div class="glass-panel" id="app-panel" style="display: none;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
         <h2 class="title-primary" style="font-size: 1.5rem; margin: 0;" data-i18n="host_dash_title">Host Dashboard</h2>
-        <div>
           <button class="btn-primary" style="background: rgba(0,0,0,0.1); padding: 0.5rem 1rem;" id="btn-admin" onclick="toggleAdminModal()" style="display:none;" data-i18n="btn_usermgmt">User Mgmt</button>
+          <button class="btn-primary" style="background: rgba(0,0,0,0.1); padding: 0.5rem 1rem; margin-left: 0.5rem;" id="btn-logs" onclick="showLogs()" style="display:none;">Logs</button>
           <button class="btn-primary" style="background: rgba(0,0,0,0.1); padding: 0.5rem 1rem; margin-left: 0.5rem;" onclick="logout()" data-i18n="btn_logout">Logout</button>
         </div>
       </div>
@@ -113,6 +113,7 @@
       document.getElementById('app-panel').style.display = 'block';
       if(localStorage.getItem('bt_role') === 'admin') {
          document.getElementById('btn-admin').style.display = 'inline-block';
+         document.getElementById('btn-logs').style.display = 'inline-block';
       }
     }
 
@@ -152,6 +153,20 @@
         loadUsers();
       } else {
         modal.style.display = 'none';
+      }
+    }
+
+    async function showLogs() {
+      try {
+        const res = await fetch('/api/admin/logs', { headers: { 'Authorization': `Bearer ${localStorage.getItem('bt_token')}` } });
+        const data = await res.json();
+        if(data.logs) {
+           alert("SISTEM KAYITLARI:\n\n" + data.logs);
+        } else {
+           alert("Hata: " + data.error);
+        }
+      } catch(e) {
+        alert("Loglar okunamadi.");
       }
     }
 

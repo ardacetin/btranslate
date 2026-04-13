@@ -9,7 +9,7 @@ from typing import List
 import uuid
 
 from database import get_db, init_db, EventSession, User
-from sockets import manager
+from sockets import manager, log_activity
 from auth import verify_password, create_access_token, get_current_user, check_admin, get_password_hash
 
 app = FastAPI(title="btranslate API")
@@ -114,6 +114,18 @@ def update_user_password(user_id: int, data: UserPasswordUpdate, db: DBSession =
     db.commit()
     return {"detail": "Password updated successfully"}
 
+@app.get("/api/admin/logs")
+def view_system_logs(current_user: User = Depends(check_admin)):
+    import os
+    if not os.path.exists("usage.log"):
+        return {"logs": "Bozuk veya kayit yok."}
+    try:
+        with open("usage.log", "r", encoding="utf-8") as f:
+            lines = f.readlines()
+            return {"logs": "".join(lines[-100:])} # return last 100 lines
+    except Exception as e:
+        return {"error": str(e)}
+
 # --- HOST ENDPOINTS ---
 
 @app.post("/api/sessions")
@@ -123,6 +135,7 @@ def create_session(req: CreateSessionRequest, db: DBSession = Depends(get_db), c
     db.add(new_session)
     db.commit()
     db.refresh(new_session)
+    log_activity(f"EVENT CREATED: {new_session.event_name} ({event_code}) by {current_user.username}")
     return {"event_code": new_session.event_code, "event_name": new_session.event_name, "source_language": new_session.source_language}
 
 @app.get("/api/sessions/{event_code}")

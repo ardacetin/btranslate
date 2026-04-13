@@ -59,10 +59,11 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
 
         return text
     except Exception as e:
-        print(f"Transcription error: {e}")
+        print(f"[ERROR] Transcription failed: {e}")
         return "Error transcribing audio."
 
 async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
+    print(f"[INFO] Translating text '{text[:20]}...' to {target_lang}")
     if not client:
         return f"[Mock {target_lang}] {text}"
     
@@ -75,7 +76,9 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
             ],
             temperature=0.3,
         )
-        return response.choices[0].message.content.strip()
+        res = response.choices[0].message.content.strip()
+        print(f"[SUCCESS] Translation output: '{res[:20]}...'")
+        return res
     except Exception as e:
-        print(f"Translation error: {e}")
+        print(f"[ERROR] Translation failed: {e}")
         return f"Error translating to {target_lang}."

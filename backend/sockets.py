@@ -2,7 +2,18 @@ from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, List, Set
 import json
 import asyncio
+import datetime
 from ai_engine import transcribe_audio, translate_text
+
+def log_activity(msg: str):
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    line = f"[{stamp}] {msg}\n"
+    print(line.strip())
+    try:
+        with open("usage.log", "a", encoding="utf-8") as f:
+            f.write(line)
+    except:
+        pass
 
 # Structure: { event_code: { "host": WebSocket, "participants": { lang_code: [WebSocket, ...] } } }
 class ConnectionManager:
@@ -21,6 +32,7 @@ class ConnectionManager:
         await websocket.accept()
         session = self.get_or_create_session(event_code)
         session["host"] = websocket
+        log_activity(f"HOST connected to Broadcast {event_code}")
 
     def disconnect_host(self, event_code: str):
         if event_code in self.active_sessions:
@@ -32,6 +44,8 @@ class ConnectionManager:
         if target_lang not in session["participants"]:
             session["participants"][target_lang] = []
         session["participants"][target_lang].append(websocket)
+        total = sum(len(w) for w in session["participants"].values())
+        log_activity(f"PARTICIPANT joined {event_code} (Lang: {target_lang}). Total in room: {total}")
 
     def disconnect_participant(self, websocket: WebSocket, event_code: str, target_lang: str):
         if event_code in self.active_sessions:
@@ -43,8 +57,14 @@ class ConnectionManager:
     async def broadcast_translations(self, event_code: str, audio_bytes: bytes, source_lang: str = "auto"):
         # 1. Transcribe audio to text
         original_text = await transcribe_audio(audio_bytes)
-        if not original_text.strip() or "Error" in original_text:
+        if not original_text.strip():
+            print(f"[DEBUG] Empty transcription skipped for {event_code}")
             return
+        if "Error" in original_text:
+            print(f"[ERROR] Whisper returned error for {event_code}: {original_text}")
+            return
+            
+        print(f"[DEBUG] Transcribed successfully: '{original_text[:25]}...'")
 
         session = self.active_sessions.get(event_code)
         if not session:
