@@ -50,7 +50,11 @@ const translations = {
     "status_disconnected": "Disconnected",
     "status_connected": "Connected to",
     "waiting_msg": "Waiting for transmission...",
-    "disclaimer": "⚠️ This is an AI-powered translation system. Transcriptions and translations are generated automatically and may contain errors."
+    "disclaimer": "⚠️ This is an AI-powered translation system. Transcriptions and translations are generated automatically and may contain errors.",
+    "mode_title": "How would you like to participate?",
+    "mode_text": "Read Text",
+    "mode_audio": "Listen Aloud",
+    "mode_desc": "Listen mode will read the translated subtitles aloud as they arrive."
   },
   "tr": {
     "nav_title": "B-Translate",
@@ -103,7 +107,11 @@ const translations = {
     "status_disconnected": "Bağlantı Bekleniyor",
     "status_connected": "Bağlanıldı:",
     "waiting_msg": "Yayın bekleniyor...",
-    "disclaimer": "⚠️ Bu sistem yapay zeka ile desteklenmektedir. Çeviriler otomatik olarak oluşturulduğundan anlamsal hatalar içerebilir."
+    "disclaimer": "⚠️ Bu sistem yapay zeka ile desteklenmektedir. Çeviriler otomatik olarak oluşturulduğundan anlamsal hatalar içerebilir.",
+    "mode_title": "Deneyiminizi nasıl seçmek istersiniz?",
+    "mode_text": "Yazılı Oku",
+    "mode_audio": "Sesli Dinle",
+    "mode_desc": "Sesli mod, konuşmacının cümleleri çevrildikçe seçtiğiniz dilde size okunmasını sağlar."
   }
 };
 

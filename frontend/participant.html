@@ -36,6 +36,16 @@
 
   <div class="container" style="max-width: 900px; margin-top: 6rem;">
     
+    <!-- Experience Mode Overlay -->
+    <div id="mode-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-color); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
+      <h2 style="font-size: 2rem; color: var(--text-color); margin-bottom: 2rem;" data-i18n="mode_title">How would you like to participate?</h2>
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+        <button class="btn-primary" style="padding: 1rem 2rem; font-size: 1.2rem; background: var(--secondary-color); color: white;" onclick="setMode('text')" data-i18n="mode_text">Read Text</button>
+        <button class="btn-primary" style="padding: 1rem 2rem; font-size: 1.2rem;" onclick="setMode('audio')" data-i18n="mode_audio">Listen Aloud</button>
+      </div>
+      <p style="margin-top: 2rem; color: var(--text-secondary); max-width: 400px; line-height: 1.5;" data-i18n="mode_desc">Listen mode will read the translations aloud as they arrive.</p>
+    </div>
+
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem;">
       <div>
         <h2 class="title-primary" style="font-size: 1.8rem; margin: 0; text-align: left;" data-i18n="part_feed_title">Live Feed</h2>
@@ -136,6 +146,10 @@
       socket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         appendFeedItem(data.original, data.translated);
+        
+        if (window.btMode === 'audio') {
+          playTTS(data.translated, currentLang);
+        }
       };
 
       socket.onclose = () => {
@@ -182,9 +196,47 @@
       localStorage.setItem('bt_target_lang', currentLang);
       connectWebSocket(currentLang);
     }
+    
+    function setMode(mode) {
+      window.btMode = mode;
+      document.getElementById('mode-overlay').style.display = 'none';
+      if (mode === 'audio') {
+        // Unlock speech synthesis engine
+        const drop = new SpeechSynthesisUtterance("");
+        window.speechSynthesis.speak(drop);
+      }
+    }
+    
+    function playTTS(text, lang) {
+      if ('speechSynthesis' in window) {
+        const msg = new SpeechSynthesisUtterance(text);
+        const codeMap = {
+           'en': 'en-US',
+           'tr': 'tr-TR',
+           'de': 'de-DE',
+           'fr': 'fr-FR',
+           'es': 'es-ES',
+           'zh': 'zh-CN',
+           'ja': 'ja-JP'
+        };
+        msg.lang = codeMap[lang] || lang;
+        msg.rate = 1.0;
+        // Optionally select a better voice
+        const voices = speechSynthesis.getVoices();
+        const langVoices = voices.filter(v => v.lang.startsWith(codeMap[lang] || lang));
+        if (langVoices.length > 0) {
+           msg.voice = langVoices[0]; // pick first matching voice
+        }
+        window.speechSynthesis.speak(msg);
+      }
+    }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
+      // Force voices to load early on some browsers
+      if ('speechSynthesis' in window) {
+        speechSynthesis.getVoices();
+      }
       initParticipant();
     });
   </script>
