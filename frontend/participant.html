@@ -16,24 +16,38 @@
     .feed-container {
       height: 60vh;
       margin-top: 1rem;
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid var(--border-color);
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.03);
     }
   </style>
 </head>
-<body>
-  <div class="container" style="max-width: 900px; margin-top: 0;">
+<body style="margin-top: 0;">
+
+  <!-- Navbar Navigation -->
+  <nav class="navbar">
+    <a href="/" class="nav-brand" data-i18n="nav_title">B-Translate</a>
+    <div class="lang-switcher">
+      <span class="lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')">EN</span>
+      <span>|</span>
+      <span class="lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')">TR</span>
+    </div>
+  </nav>
+
+  <div class="container" style="max-width: 900px; margin-top: 6rem;">
     
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-      <h2 class="title-primary" style="font-size: 1.8rem; margin: 0; text-align: left;">Live Feed</h2>
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem;">
+      <div>
+        <h2 class="title-primary" style="font-size: 1.8rem; margin: 0; text-align: left;" data-i18n="part_feed_title">Live Feed</h2>
+        <p id="display-event-name" style="color: var(--text-secondary); margin-top: 0.25rem; font-size: 1.1rem; font-weight: 500;"></p>
+      </div>
       
       <div style="display: flex; gap: 1rem; align-items: center;">
         <span id="connection-status" style="color: var(--text-secondary); font-size: 0.9em; display: flex; align-items: center; gap: 8px;">
           <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-secondary); display: inline-block;"></span>
-          Disconnected
+          <span id="status-text" data-i18n="status_disconnected">Disconnected</span>
         </span>
-        <select id="lang-select" onchange="changeLanguage()" style="background: rgba(30,41,59,0.9);">
+        <select id="lang-select" onchange="changeLanguage()" style="background: rgba(255,255,255,0.9); border: 1px solid var(--border-color);">
           <option value="en">English</option>
           <option value="tr">Turkish</option>
           <option value="de">German</option>
@@ -44,23 +58,57 @@
         </select>
       </div>
     </div>
+    
+    <div style="background: rgba(255, 230, 230, 0.4); border-left: 4px solid var(--danger-color); padding: 0.75rem 1rem; margin-bottom: 1rem; border-radius: 4px; font-size: 0.85rem; color: var(--text-secondary);" data-i18n="disclaimer">
+      ⚠️ This is an AI-powered translation system. Transcriptions and translations are generated automatically and may contain errors.
+    </div>
 
     <div class="feed-container" id="feed">
-      <div style="text-align: center; color: var(--text-secondary); margin-top: auto; margin-bottom: auto; opacity: 0.5;">
+      <div id="wait-msg" style="text-align: center; color: var(--text-secondary); margin-top: auto; margin-bottom: auto; opacity: 0.5;" data-i18n="waiting_msg">
         Waiting for transmission...
       </div>
     </div>
 
   </div>
 
+  <footer class="site-footer" data-i18n="footer_copy">
+    © 2026 B-Translate. Made with ❤️ by Beykoz Üniversitesi Bilgi İşlem Direktörlüğü.
+  </footer>
+
+  <script src="/static/lang.js"></script>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const eventCode = urlParams.get('code');
-    let socket = null;
+    const feed = document.getElementById('feed');
+    let socket;
+    let currentLang = 'en';
 
-    if (!eventCode) {
-      alert("Invalid Event Code.");
-      window.location.href = '/';
+    async function initParticipant() {
+      if (!eventCode) {
+        alert('Etkinlik kodu eksik. Lütfen geçerli bir bağlantı kullanın.');
+        window.location.href = '/';
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/sessions/${eventCode}`);
+        if(res.ok) {
+          const data = await res.json();
+          document.getElementById('display-event-name').innerText = data.event_name;
+        } else {
+          document.getElementById('display-event-name').innerText = eventCode;
+        }
+      } catch(e) {
+        console.error(e);
+      }
+
+      const savedLang = localStorage.getItem('bt_target_lang');
+      if (savedLang) {
+        currentLang = savedLang;
+        document.getElementById('lang-select').value = savedLang;
+      }
+
+      connectWebSocket(currentLang);
     }
 
     function connectWebSocket(lang) {
@@ -72,18 +120,17 @@
       socket = new WebSocket(`${protocol}//${window.location.host}/ws/participant/${eventCode}/${lang}`);
       
       const statusDot = document.querySelector('#connection-status span:first-child');
-      const statusText = document.querySelector('#connection-status');
+      const statusText = document.getElementById('status-text');
 
       socket.onopen = () => {
         statusDot.style.background = 'var(--success-color)';
         statusDot.style.boxShadow = '0 0 8px var(--success-color)';
-        statusText.innerHTML = statusDot.outerHTML + ` Connected to ${eventCode}`;
+        const dict = translations[localStorage.getItem('bt_lang') || 'en'];
+        statusText.innerText = `${dict.status_connected} ${eventCode}`;
         
         // Clear "Waiting..." message if present
-        const feed = document.getElementById('feed');
-        if (feed.innerText.includes('Waiting for transmission')) {
-          feed.innerHTML = '';
-        }
+        const waitMsg = document.getElementById('wait-msg');
+        if (waitMsg) waitMsg.remove();
       };
 
       socket.onmessage = (event) => {
@@ -94,17 +141,16 @@
       socket.onclose = () => {
         statusDot.style.background = 'var(--danger-color)';
         statusDot.style.boxShadow = 'none';
-        statusText.innerHTML = statusDot.outerHTML + ` Disconnected`;
+        const dict = translations[localStorage.getItem('bt_lang') || 'en'];
+        statusText.innerText = dict.status_disconnected;
       };
       
       socket.onerror = (err) => {
-        console.error("WebSocket Error:", err);
+        console.error("Kano WebSocket Hatası:", err);
       };
     }
 
     function appendFeedItem(originalText, translatedText) {
-      const feed = document.getElementById('feed');
-      
       const item = document.createElement('div');
       item.className = 'feed-item';
       
@@ -132,14 +178,14 @@
     }
 
     function changeLanguage() {
-      const newLang = document.getElementById('lang-select').value;
-      connectWebSocket(newLang);
+      currentLang = document.getElementById('lang-select').value;
+      localStorage.setItem('bt_target_lang', currentLang);
+      connectWebSocket(currentLang);
     }
 
     // Initialize
     document.addEventListener('DOMContentLoaded', () => {
-      const initialLang = document.getElementById('lang-select').value;
-      connectWebSocket(initialLang);
+      initParticipant();
     });
   </script>
 </body>

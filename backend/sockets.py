@@ -2,7 +2,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from typing import Dict, List, Set
 import json
 import asyncio
-from .ai_engine import transcribe_audio, translate_text
+from ai_engine import transcribe_audio, translate_text
 
 # Structure: { event_code: { "host": WebSocket, "participants": { lang_code: [WebSocket, ...] } } }
 class ConnectionManager:

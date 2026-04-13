@@ -10,11 +10,21 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    role = Column(String, default="user") # "admin" or "user"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class EventSession(Base):
     __tablename__ = "sessions"
 
     id = Column(Integer, primary_key=True, index=True)
     event_code = Column(String, unique=True, index=True)
+    event_name = Column(String, default="Live Event")
     source_language = Column(String, default="auto")
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -41,6 +51,22 @@ class Translation(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    
+    # Auto-create admin user
+    db = SessionLocal()
+    try:
+        if not db.query(User).first():
+            # Delay import to avoid circular dependency
+            from auth import get_password_hash
+            admin_user = User(
+                username="admin",
+                hashed_password=get_password_hash("admin123"),
+                role="admin"
+            )
+            db.add(admin_user)
+            db.commit()
+    finally:
+        db.close()
 
 def get_db():
     db = SessionLocal()

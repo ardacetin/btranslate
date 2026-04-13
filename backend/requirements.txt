@@ -5,3 +5,7 @@ openai
 python-dotenv
 sqlalchemy
 pydantic
+bcrypt==3.2.0
+passlib[bcrypt]
+PyJWT
+python-multipart

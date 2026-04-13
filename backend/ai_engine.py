@@ -16,17 +16,48 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
     
     # Whisper requires a file-like object with a filename, we can use a temp file
     try:
-        with tempfile.NamedTemporaryFile(suffix=".webm", delete=False) as temp_audio:
+        # Detect format from magic bytes
+        suffix = ".webm"
+        if len(audio_bytes) > 8 and b"ftyp" in audio_bytes[:12]:
+            suffix = ".mp4"
+
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_audio:
             temp_audio.write(audio_bytes)
             temp_audio_path = temp_audio.name
         
         with open(temp_audio_path, "rb") as audio_file:
             response = await client.audio.transcriptions.create(
                 model="whisper-1",
-                file=audio_file
+                file=audio_file,
+                temperature=0.0
             )
         os.remove(temp_audio_path)
-        return response.text
+        
+        text = response.text.strip()
+        lower_text = text.lower()
+        
+        # Whisper Hallucination Filter for silent/ambient chunks
+        hallucinations = [
+            "thank you.", "thank you", "thank you!", "you.",
+            "thanks for watching", "thank you for watching", 
+            "transcribed by", "otter.ai", "amara.org", "by amara",
+            "thank you so much.", "please transcribe exactly",
+            "what is said", "this is a real-time event",
+            "subscribe", "comment", "like", "don't forget to",
+            "thank you.", "thank you very much.", "abone",
+            "hello, welcome to our event", "beğenmeyi", "yorum yap", 
+            "amara", "altyazı", "see you in the next video",
+            "[music]", "(music)", "♪", "müzik", "[müzik]", "(müzik)",
+            "[silence]", "(silence)", "[sessizlik]", "(sessizlik)"
+        ]
+        
+        if len(text) < 35 and any(h == lower_text or h in lower_text for h in hallucinations):
+            return ""
+            
+        if "otter.ai" in lower_text or "amara.org" in lower_text:
+            return ""
+
+        return text
     except Exception as e:
         print(f"Transcription error: {e}")
         return "Error transcribing audio."
