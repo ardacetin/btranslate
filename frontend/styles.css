@@ -352,7 +352,7 @@ input:focus, select:focus {
 
 .feature-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 2rem;
   margin-top: 3rem;
 }
@@ -394,4 +394,21 @@ input:focus, select:focus {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* --- MOBILE RESPONSIVENESS --- */
+@media (max-width: 768px) {
+  .hero-title { font-size: 2.5rem; }
+  .title-primary { font-size: 2rem; }
+  .action-cards { flex-direction: column; gap: 1.5rem; }
+  .action-card { max-width: 100%; border-radius: 12px; padding: 1.5rem; }
+  .container { padding: 1rem; margin-top: 4.5rem; }
+  .feed-container { height: 50vh; }
+  .hero-section { padding: 5rem 1rem 3rem; }
+  
+  .feature-section { padding: 0 1rem; }
+  .feature-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  #audio-controls-panel { flex-direction: column; align-items: stretch; gap: 1rem; text-align: center; }
+  #audio-controls-panel > div { justify-content: center; flex-wrap: wrap; }
+  .lang-switcher { font-size: 0.8rem; }
 }

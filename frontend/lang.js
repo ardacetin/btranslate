@@ -17,6 +17,8 @@ const translations = {
     "feat_2_desc": "Participants can select their native languages instantly like English, German, French, etc.",
     "feat_3_title": "AI Powered (Whisper & GPT-4)",
     "feat_3_desc": "High-accuracy speech recognition paired with context-aware semantic translations.",
+    "feat_4_title": "Immersive Audio (TTS)",
+    "feat_4_desc": "Listen to translations read aloud dynamically with high-quality regional voices.",
     "footer_copy": "© 2026 B-Translate. Made with ❤️ by Beykoz University IT Directorate.",
     
     // Host Panel
@@ -71,12 +73,14 @@ const translations = {
     "card_part_btn": "Katıl",
     "placeholder_code": "Oda Kodu",
     "feats_title": "Sistemin Öne Çıkan Özellikleri",
-    "feat_1_title": "Düşük Gecikme (Real-Time)",
-    "feat_1_desc": "WebSockets teknolojisi ile sesten ekrana 3 saniyenin altında akıcı metin transferi.",
+    "feat_1_title": "Ultra Düşük Gecikme",
+    "feat_1_desc": "Canlı yayından gelen sesi anında kopyalar ve %0 kesintiyle odalara dağıtır.",
     "feat_2_title": "Çoklu Dil Desteği",
-    "feat_2_desc": "Katılımcılar İngilizce, Almanca, Fransızca, Japonca gibi dillerden anında kendi kanallarını seçebilir.",
-    "feat_3_title": "Yapay Zeka Destekli (AI)",
-    "feat_3_desc": "Whisper tabanlı ses tanıma ve GPT-4 destekli mükemmel doğrulukta bağlamsal çeviri modelleri.",
+    "feat_2_desc": "Dinleyiciler, akışı istedikleri saniye 10'dan fazla dünya diline anında geçirebilir.",
+    "feat_3_title": "Yapay Zeka Gücü (AI)",
+    "feat_3_desc": "Gücünü Whisper-1 ve GPT-4 gibi alanının zirvesi doğal dil işlemcilerinden alır.",
+    "feat_4_title": "Sanal Kulaklık (TTS)",
+    "feat_4_desc": "Çevrilen alt yazıları anında stüdyo kalitesinde gerçekçi yapay zeka sesleriyle dinleyin.",
     "footer_copy": "© 2026 B-Translate. Beykoz Üniversitesi Bilgi İşlem Direktörlüğü tarafından ❤️ ile yapılmıştır.",
     
     // Host Panel
