@@ -332,6 +332,13 @@
               mediaRecorder.start();
             }
           }, 3000);
+
+          // Keep connection alive against Render idle timeout (90s)
+          window.pingIntervalHost = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) {
+              socket.send(new Uint8Array([0]).buffer);
+            }
+          }, 25000);
           
           mediaRecorder.ondataavailable = async (event) => {
             if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
@@ -365,6 +372,9 @@
     function stopBroadcast() {
       if (window.recordInterval) {
         clearInterval(window.recordInterval);
+      }
+      if (window.pingIntervalHost) {
+        clearInterval(window.pingIntervalHost);
       }
       if (window.vadInterval) {
         clearInterval(window.vadInterval);

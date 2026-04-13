@@ -152,6 +152,10 @@ async def websocket_host(websocket: WebSocket, event_code: str):
         while True:
             # Host sends audio chunks as bytes
             audio_bytes = await websocket.receive_bytes()
+            if len(audio_bytes) < 10:
+                # Ignore ping payloads
+                continue
+            
             # We don't have source_lang easily accessible here without query DB if we want,
             # but manager uses "auto" by default. For MVP, auto is fine.
             await manager.broadcast_translations(event_code, audio_bytes, source_lang="auto")

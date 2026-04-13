@@ -164,6 +164,13 @@
         // Clear "Waiting..." message if present
         const waitMsg = document.getElementById('wait-msg');
         if (waitMsg) waitMsg.remove();
+        
+        // Keep connection alive against Render idle timeout (90s)
+        window.pingIntervalPart = setInterval(() => {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send("PING");
+          }
+        }, 25000);
       };
 
       socket.onmessage = (event) => {
@@ -180,6 +187,7 @@
         statusDot.style.boxShadow = 'none';
         const dict = translations[localStorage.getItem('bt_lang') || 'en'];
         statusText.innerText = dict.status_disconnected;
+        if(window.pingIntervalPart) clearInterval(window.pingIntervalPart);
       };
       
       socket.onerror = (err) => {

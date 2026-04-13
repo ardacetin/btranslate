@@ -1,7 +1,6 @@
 import os
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
-import tempfile
 
 load_dotenv()
 
@@ -14,24 +13,22 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
         # Mock mode if no key is provided
         return "This is a mocked transcription of the audio buffer."
     
-    # Whisper requires a file-like object with a filename, we can use a temp file
     try:
         # Detect format from magic bytes
-        suffix = ".webm"
+        filename = "audio.webm"
+        mime_type = "audio/webm"
         if len(audio_bytes) > 8 and b"ftyp" in audio_bytes[:12]:
-            suffix = ".mp4"
+            filename = "audio.mp4"
+            mime_type = "audio/mp4"
 
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_audio:
-            temp_audio.write(audio_bytes)
-            temp_audio_path = temp_audio.name
+        # Bypass OS hard disk - Stream strictly from RAM 
+        file_tuple = (filename, audio_bytes, mime_type)
         
-        with open(temp_audio_path, "rb") as audio_file:
-            response = await client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                temperature=0.0
-            )
-        os.remove(temp_audio_path)
+        response = await client.audio.transcriptions.create(
+            model="whisper-1",
+            file=file_tuple,
+            temperature=0.0
+        )
         
         text = response.text.strip()
         lower_text = text.lower()
