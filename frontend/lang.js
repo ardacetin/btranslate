@@ -19,7 +19,7 @@ const translations = {
     "feat_3_desc": "High-accuracy speech recognition paired with context-aware semantic translations.",
     "feat_4_title": "Immersive Audio (TTS)",
     "feat_4_desc": "Listen to translations read aloud dynamically with high-quality regional voices.",
-    "footer_copy": "© 2026 B-Translate. Made with ❤️ by Beykoz University IT Directorate.",
+    "footer_copy": "B-Translate | Licensed under CC BY-NC-SA 4.0 — Beykoz University IT Directorate",
     
     // Host Panel
     "host_login_title": "Host Login",
@@ -88,7 +88,7 @@ const translations = {
     "feat_3_desc": "Gücünü Whisper-1 ve GPT-4 gibi alanının zirvesi doğal dil işlemcilerinden alır.",
     "feat_4_title": "Sanal Kulaklık (TTS)",
     "feat_4_desc": "Çevrilen alt yazıları anında stüdyo kalitesinde gerçekçi yapay zeka sesleriyle dinleyin.",
-    "footer_copy": "© 2026 B-Translate. Beykoz Üniversitesi Bilgi İşlem Direktörlüğü tarafından ❤️ ile yapılmıştır.",
+    "footer_copy": "B-Translate | CC BY-NC-SA 4.0 Lisansı ile lisanslanmıştır — Beykoz Üniversitesi Bilgi İşlem Direktörlüğü",
     
     // Host Panel
     "host_login_title": "Host Girişi",
