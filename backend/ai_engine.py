@@ -9,9 +9,21 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY and OPENAI_API_KEY != "your-openai-api-key-here" else None
 
+# ── Minimum audio payload size (bytes) ──────────────────────────────────────
+# WebM/Opus silence encodes to roughly 1-4 KB.  Real speech in a 3-second
+# chunk is typically 15 KB+.  Anything under this threshold is almost
+# certainly silence or mic hiss that slipped past client-side VAD.
+MIN_AUDIO_BYTES = 8000
+
+
 async def transcribe_audio(audio_bytes: bytes) -> str:
     if not client:
         return "This is a mocked transcription of the audio buffer."
+
+    # ── Gate 1: reject tiny payloads (silence) before spending an API call ──
+    if len(audio_bytes) < MIN_AUDIO_BYTES:
+        print(f"[GATE] Audio too small ({len(audio_bytes)} B < {MIN_AUDIO_BYTES} B) — skipped")
+        return ""
 
     try:
         filename = "audio.webm"
@@ -20,61 +32,70 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
             filename = "audio.mp4"
             mime_type = "audio/mp4"
 
-        # Bypass OS hard disk — stream strictly from RAM
         file_tuple = (filename, audio_bytes, mime_type)
 
+        # ── Use verbose_json to access no_speech_prob per segment ──────────
         response = await client.audio.transcriptions.create(
             model="whisper-1",
             file=file_tuple,
             temperature=0.0,
-            # Discourage Whisper from generating filler on silent/ambient chunks
-            prompt="Transcribe only what is clearly spoken. Do not add pleasantries, greetings, or filler words."
+            response_format="verbose_json",
+            # NOTE: Do NOT pass a `prompt` — it teaches Whisper the exact
+            # filler phrases we want to avoid, making hallucination worse.
         )
+
+        # ── Gate 2: check no_speech_prob on every segment ──────────────────
+        # If Whisper itself thinks there was no speech, trust it.
+        segments = response.segments or []
+        if not segments:
+            print("[GATE] Whisper returned zero segments — skipped")
+            return ""
+
+        avg_no_speech = sum(s.get("no_speech_prob", 0) for s in segments) / len(segments)
+        if avg_no_speech > 0.5:
+            print(f"[GATE] High no_speech_prob ({avg_no_speech:.2f}) — skipped")
+            return ""
 
         text = response.text.strip()
         lower_text = text.lower()
 
-        # ── Hard-block list ─────────────────────────────────────────────────
-        # Whisper commonly hallucinates these phrases on silence / ambient noise.
-        # We reject them regardless of length.
-        hard_block_phrases = [
-            "thank you for watching", "thanks for watching",
-            "thank you so much", "thank you very much",
-            "thank you.", "thank you!", "thank you",
-            "goodbye", "good bye", "bye bye", "see you next time",
-            "see you in the next video", "don't forget to subscribe",
-            "please like and subscribe", "please subscribe",
+        # ── Gate 3: hard-block known hallucination patterns ────────────────
+        hard_blocks = [
+            "thank you", "thanks for watching", "goodbye", "good bye",
+            "bye bye", "see you", "don't forget", "please subscribe",
+            "like and subscribe", "please like", "subscribe",
             "transcribed by", "otter.ai", "amara.org", "by amara",
-            "altyazı", "abone ol", "beğen", "yorum yap",
+            "subtitles by", "captions by", "copyright",
+            "abone", "beğen", "yorum yap", "altyazı",
             "müzik", "[müzik]", "(müzik)", "[music]", "(music)",
-            "[silence]", "(silence)", "[sessizlik]",
-            "♪", "[ silence ]", "[ music ]",
+            "[silence]", "(silence)", "[sessizlik]", "(sessizlik)",
+            "♪", "you.", "welcome to",
         ]
-        for phrase in hard_block_phrases:
+        for phrase in hard_blocks:
             if phrase in lower_text:
-                print(f"[FILTER] Hallucination blocked: '{text[:50]}'")
+                print(f"[FILTER] Blocked: '{text[:60]}'")
                 return ""
 
-        # Drop very short / punctuation-only outputs
+        # ── Gate 4: reject very short / garbage output ─────────────────────
         if len(text) < 4:
             return ""
         if re.fullmatch(r'[\W\s]+', text):
             return ""
 
-        # Drop repeated-word patterns (e.g. "ha ha ha ha ha")
+        # Repeated single word  ("ha ha ha ha")
         words = text.split()
-        if len(words) >= 4 and len(set(w.lower() for w in words)) == 1:
+        if len(words) >= 3 and len(set(w.lower() for w in words)) == 1:
             return ""
 
+        print(f"[OK] '{text[:40]}...' (no_speech={avg_no_speech:.2f}, size={len(audio_bytes)}B)")
         return text
 
     except Exception as e:
         print(f"[ERROR] Transcription failed: {e}")
-        return "Error transcribing audio."
+        return ""
 
 
 async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
-    print(f"[INFO] Translating '{text[:30]}...' -> {target_lang}")
     if not client:
         return f"[Mock {target_lang}] {text}"
 
@@ -87,8 +108,7 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                     "content": (
                         f"You are a real-time simultaneous interpreter. "
                         f"Translate the following spoken text from {source_lang} to {target_lang}. "
-                        f"Reply ONLY with the translated text. "
-                        f"Do not add greetings, explanations, or filler."
+                        f"Reply ONLY with the translated text. No additions."
                     )
                 },
                 {"role": "user", "content": text}
@@ -96,7 +116,7 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
             temperature=0.2,
         )
         res = response.choices[0].message.content.strip()
-        print(f"[SUCCESS] '{res[:30]}...'")
+        print(f"[TRANSLATED] -> {target_lang}: '{res[:40]}...'")
         return res
     except Exception as e:
         print(f"[ERROR] Translation failed: {e}")

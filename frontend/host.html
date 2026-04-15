@@ -283,7 +283,7 @@
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         
-        // --- Voice Activity Detection ---
+        // --- Voice Activity Detection (enhanced) ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const analyser = audioCtx.createAnalyser();
         const source = audioCtx.createMediaStreamSource(stream);
@@ -291,14 +291,21 @@
         analyser.fftSize = 512;
         const dataArray = new Uint8Array(analyser.frequencyBinCount);
         
-        // We will track if there was ANY voice spike in the current 3-s chunk
+        // Track sustained voice energy across the chunk, not just single spikes
         let voiceDetectedInChunk = false;
+        let voiceFrameCount = 0;
+        const MIN_VOICE_FRAMES = 3; // need at least 3 frames (~300ms) of voice
         window.vadInterval = setInterval(() => {
           analyser.getByteFrequencyData(dataArray);
-          const sum = dataArray.reduce((a, b) => a + b, 0);
-          const average = sum / dataArray.length;
-          if (average > 20) { // Sensitivity threshold
-            voiceDetectedInChunk = true;
+          // Focus on speech frequencies (roughly bins 4-40 for 300-3400 Hz)
+          const speechBins = dataArray.slice(4, 40);
+          const sum = speechBins.reduce((a, b) => a + b, 0);
+          const average = sum / speechBins.length;
+          if (average > 40) { // Higher threshold — ignores background hum
+            voiceFrameCount++;
+            if (voiceFrameCount >= MIN_VOICE_FRAMES) {
+              voiceDetectedInChunk = true;
+            }
           }
         }, 100);
         // --------------------------------
@@ -342,13 +349,15 @@
           
           mediaRecorder.ondataavailable = async (event) => {
             if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-              if (voiceDetectedInChunk) {
+              if (voiceDetectedInChunk && event.data.size > 5000) {
                 const buffer = await event.data.arrayBuffer();
                 socket.send(buffer);
-                voiceDetectedInChunk = false; // reset for next chunk
               } else {
-                 console.log("Sessizlik atlandı.");
+                 console.log(`Sessizlik atlandı (VAD=${voiceDetectedInChunk}, size=${event.data.size}B).`);
               }
+              // Reset counters for next chunk
+              voiceDetectedInChunk = false;
+              voiceFrameCount = 0;
             }
           };
         };
