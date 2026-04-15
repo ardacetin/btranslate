@@ -5,10 +5,243 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Host Dashboard - btranslate</title>
   <link rel="stylesheet" href="/static/styles.css">
-</head>
-<body style="margin-top: 0;">
+  <style>
+    body { justify-content: flex-start; }
 
-  <!-- Navbar Navigation -->
+    /* ── Login ──────────────────────────────────────── */
+    .login-card {
+      max-width: 380px;
+      margin: 0 auto;
+      background: var(--surface-color);
+      border:1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    .login-card h2 {
+      font-size: 1.6rem;
+      margin-bottom: 1.5rem;
+      color: var(--accent-color);
+    }
+
+    /* ── Dashboard shell ───────────────────────────── */
+    .dash {
+      max-width: 640px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Setup card */
+    .setup-card {
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+    .setup-card h2 {
+      font-size: 1.4rem;
+      margin-bottom: 0.4rem;
+      color: var(--text-primary);
+    }
+    .setup-card .sub {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ── Broadcast hero card ───────────────────────── */
+    .broadcast-card {
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 10px 32px rgba(0,0,0,0.08);
+    }
+
+    /* QR hero section */
+    .qr-hero {
+      background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+      padding: 2.5rem 2rem 2rem;
+      text-align: center;
+      color: white;
+      position: relative;
+    }
+    .qr-hero .code-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      opacity: 0.5;
+      margin-bottom: 0.3rem;
+    }
+    .qr-hero .code-value {
+      font-family: 'Outfit', monospace;
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: 6px;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+    .qr-hero .qr-wrap {
+      display: inline-block;
+      padding: 12px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .qr-hero .share-hint {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      opacity: 0.55;
+    }
+
+    /* Mic controls */
+    .mic-controls {
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .mic-btn {
+      width: 100%;
+      max-width: 320px;
+      padding: 0.85rem 1.5rem;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      transition: all 0.25s;
+    }
+    .mic-btn.start {
+      background: var(--accent-color);
+      color: white;
+      box-shadow: 0 4px 12px rgba(122,35,44,0.3);
+    }
+    .mic-btn.start:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .mic-btn.stop {
+      background: var(--danger-color);
+      color: white;
+      box-shadow: 0 4px 12px rgba(220,38,38,0.3);
+    }
+    .mic-btn.stop:hover { background: #b91c1c; }
+
+    .status-line {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--text-secondary);
+      transition: all 0.3s;
+    }
+    .status-dot.live {
+      background: var(--success-color);
+      box-shadow: 0 0 8px var(--success-color);
+      animation: pulse-dot 1.5s infinite;
+    }
+    @keyframes pulse-dot {
+      0%,100% { box-shadow: 0 0 4px var(--success-color); }
+      50%     { box-shadow: 0 0 12px var(--success-color); }
+    }
+
+    /* Admin links — subtle, bottom corner */
+    .admin-links {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      padding: 0.5rem 0;
+    }
+    .admin-links a {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      opacity: 0.5;
+      text-decoration: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .admin-links a:hover { opacity: 1; }
+
+    /* ── Modals ─────────────────────────────────────── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-card {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      width: 480px;
+      max-width: 92vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .modal-card h3 {
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+      color: var(--accent-color);
+    }
+    .modal-close {
+      position: absolute;
+      right: 1rem; top: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+    }
+    .modal-close:hover { color: var(--text-primary); }
+
+    /* Logs modal */
+    .logs-box {
+      background: #1f2937;
+      color: #a5f3a3;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      line-height: 1.6;
+      padding: 1rem;
+      border-radius: 8px;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .qr-hero .code-value { font-size: 2.2rem; letter-spacing: 4px; }
+      .mic-controls { padding: 1rem; }
+      .login-card { margin: 0 1rem; }
+    }
+  </style>
+</head>
+<body style="margin-top:0;">
+
   <nav class="navbar">
     <a href="/" class="nav-brand" data-i18n="nav_title">B-Translate</a>
     <div class="lang-switcher">
@@ -18,87 +251,103 @@
     </div>
   </nav>
 
-  <div class="container" style="margin-top: 6rem;">
-    <div class="glass-panel" id="login-panel">
-      <h2 class="title-primary" style="font-size: 2rem;" data-i18n="host_login_title">Host Login</h2>
+  <div class="container" style="margin-top: 5.5rem;">
+
+    <!-- ── Login Card ── -->
+    <div id="login-panel" class="login-card">
+      <h2 data-i18n="host_login_title">Host Login</h2>
       <div class="form-group">
-        <label data-i18n="lbl_username">Username</label>
-        <input type="text" id="login-user" />
+        <input type="text" id="login-user" placeholder="Username" />
       </div>
       <div class="form-group">
-        <label data-i18n="lbl_password">Password</label>
-        <input type="password" id="login-pass" />
+        <input type="password" id="login-pass" placeholder="Password" />
       </div>
-      <button class="btn-primary" onclick="login()" data-i18n="btn_login">Login</button>
-      <div id="login-error" style="color:var(--danger-color); margin-top:1rem;"></div>
+      <button class="btn-primary" style="width:100%;" onclick="login()" data-i18n="btn_login">Login</button>
+      <div id="login-error" style="color:var(--danger-color); margin-top:0.75rem; font-size:0.85rem;"></div>
     </div>
 
-    <div class="glass-panel" id="app-panel" style="display: none;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h2 class="title-primary" style="font-size: 1.5rem; margin: 0;" data-i18n="host_dash_title">Host Dashboard</h2>
-          <button class="btn-primary" style="background: rgba(0,0,0,0.1); padding: 0.5rem 1rem;" id="btn-admin" onclick="toggleAdminModal()" style="display:none;" data-i18n="btn_usermgmt">User Mgmt</button>
-          <button class="btn-primary" style="background: rgba(0,0,0,0.1); padding: 0.5rem 1rem; margin-left: 0.5rem;" id="btn-logs" onclick="showLogs()" style="display:none;">Logs</button>
-          <button class="btn-primary" style="background: rgba(0,0,0,0.1); padding: 0.5rem 1rem; margin-left: 0.5rem;" onclick="logout()" data-i18n="btn_logout">Logout</button>
+    <!-- ── Dashboard ── -->
+    <div id="app-panel" class="dash" style="display:none;">
+
+      <!-- Setup -->
+      <div id="setup-section" class="setup-card">
+        <h2 data-i18n="host_dash_title">Host Dashboard</h2>
+        <p class="sub" data-i18n="setup_subtitle">Create a new broadcast session</p>
+        <div class="form-group" style="margin-bottom:1rem;">
+          <input type="text" id="event-name" placeholder="E.g., Q3 Global Townhall" data-i18n-placeholder="lbl_event_name_placeholder" style="text-align:center;">
         </div>
-      </div>
-      
-      <div id="setup-section">
-        <p class="subtitle" style="margin-bottom: 1rem;" data-i18n="setup_subtitle">Create a new broadcast session</p>
-        <div class="form-group" style="margin-bottom: 1rem;">
-          <input type="text" id="event-name" placeholder="E.g., Q3 Global Townhall" data-i18n-placeholder="lbl_event_name_placeholder" style="text-align: center;">
-        </div>
-        <button class="btn-primary" id="btn-create" onclick="createSession()" data-i18n="btn_gen_code">Generate Event Code</button>
+        <button class="btn-primary" style="width:100%;" onclick="createSession()" data-i18n="btn_gen_code">Generate Event Code</button>
       </div>
 
-      <div id="broadcast-section" style="display: none;">
-        <div style="background: rgba(0,0,0,0.03); padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center; border: 1px solid rgba(0,0,0,0.05); box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
-          <p style="color: var(--text-secondary); margin-bottom: 0.5rem; font-size: 0.9em;" data-i18n="lbl_event_code">YOUR EVENT CODE</p>
-          <h1 id="display-code" style="font-size: 3rem; letter-spacing: 4px; color: var(--accent-color);"></h1>
-          <div id="qrcode" style="display: flex; justify-content: center; margin: 1.5rem 0;"></div>
-          <p style="font-size: 0.85em; color: var(--text-secondary); margin-top: 0.5rem;" data-i18n="lbl_share_code">Share this code with participants</p>
-        </div>
+      <!-- Broadcast (hidden until session created) -->
+      <div id="broadcast-section" style="display:none;">
+        <div class="broadcast-card">
 
-        <div style="text-align: center; margin-bottom: 1rem;">
-          <button class="btn-primary" id="btn-start" onclick="startBroadcast()">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path></svg>
-            <span data-i18n="btn_start_mic">Start Microphone</span>
-          </button>
-          <button class="btn-primary btn-danger" id="btn-stop" onclick="stopBroadcast()" style="display: none;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"></rect></svg>
-            <span data-i18n="btn_stop_mic">Stop Broadcast</span>
-          </button>
-        </div>
+          <!-- QR Hero -->
+          <div class="qr-hero">
+            <div class="code-label" data-i18n="lbl_event_code">YOUR EVENT CODE</div>
+            <div class="code-value" id="display-code"></div>
+            <div class="qr-wrap"><div id="qrcode"></div></div>
+            <p class="share-hint" data-i18n="lbl_share_code">Share this code or QR with participants</p>
+          </div>
 
-        <div id="status-indicator" style="text-align: center; color: var(--text-secondary); font-size: 0.9rem; margin-top: 1rem;" data-i18n="status_ready">
-          Status: Ready to broadcast
-        </div>
+          <!-- Mic controls -->
+          <div class="mic-controls">
+            <button class="mic-btn start" id="btn-start" onclick="startBroadcast()">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line></svg>
+              <span data-i18n="btn_start_mic">Start Microphone</span>
+            </button>
+            <button class="mic-btn stop" id="btn-stop" onclick="stopBroadcast()" style="display:none;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"></rect></svg>
+              <span data-i18n="btn_stop_mic">Stop Broadcast</span>
+            </button>
+            <div class="status-line">
+              <span class="status-dot" id="status-dot"></span>
+              <span id="status-indicator" data-i18n="status_ready">Ready to broadcast</span>
+            </div>
+          </div>
+
+        </div><!-- /broadcast-card -->
       </div>
-    </div>
 
-    <!-- User Mgmt Modal -->
-    <div id="admin-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); align-items: center; justify-content: center; z-index: 2000;">
-      <div class="glass-panel" style="width: 500px; max-width: 90vw; position: relative;">
-        <h3 class="title-primary" style="font-size: 1.5rem;" data-i18n="admin_title">User Management</h3>
-        <button onclick="toggleAdminModal()" style="position: absolute; right: 1rem; top: 1rem; background: none; border: none; color: var(--text-primary); cursor: pointer; font-size: 1.5rem;">&times;</button>
-        
-        <div style="margin: 1.5rem 0; max-height: 200px; overflow-y: auto;">
-          <ul id="user-list" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem;"></ul>
-        </div>
-        
-        <hr style="border: 0; border-top: 1px solid rgba(0,0,0,0.1); margin: 1rem 0;" />
-        
-        <div style="display: flex; gap: 0.5rem;">
-          <input type="text" id="new-user" placeholder="Username" style="flex: 1;">
-          <input type="password" id="new-pass" placeholder="Password" style="flex: 1;">
-          <button class="btn-primary" onclick="createUser()" data-i18n="btn_add">Add</button>
-        </div>
+      <!-- Admin links — subtle & small -->
+      <div class="admin-links">
+        <a onclick="logout()" data-i18n="btn_logout">Logout</a>
+        <a id="link-users" onclick="toggleModal('admin-modal')" style="display:none;" data-i18n="btn_usermgmt">Users</a>
+        <a id="link-logs" onclick="toggleModal('logs-modal')" style="display:none;">Logs</a>
+      </div>
+
+    </div><!-- /dash -->
+
+  </div><!-- /container -->
+
+  <!-- ── User Management Modal ── -->
+  <div id="admin-modal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="modal-close" onclick="toggleModal('admin-modal')">&times;</button>
+      <h3 data-i18n="admin_title">User Management</h3>
+      <div style="max-height:200px; overflow-y:auto; margin-bottom:1rem;">
+        <ul id="user-list" style="list-style:none; padding:0; display:flex; flex-direction:column; gap:0.5rem;"></ul>
+      </div>
+      <hr style="border:0; border-top:1px solid rgba(0,0,0,0.08); margin:0.75rem 0;">
+      <div style="display:flex; gap:0.5rem;">
+        <input type="text" id="new-user" placeholder="Username" style="flex:1;">
+        <input type="password" id="new-pass" placeholder="Password" style="flex:1;">
+        <button class="btn-primary" onclick="createUser()" data-i18n="btn_add">Add</button>
       </div>
     </div>
   </div>
 
-  <footer class="site-footer" data-i18n="footer_copy">
-    © 2026 B-Translate. Made with ❤️ by Beykoz Üniversitesi Bilgi İşlem Direktörlüğü.
-  </footer>
+  <!-- ── Logs Modal ── -->
+  <div id="logs-modal" class="modal-overlay">
+    <div class="modal-card">
+      <button class="modal-close" onclick="toggleModal('logs-modal')">&times;</button>
+      <h3>System Logs</h3>
+      <div class="logs-box" id="logs-content">Loading...</div>
+    </div>
+  </div>
+
+  <footer class="site-footer" data-i18n="footer_copy">© 2026 B-Translate. Made with ❤️ by Beykoz Üniversitesi Bilgi İşlem Direktörlüğü.</footer>
 
   <script src="/static/lang.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -107,67 +356,48 @@
     let mediaRecorder = null;
     let socket = null;
     let autoToken = localStorage.getItem('bt_token');
-    
+
     if (autoToken) {
       document.getElementById('login-panel').style.display = 'none';
-      document.getElementById('app-panel').style.display = 'block';
-      if(localStorage.getItem('bt_role') === 'admin') {
-         document.getElementById('btn-admin').style.display = 'inline-block';
-         document.getElementById('btn-logs').style.display = 'inline-block';
+      document.getElementById('app-panel').style.display = 'flex';
+      if (localStorage.getItem('bt_role') === 'admin') {
+        document.getElementById('link-users').style.display = '';
+        document.getElementById('link-logs').style.display = '';
       }
     }
 
+    // ── Auth ──────────────────────────────────────────
     async function login() {
       const u = document.getElementById('login-user').value;
       const p = document.getElementById('login-pass').value;
-      const formData = new URLSearchParams();
-      formData.append('username', u);
-      formData.append('password', p);
-      
+      const body = new URLSearchParams(); body.append('username', u); body.append('password', p);
       try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: formData
-        });
-        if (!res.ok) throw new Error("Invalid credentials");
-        const data = await res.json();
-        localStorage.setItem('bt_token', data.access_token);
-        localStorage.setItem('bt_role', data.role);
+        const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
+        if (!res.ok) throw new Error('Invalid credentials');
+        const d = await res.json();
+        localStorage.setItem('bt_token', d.access_token);
+        localStorage.setItem('bt_role', d.role);
         location.reload();
-      } catch (err) {
-        document.getElementById('login-error').innerText = err.message;
-      }
+      } catch(e) { document.getElementById('login-error').innerText = e.message; }
+    }
+    function logout() { localStorage.removeItem('bt_token'); localStorage.removeItem('bt_role'); location.reload(); }
+
+    // ── Modals ────────────────────────────────────────
+    function toggleModal(id) {
+      const m = document.getElementById(id);
+      if (m.style.display === 'flex') { m.style.display = 'none'; return; }
+      m.style.display = 'flex';
+      if (id === 'admin-modal') loadUsers();
+      if (id === 'logs-modal') loadLogs();
     }
 
-    function logout() {
-      localStorage.removeItem('bt_token');
-      localStorage.removeItem('bt_role');
-      location.reload();
-    }
-
-    function toggleAdminModal() {
-      const modal = document.getElementById('admin-modal');
-      if (modal.style.display === 'none') {
-        modal.style.display = 'flex';
-        loadUsers();
-      } else {
-        modal.style.display = 'none';
-      }
-    }
-
-    async function showLogs() {
+    async function loadLogs() {
+      const el = document.getElementById('logs-content');
       try {
         const res = await fetch('/api/admin/logs', { headers: { 'Authorization': `Bearer ${localStorage.getItem('bt_token')}` } });
-        const data = await res.json();
-        if(data.logs) {
-           alert("SISTEM KAYITLARI:\n\n" + data.logs);
-        } else {
-           alert("Hata: " + data.error);
-        }
-      } catch(e) {
-        alert("Loglar okunamadi.");
-      }
+        const d = await res.json();
+        el.textContent = d.logs || d.error || 'No logs yet.';
+      } catch(e) { el.textContent = 'Failed to load logs.'; }
     }
 
     async function loadUsers() {
@@ -175,231 +405,129 @@
       const users = await res.json();
       const ul = document.getElementById('user-list');
       ul.innerHTML = '';
-      
-      const lang = localStorage.getItem('bt_lang') || 'en';
-      const dict = translations[lang] || translations['en'];
-
+      const dict = translations[localStorage.getItem('bt_lang') || 'en'] || translations['en'];
       users.forEach(u => {
         const li = document.createElement('li');
-        li.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: rgba(0,0,0,0.04); border-radius: 4px; border: 1px solid rgba(0,0,0,0.05);';
-        
-        let controls = '';
-        if(u.username !== 'admin') {
-          controls = `
-            <div style="display:flex; gap:0.5rem; align-items:center;">
-              <input type="password" id="pw-${u.id}" placeholder="***" style="padding:0.25rem 0.5rem; font-size:0.8rem; width:80px; box-shadow:none;">
-              <button onclick="updatePassword(${u.id})" style="background:var(--accent-color); border:none; color:white; border-radius:4px; cursor:pointer; padding: 0.25rem 0.5rem; font-size:0.8rem;">${dict.btn_upd || 'Update'}</button>
-              <button onclick="deleteUser(${u.id})" style="background:var(--danger-color); border:none; color:white; border-radius:4px; cursor:pointer; padding: 0.25rem 0.5rem; font-size:0.8rem;">${dict.btn_del || 'Del'}</button>
-            </div>
-          `;
+        li.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:rgba(0,0,0,0.03); border-radius:6px;';
+        let ctrls = '';
+        if (u.username !== 'admin') {
+          ctrls = `<div style="display:flex;gap:0.4rem;align-items:center;">
+            <input type="password" id="pw-${u.id}" placeholder="•••" style="padding:0.25rem 0.4rem;font-size:0.78rem;width:70px;box-shadow:none;">
+            <button onclick="updatePassword(${u.id})" style="background:var(--accent-color);border:none;color:white;border-radius:4px;cursor:pointer;padding:0.25rem 0.5rem;font-size:0.75rem;">${dict.btn_upd||'Upd'}</button>
+            <button onclick="deleteUser(${u.id})" style="background:var(--danger-color);border:none;color:white;border-radius:4px;cursor:pointer;padding:0.25rem 0.5rem;font-size:0.75rem;">${dict.btn_del||'Del'}</button>
+          </div>`;
         }
-        li.innerHTML = `<span style="font-weight:600; font-size: 0.9rem;">${u.username}</span> ${controls}`;
+        li.innerHTML = `<span style="font-weight:600;font-size:0.88rem;">${u.username}</span> ${ctrls}`;
         ul.appendChild(li);
       });
     }
 
     async function createUser() {
-      const u = document.getElementById('new-user').value;
-      const p = document.getElementById('new-pass').value;
-      await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('bt_token')}` },
-        body: JSON.stringify({username: u, password: p, role: 'user'})
-      });
-      document.getElementById('new-user').value = '';
-      document.getElementById('new-pass').value = '';
+      const u = document.getElementById('new-user').value, p = document.getElementById('new-pass').value;
+      await fetch('/api/users', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({username:u,password:p,role:'user'}) });
+      document.getElementById('new-user').value = ''; document.getElementById('new-pass').value = '';
       loadUsers();
     }
-
     async function deleteUser(id) {
-      if(!confirm("Are you sure?")) return;
-      await fetch(`/api/users/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('bt_token')}` }
-      });
+      if (!confirm('Are you sure?')) return;
+      await fetch(`/api/users/${id}`, { method:'DELETE', headers:{'Authorization':`Bearer ${localStorage.getItem('bt_token')}`} });
       loadUsers();
     }
-
     async function updatePassword(id) {
-      const newPw = document.getElementById(`pw-${id}`).value;
-      if(!newPw) {
-        alert("Please enter a new password");
-        return;
-      }
-      await fetch(`/api/users/${id}/password`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('bt_token')}` 
-        },
-        body: JSON.stringify({ new_password: newPw })
-      });
-      alert("Password updated");
-      loadUsers();
+      const pw = document.getElementById(`pw-${id}`).value;
+      if (!pw) return alert('Enter a new password');
+      await fetch(`/api/users/${id}/password`, { method:'PUT', headers:{'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}`}, body:JSON.stringify({new_password:pw}) });
+      alert('Password updated'); loadUsers();
     }
 
+    // ── Session ───────────────────────────────────────
     async function createSession() {
       const eName = document.getElementById('event-name').value.trim() || 'Live Event';
       try {
-        const response = await fetch('/api/sessions', {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('bt_token')}`
-          },
-          body: JSON.stringify({ source_language: 'auto', event_name: eName })
-        });
-        if (response.status === 401) {
-          logout();
-          return;
-        }
-        const data = await response.json();
-        currentEventCode = data.event_code;
-        
+        const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ source_language:'auto', event_name:eName }) });
+        if (res.status === 401) { logout(); return; }
+        const d = await res.json();
+        currentEventCode = d.event_code;
         document.getElementById('setup-section').style.display = 'none';
-        
-        // Generate QR Code
-        const joinUrl = `${window.location.origin}/participant?code=${data.event_code}`;
+
+        const joinUrl = `${location.origin}/participant?code=${d.event_code}`;
         document.getElementById('qrcode').innerHTML = '';
-        new QRCode(document.getElementById('qrcode'), {
-          text: joinUrl,
-          width: 180,
-          height: 180,
-          colorDark : "#1f2937",
-          colorLight : "transparent",
-          correctLevel : QRCode.CorrectLevel.H
-        });
-        
+        new QRCode(document.getElementById('qrcode'), { text: joinUrl, width: 200, height: 200, colorDark:'#ffffff', colorLight:'transparent', correctLevel: QRCode.CorrectLevel.H });
+
         document.getElementById('broadcast-section').style.display = 'block';
         document.getElementById('display-code').innerText = currentEventCode;
-      } catch (err) {
-        alert("Failed to create session. Is the server running?");
-      }
+      } catch(e) { alert('Failed to create session.'); }
     }
 
+    // ── Broadcast ─────────────────────────────────────
     async function startBroadcast() {
       if (!currentEventCode) return;
-
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        
-        // --- Voice Activity Detection (enhanced) ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const analyser = audioCtx.createAnalyser();
-        const source = audioCtx.createMediaStreamSource(stream);
-        source.connect(analyser);
-        analyser.fftSize = 512;
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        
-        // Track sustained voice energy across the chunk, not just single spikes
-        let voiceDetectedInChunk = false;
-        let voiceFrameCount = 0;
-        const MIN_VOICE_FRAMES = 3; // need at least 3 frames (~300ms) of voice
-        window.vadInterval = setInterval(() => {
-          analyser.getByteFrequencyData(dataArray);
-          // Focus on speech frequencies (roughly bins 4-40 for 300-3400 Hz)
-          const speechBins = dataArray.slice(4, 40);
-          const sum = speechBins.reduce((a, b) => a + b, 0);
-          const average = sum / speechBins.length;
-          if (average > 40) { // Higher threshold — ignores background hum
-            voiceFrameCount++;
-            if (voiceFrameCount >= MIN_VOICE_FRAMES) {
-              voiceDetectedInChunk = true;
-            }
-          }
-        }, 100);
-        // --------------------------------
+        const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
 
-        // Setup WebSocket
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        
-        
-        // Audio MIME type optimized for Whisper
-        let mimeType = 'audio/webm;codecs=opus';
-        if (!MediaRecorder.isTypeSupported(mimeType)) {
-          mimeType = 'audio/mp4'; 
-        }
-        
-        mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
-        
-        socket = new WebSocket(`${protocol}//${window.location.host}/ws/host/${currentEventCode}`);
-        
+        // VAD (enhanced)
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const analyser = ctx.createAnalyser();
+        ctx.createMediaStreamSource(stream).connect(analyser);
+        analyser.fftSize = 512;
+        const buf = new Uint8Array(analyser.frequencyBinCount);
+        let voiced = false, vFrames = 0;
+        window.vadInterval = setInterval(() => {
+          analyser.getByteFrequencyData(buf);
+          const speech = buf.slice(4, 40);
+          const avg = speech.reduce((a,b)=>a+b,0) / speech.length;
+          if (avg > 40) { vFrames++; if (vFrames >= 3) voiced = true; }
+        }, 100);
+
+        let mime = 'audio/webm;codecs=opus';
+        if (!MediaRecorder.isTypeSupported(mime)) mime = 'audio/mp4';
+        mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}`);
+
         socket.onopen = () => {
           const dict = translations[localStorage.getItem('bt_lang') || 'en'];
           document.getElementById('status-indicator').innerText = dict.status_broadcasting;
+          document.getElementById('status-dot').classList.add('live');
           document.getElementById('btn-start').style.display = 'none';
           document.getElementById('btn-stop').style.display = 'inline-flex';
-          document.getElementById('display-code').parentElement.classList.add('recording');
-          
-          // To get standalone decodable files for Whisper, we must start/stop periodically
+          document.querySelector('.qr-hero').classList.add('recording');
+
           mediaRecorder.start();
           window.recordInterval = setInterval(() => {
-            if(mediaRecorder.state === 'recording') {
-              mediaRecorder.stop();
-              mediaRecorder.start();
-            }
+            if (mediaRecorder.state === 'recording') { mediaRecorder.stop(); mediaRecorder.start(); }
           }, 3000);
 
-          // Keep connection alive against Render idle timeout (90s)
-          window.pingIntervalHost = setInterval(() => {
-            if (socket.readyState === WebSocket.OPEN) {
-              socket.send(new Uint8Array([0]).buffer);
-            }
+          window.pingInterval = setInterval(() => {
+            if (socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);
           }, 25000);
-          
-          mediaRecorder.ondataavailable = async (event) => {
-            if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-              if (voiceDetectedInChunk && event.data.size > 5000) {
-                const buffer = await event.data.arrayBuffer();
-                socket.send(buffer);
-              } else {
-                 console.log(`Sessizlik atlandı (VAD=${voiceDetectedInChunk}, size=${event.data.size}B).`);
+
+          mediaRecorder.ondataavailable = async (e) => {
+            if (e.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+              if (voiced && e.data.size > 5000) {
+                socket.send(await e.data.arrayBuffer());
               }
-              // Reset counters for next chunk
-              voiceDetectedInChunk = false;
-              voiceFrameCount = 0;
+              voiced = false; vFrames = 0;
             }
           };
         };
-
-        socket.onerror = (e) => {
-          const dict = translations[localStorage.getItem('bt_lang') || 'en'];
-          document.getElementById('status-indicator').innerText = dict.status_error;
-          stopBroadcast();
-        };
-
-        socket.onclose = () => {
-          stopBroadcast();
-        };
-
-      } catch (err) {
-        alert("Microphone access denied or not available.");
-        console.error(err);
-      }
+        socket.onerror = () => stopBroadcast();
+        socket.onclose = () => stopBroadcast();
+      } catch(e) { alert('Microphone access denied.'); console.error(e); }
     }
 
     function stopBroadcast() {
-      if (window.recordInterval) {
-        clearInterval(window.recordInterval);
-      }
-      if (window.pingIntervalHost) {
-        clearInterval(window.pingIntervalHost);
-      }
-      if (window.vadInterval) {
-        clearInterval(window.vadInterval);
-      }
-      if (mediaRecorder) {
-        if(mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-      }
-      if (socket) {
-        socket.close();
-      }
+      [window.recordInterval, window.pingInterval, window.vadInterval].forEach(i => clearInterval(i));
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop()); }
+      if (socket) socket.close();
       const dict = translations[localStorage.getItem('bt_lang') || 'en'];
       document.getElementById('status-indicator').innerText = dict.status_stopped;
+      document.getElementById('status-dot').classList.remove('live');
       document.getElementById('btn-start').style.display = 'inline-flex';
       document.getElementById('btn-stop').style.display = 'none';
-      document.getElementById('display-code').parentElement.classList.remove('recording');
+      const hero = document.querySelector('.qr-hero');
+      if (hero) hero.classList.remove('recording');
     }
   </script>
 </body>
