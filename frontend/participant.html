@@ -6,358 +6,280 @@
   <title>Live Feed - btranslate</title>
   <link rel="stylesheet" href="/static/styles.css">
   <style>
-    body {
-      justify-content: flex-start;
-    }
+    body { justify-content: flex-start; }
 
-    /* ── Audio Hint Toast ──────────────────────────────── */
-    .audio-toast {
-      position: fixed;
-      bottom: 1.5rem;
-      left: 50%;
-      transform: translateX(-50%) translateY(120px);
-      background: #1f2937;
-      color: white;
-      border-radius: 14px;
-      padding: 1rem 1.25rem;
-      max-width: 360px;
-      width: calc(100% - 2rem);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-      z-index: 500;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
-    }
-    .audio-toast.show {
-      transform: translateX(-50%) translateY(0);
-    }
-    .audio-toast.hidden {
-      display: none !important;
-    }
-    .audio-toast-top {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-    }
-    .audio-toast-icon {
-      font-size: 1.5rem;
-      flex-shrink: 0;
-      margin-top: 1px;
-    }
-    .audio-toast-body h4 {
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: white;
-      margin-bottom: 0.2rem;
-    }
-    .audio-toast-body p {
-      font-size: 0.8rem;
-      color: rgba(255,255,255,0.7);
-      line-height: 1.5;
-    }
-    .audio-toast-warning {
+    /* ── Header Bar ─────────────────────────────────── */
+    .feed-topbar {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
       gap: 0.5rem;
-      background: rgba(245,158,11,0.15);
-      border: 1px solid rgba(245,158,11,0.4);
-      border-radius: 8px;
-      padding: 0.5rem 0.75rem;
-      font-size: 0.78rem;
-      color: #fbbf24;
-      line-height: 1.4;
-    }
-    .audio-toast-actions {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .toast-btn-enable {
-      flex: 1;
-      background: #7A232C;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 0.55rem 1rem;
-      font-size: 0.88rem;
-      font-weight: 600;
-      font-family: 'Inter', sans-serif;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .toast-btn-enable:hover { background: #5A1920; }
-    .toast-btn-dismiss {
-      background: rgba(255,255,255,0.1);
-      color: rgba(255,255,255,0.7);
-      border: none;
-      border-radius: 8px;
-      padding: 0.55rem 0.9rem;
-      font-size: 0.88rem;
-      font-family: 'Inter', sans-serif;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .toast-btn-dismiss:hover { background: rgba(255,255,255,0.15); }
-
-    /* ── Mode Selection Overlay ───────────────────────── */
-    .mode-overlay {
-      background: var(--surface-color);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 3.5rem 2rem;
-      margin-top: 2rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.07);
-      animation: fadeInDown 0.5s ease-out forwards;
-    }
-    .mode-overlay h2 {
-      font-size: 1.8rem;
       margin-bottom: 0.5rem;
     }
-    .mode-overlay p {
-      color: var(--text-secondary);
-      margin-bottom: 2rem;
-      font-size: 0.95rem;
-      max-width: 380px;
-      line-height: 1.6;
-    }
-    .mode-buttons {
+    .feed-topbar-left {
       display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .mode-btn {
-      display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 0.6rem;
-      padding: 1.5rem 2.5rem;
-      border: 2px solid transparent;
-      border-radius: 12px;
-      cursor: pointer;
-      font-family: 'Inter', sans-serif;
-      font-size: 1rem;
-      font-weight: 600;
-      transition: all 0.2s;
-      min-width: 150px;
-    }
-    .mode-btn svg { width: 32px; height: 32px; }
-    .mode-btn.text-mode {
-      background: #1e3a8a;
-      color: white;
-      box-shadow: 0 4px 12px rgba(30,58,138,0.3);
-    }
-    .mode-btn.text-mode:hover { background: #1e40af; transform: translateY(-2px); }
-    .mode-btn.audio-mode {
-      background: #7A232C;
-      color: white;
-      box-shadow: 0 4px 12px rgba(122,35,44,0.3);
-    }
-    .mode-btn.audio-mode:hover { background: #5A1920; transform: translateY(-2px); }
-
-    /* ── Live Interface ───────────────────────────────── */
-    .live-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
       gap: 0.75rem;
-      margin-bottom: 0.75rem;
     }
-    .live-header-left h2 {
-      font-size: 1.6rem;
+    .feed-topbar-left h2 {
+      font-size: 1.5rem;
       margin: 0;
       color: var(--accent-color);
     }
-    .live-header-left p {
-      margin: 0.15rem 0 0;
+    .event-name {
+      font-size: 0.9rem;
       color: var(--text-secondary);
-      font-size: 0.95rem;
       font-weight: 500;
     }
-    .live-header-right {
+    .feed-topbar-right {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
+      gap: 0.6rem;
     }
 
-    /* Connection badge */
-    .conn-badge {
-      display: flex;
+    /* Connection pill */
+    .conn-pill {
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-size: 0.85rem;
+      gap: 5px;
+      font-size: 0.78rem;
       color: var(--text-secondary);
       background: rgba(0,0,0,0.04);
       border: 1px solid var(--border-color);
       border-radius: 20px;
-      padding: 0.3rem 0.75rem;
+      padding: 0.25rem 0.65rem;
+      white-space: nowrap;
     }
-    .conn-dot {
-      width: 8px;
-      height: 8px;
+    .conn-pill .dot {
+      width: 7px; height: 7px;
       border-radius: 50%;
       background: var(--text-secondary);
-      flex-shrink: 0;
+      transition: all 0.3s;
+    }
+    .conn-pill .dot.live {
+      background: #059669;
+      box-shadow: 0 0 6px #059669;
     }
 
-    /* Language selector */
+    /* Lang select */
     #lang-select {
-      font-size: 0.9rem;
-      padding: 0.4rem 0.6rem;
-      border-radius: 8px;
+      font-size: 0.85rem;
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
       background: white;
       border: 1px solid var(--border-color);
       cursor: pointer;
     }
 
-    /* Disclaimer */
-    .disclaimer-bar {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.5rem;
-      background: rgba(255,230,230,0.5);
-      border-left: 3px solid var(--danger-color);
-      padding: 0.6rem 0.9rem;
-      margin-bottom: 0.75rem;
-      border-radius: 6px;
-      font-size: 0.82rem;
+    /* Audio toggle button — small pill in the header */
+    .audio-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0.3rem 0.7rem;
+      border-radius: 20px;
+      border: none;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all 0.25s;
+      white-space: nowrap;
+    }
+    .audio-toggle.off {
+      background: rgba(0,0,0,0.06);
       color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+    .audio-toggle.off:hover { background: rgba(0,0,0,0.1); }
+    .audio-toggle.on {
+      background: #059669;
+      color: white;
+      animation: subtlePulse 2s infinite;
+    }
+    .audio-toggle.on:hover { background: #047857; }
+    @keyframes subtlePulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(5,150,105,0.4); }
+      50%     { box-shadow: 0 0 0 4px rgba(5,150,105,0); }
+    }
+
+    /* Disclaimer */
+    .ai-disclaimer {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      background: rgba(255,230,230,0.4);
+      border-left: 3px solid var(--danger-color);
+      padding: 0.5rem 0.8rem;
+      border-radius: 5px;
+      margin-bottom: 0.5rem;
       line-height: 1.4;
     }
 
-    /* Audio controls panel */
-    .audio-panel {
-      display: none;
-      background: white;
+    /* ── Feed ────────────────────────────────────────── */
+    .feed-box {
+      flex: 1;
+      min-height: 50vh;
+      max-height: 65vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      padding: 0.75rem;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.55);
       border: 1px solid var(--border-color);
+      box-shadow: inset 0 1px 6px rgba(0,0,0,0.03);
+    }
+    .feed-empty {
+      margin: auto;
+      text-align: center;
+      color: var(--text-secondary);
+      opacity: 0.45;
+      font-size: 0.9rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .feed-empty svg { opacity: 0.3; }
+
+    /* Individual message bubble */
+    .msg {
+      animation: slideUp 0.3s ease-out forwards;
+      opacity: 0;
+      padding: 0.75rem 0.9rem;
       border-radius: 10px;
-      padding: 0.7rem 1rem;
-      margin-bottom: 0.75rem;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 0.75rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      background: white;
+      border-left: 3px solid var(--accent-color);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
-    .audio-panel-label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.88rem;
+    .msg .src {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      font-style: italic;
+      margin-bottom: 0.25rem;
+    }
+    .msg .tgt {
+      font-size: 1.1rem;
       font-weight: 600;
-      color: var(--text-secondary);
+      color: var(--text-primary);
+      line-height: 1.55;
     }
-    .audio-live-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: #059669;
-      box-shadow: 0 0 6px #059669;
-      animation: pulse-green 1.5s infinite;
+    .msg .tgt.rtl {
+      direction: rtl;
+      text-align: right;
+      font-family: Arial, sans-serif;
     }
-    @keyframes pulse-green {
-      0%,100% { box-shadow: 0 0 4px #059669; }
-      50%      { box-shadow: 0 0 10px #059669; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
-    .audio-controls-right {
+
+    /* ── Toast ───────────────────────────────────────── */
+    .toast-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      backdrop-filter: blur(3px);
+      -webkit-backdrop-filter: blur(3px);
+      z-index: 800;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 2rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .toast-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .toast-card {
+      background: #1f2937;
+      color: white;
+      border-radius: 16px;
+      padding: 1.2rem 1.4rem;
+      max-width: 380px;
+      width: calc(100% - 2rem);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+      transform: translateY(30px);
+      transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .toast-overlay.visible .toast-card {
+      transform: translateY(0);
+    }
+    .toast-header {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      flex-wrap: wrap;
+      gap: 0.7rem;
     }
-    .volume-group {
+    .toast-header .icon { font-size: 1.6rem; }
+    .toast-header h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      margin: 0;
+    }
+    .toast-desc {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.5;
+    }
+    .toast-warn {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
+      background: rgba(251,191,36,0.12);
+      border: 1px solid rgba(251,191,36,0.35);
+      border-radius: 8px;
+      padding: 0.5rem 0.7rem;
+      font-size: 0.78rem;
+      color: #fbbf24;
+      line-height: 1.4;
     }
-    .volume-group input[type=range] {
-      width: 90px;
-      accent-color: #7A232C;
-      padding: 0;
-      box-shadow: none;
-      border: none;
-    }
-    .tts-btn {
+    .toast-btns {
       display: flex;
-      align-items: center;
-      gap: 5px;
-      padding: 0.4rem 0.9rem;
+      gap: 0.5rem;
+    }
+    .toast-btns button {
+      flex: 1;
+      padding: 0.6rem;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       font-size: 0.88rem;
       font-weight: 600;
       font-family: 'Inter', sans-serif;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
+      transition: all 0.2s;
     }
-    .tts-btn:hover { transform: translateY(-1px); }
-    .tts-btn.play  { background: #1e3a8a; color: white; }
-    .tts-btn.stop  { background: #7A232C; color: white; }
+    .btn-enable {
+      background: #7A232C;
+      color: white;
+    }
+    .btn-enable:hover { background: #5A1920; }
+    .btn-skip {
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.65);
+    }
+    .btn-skip:hover { background: rgba(255,255,255,0.14); }
 
-    /* Feed container */
-    .feed-container {
-      height: 58vh;
-      min-height: 260px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-      padding: 1rem;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.6);
-      border: 1px solid var(--border-color);
-      box-shadow: inset 0 2px 10px rgba(0,0,0,0.03);
-    }
-    .wait-msg {
-      margin: auto;
-      text-align: center;
-      color: var(--text-secondary);
-      opacity: 0.5;
-      font-size: 0.95rem;
-    }
-    .feed-item {
-      animation: fadeIn 0.35s ease-out forwards;
-      opacity: 0;
-      transform: translateY(8px);
-      padding: 0.85rem 1rem;
-      border-radius: 10px;
-      background: white;
-      border-left: 4px solid var(--accent-color);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-    .feed-item .orig-text {
-      font-size: 0.82rem;
-      color: var(--text-secondary);
-      margin-bottom: 0.35rem;
-      font-style: italic;
-    }
-    .feed-item .trans-text {
-      font-size: 1.15rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      line-height: 1.5;
-    }
-
-    /* Mobile */
+    /* ── Mobile ──────────────────────────────────────── */
     @media (max-width: 600px) {
-      .live-header { flex-direction: column; align-items: flex-start; }
-      .live-header-right { width: 100%; justify-content: space-between; }
-      .audio-panel { flex-direction: column; align-items: flex-start; }
-      .audio-controls-right { width: 100%; justify-content: space-between; }
-      .feed-container { height: 52vh; }
-      .mode-btn { min-width: 120px; padding: 1.2rem 1.5rem; }
+      .feed-topbar { flex-direction: column; align-items: flex-start; }
+      .feed-topbar-right { width: 100%; justify-content: space-between; }
+      .feed-box { max-height: 55vh; }
+      .toast-card { max-width: 100%; }
     }
   </style>
 </head>
-<body style="margin-top: 0;">
+<body style="margin-top:0;">
 
-  <!-- Navbar -->
   <nav class="navbar">
     <a href="/" class="nav-brand" data-i18n="nav_title">B-Translate</a>
     <div class="lang-switcher">
@@ -367,311 +289,221 @@
     </div>
   </nav>
 
-  <div class="container" style="max-width: 860px; margin-top: 5.5rem;">
+  <div class="container" style="max-width:860px; margin-top:5.5rem;">
 
-    <!-- ── Main Live Interface ── -->
-    <div id="main-interface">
-
-      <!-- Header row -->
-      <div class="live-header">
-        <div class="live-header-left">
-          <h2 data-i18n="part_feed_title">Live Feed</h2>
-          <p id="display-event-name"></p>
-        </div>
-        <div class="live-header-right">
-          <div class="conn-badge">
-            <span class="conn-dot" id="conn-dot"></span>
-            <span id="status-text" data-i18n="status_disconnected">Disconnected</span>
-          </div>
-          <select id="lang-select" onchange="changeLanguage()">
-            <option value="en">🇬🇧 English</option>
-            <option value="tr">🇹🇷 Turkish</option>
-            <option value="de">🇩🇪 German</option>
-            <option value="fr">🇫🇷 French</option>
-            <option value="es">🇪🇸 Spanish</option>
-            <option value="ar">🇸🇦 Arabic</option>
-            <option value="ur">🇵🇰 Urdu</option>
-            <option value="zh">🇨🇳 Chinese</option>
-            <option value="ja">🇯🇵 Japanese</option>
-          </select>
-        </div>
+    <!-- Top bar -->
+    <div class="feed-topbar">
+      <div class="feed-topbar-left">
+        <h2 data-i18n="part_feed_title">Live Feed</h2>
+        <span class="event-name" id="display-event-name"></span>
       </div>
-
-      <!-- Disclaimer -->
-      <div class="disclaimer-bar" data-i18n="disclaimer">
-        ⚠️ AI-powered translation — may contain errors.
+      <div class="feed-topbar-right">
+        <span class="conn-pill">
+          <span class="dot" id="conn-dot"></span>
+          <span id="status-text" data-i18n="status_disconnected">Disconnected</span>
+        </span>
+        <select id="lang-select" onchange="changeLanguage()">
+          <option value="en">🇬🇧 English</option>
+          <option value="tr">🇹🇷 Turkish</option>
+          <option value="de">🇩🇪 German</option>
+          <option value="fr">🇫🇷 French</option>
+          <option value="es">🇪🇸 Spanish</option>
+          <option value="ar">🇸🇦 Arabic</option>
+          <option value="ur">🇵🇰 Urdu</option>
+          <option value="zh">🇨🇳 Chinese</option>
+          <option value="ja">🇯🇵 Japanese</option>
+        </select>
+        <button class="audio-toggle off" id="audio-btn" onclick="toggleAudio()">
+          🔇 <span id="audio-btn-label" data-i18n="btn_audio_off">Audio Off</span>
+        </button>
       </div>
+    </div>
 
-      <!-- Audio controls (audio mode only) -->
-      <div id="audio-controls-panel" class="audio-panel">
-        <div class="audio-panel-label">
-          <span class="audio-live-dot"></span>
-          <span data-i18n="lbl_audio_enabled">Audio Enabled</span>
-        </div>
-        <div class="audio-controls-right">
-          <div class="volume-group">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-            <input type="range" id="tts-volume" min="0" max="1" step="0.05" value="1" oninput="updateVolume(this.value)">
-          </div>
-          <div style="display:flex; gap:0.4rem;">
-            <button id="btn-play" class="tts-btn play" onclick="resumeAudio()">
-              ▶ <span data-i18n="btn_play">Play</span>
-            </button>
-            <button id="btn-stop" class="tts-btn stop" onclick="stopAudio()">
-              ⏹ <span data-i18n="btn_stop">Stop</span>
-            </button>
-          </div>
-        </div>
+    <!-- Disclaimer -->
+    <div class="ai-disclaimer" data-i18n="disclaimer">⚠️ AI-powered translation — may contain errors.</div>
+
+    <!-- Feed -->
+    <div class="feed-box" id="feed">
+      <div class="feed-empty" id="wait-msg">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span data-i18n="waiting_msg">Waiting for transmission...</span>
       </div>
+    </div>
 
-      <!-- Feed -->
-      <div class="feed-container" id="feed">
-        <div class="wait-msg" id="wait-msg" data-i18n="waiting_msg">Waiting for transmission...</div>
-      </div>
-
-    </div><!-- /main-interface -->
   </div>
 
-  <!-- ── Audio Hint Toast ── -->
-  <div id="audio-toast" class="audio-toast" role="dialog" aria-live="polite">
-    <div class="audio-toast-top">
-      <div class="audio-toast-icon">🎙️</div>
-      <div class="audio-toast-body">
+  <!-- Audio Toast -->
+  <div id="toast-overlay" class="toast-overlay">
+    <div class="toast-card">
+      <div class="toast-header">
+        <span class="icon">🎧</span>
         <h4 data-i18n="toast_audio_title">Enable Audio Narration?</h4>
-        <p data-i18n="toast_audio_desc">Translations can be read aloud as they arrive. You can mute anytime.</p>
       </div>
-    </div>
-    <div class="audio-toast-warning">
-      🎧 <span data-i18n="toast_audio_warn">Make sure your headphones are on before enabling audio to avoid disturbing others.</span>
-    </div>
-    <div class="audio-toast-actions">
-      <button class="toast-btn-enable" onclick="enableAudioFromToast()" data-i18n="toast_btn_enable">Enable Audio</button>
-      <button class="toast-btn-dismiss" onclick="dismissToast()" data-i18n="toast_btn_dismiss">No Thanks</button>
+      <p class="toast-desc" data-i18n="toast_audio_desc">Translations can be read aloud as they arrive. You can toggle audio on/off anytime.</p>
+      <div class="toast-warn">
+        ⚠️ <span data-i18n="toast_audio_warn">Make sure your headphones are on before enabling audio to avoid disturbing others.</span>
+      </div>
+      <div class="toast-btns">
+        <button class="btn-enable" onclick="enableAudio()" data-i18n="toast_btn_enable">🔊 Enable Audio</button>
+        <button class="btn-skip" onclick="closeToast()" data-i18n="toast_btn_dismiss">No Thanks</button>
+      </div>
     </div>
   </div>
 
-  <footer class="site-footer" data-i18n="footer_copy">
-    © 2026 B-Translate. Made with ❤️ by Beykoz Üniversitesi Bilgi İşlem Direktörlüğü.
-  </footer>
+  <footer class="site-footer" data-i18n="footer_copy">© 2026 B-Translate. Made with ❤️ by Beykoz Üniversitesi Bilgi İşlem Direktörlüğü.</footer>
 
   <script src="/static/lang.js"></script>
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const eventCode = urlParams.get('code');
     const feed = document.getElementById('feed');
-    let socket;
-    let currentLang = 'en';
+    let socket, currentLang = 'en';
+    let audioOn = false;
 
-    async function initParticipant() {
-      if (!eventCode) {
-        alert('Etkinlik kodu eksik. Lütfen geçerli bir bağlantı kullanın.');
-        window.location.href = '/';
-        return;
-      }
-
+    // ── Init ──────────────────────────────────────────────────────────────
+    async function init() {
+      if (!eventCode) { alert('Etkinlik kodu eksik.'); window.location.href = '/'; return; }
       try {
         const res = await fetch(`/api/sessions/${eventCode}`);
         if (res.ok) {
-          const data = await res.json();
-          document.getElementById('display-event-name').innerText = data.event_name;
+          const d = await res.json();
+          document.getElementById('display-event-name').innerText = d.event_name;
         } else {
           document.getElementById('display-event-name').innerText = eventCode;
         }
       } catch(e) { console.error(e); }
 
-      const savedLang = localStorage.getItem('bt_target_lang');
-      if (savedLang) {
-        currentLang = savedLang;
-        document.getElementById('lang-select').value = savedLang;
-      }
+      const saved = localStorage.getItem('bt_target_lang');
+      if (saved) { currentLang = saved; document.getElementById('lang-select').value = saved; }
 
-      connectWebSocket(currentLang);
+      connectWS(currentLang);
+      // Show audio toast after page settles
+      setTimeout(() => { document.getElementById('toast-overlay').classList.add('visible'); }, 2000);
     }
 
-    function connectWebSocket(lang) {
+    // ── WebSocket ─────────────────────────────────────────────────────────
+    function connectWS(lang) {
       if (socket) socket.close();
-
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      socket = new WebSocket(`${protocol}//${window.location.host}/ws/participant/${eventCode}/${lang}`);
-
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      socket = new WebSocket(`${proto}//${location.host}/ws/participant/${eventCode}/${lang}`);
       const dot = document.getElementById('conn-dot');
-      const statusText = document.getElementById('status-text');
+      const st  = document.getElementById('status-text');
 
       socket.onopen = () => {
-        dot.style.background = 'var(--success-color)';
-        dot.style.boxShadow = '0 0 6px var(--success-color)';
+        dot.classList.add('live');
         const dict = translations[localStorage.getItem('bt_lang') || 'en'];
-        statusText.innerText = `${dict.status_connected} ${eventCode}`;
-
-        const waitMsg = document.getElementById('wait-msg');
-        if (waitMsg) waitMsg.remove();
-
-        window.pingIntervalPart = setInterval(() => {
-          if (socket.readyState === WebSocket.OPEN) socket.send('PING');
-        }, 25000);
+        st.innerText = `${dict.status_connected} ${eventCode}`;
+        const w = document.getElementById('wait-msg'); if (w) w.remove();
+        window._ping = setInterval(() => { if (socket.readyState === 1) socket.send('PING'); }, 25000);
       };
-
-      socket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        appendFeedItem(data.original, data.translated);
-        if (window.btMode === 'audio') playTTS(data.translated, currentLang);
+      socket.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+        addMsg(d.original, d.translated);
+        if (audioOn) speak(d.translated, currentLang);
       };
-
       socket.onclose = () => {
-        dot.style.background = 'var(--danger-color)';
-        dot.style.boxShadow = 'none';
+        dot.classList.remove('live');
         const dict = translations[localStorage.getItem('bt_lang') || 'en'];
-        statusText.innerText = dict.status_disconnected;
-        if (window.pingIntervalPart) clearInterval(window.pingIntervalPart);
+        st.innerText = dict.status_disconnected;
+        clearInterval(window._ping);
       };
-
-      socket.onerror = (err) => console.error('WS error:', err);
+      socket.onerror = (err) => console.error('WS:', err);
     }
 
-    function appendFeedItem(originalText, translatedText) {
-      const item = document.createElement('div');
-      item.className = 'feed-item';
-
-      const orig = document.createElement('div');
-      orig.className = 'orig-text';
-      orig.setAttribute('translate', 'no');
-      orig.innerText = originalText;
-
-      const trans = document.createElement('div');
-      trans.className = 'trans-text';
-      trans.innerText = translatedText;
-
-      if (currentLang === 'ar' || currentLang === 'ur') {
-        trans.style.direction = 'rtl';
-        trans.style.textAlign = 'right';
-        trans.style.fontFamily = 'Arial, sans-serif';
-      }
-
-      item.appendChild(orig);
-      item.appendChild(trans);
-      feed.appendChild(item);
-
+    // ── Feed ──────────────────────────────────────────────────────────────
+    function addMsg(orig, translated) {
+      const el = document.createElement('div');
+      el.className = 'msg';
+      const isRTL = currentLang === 'ar' || currentLang === 'ur';
+      el.innerHTML = `
+        <div class="src" translate="no">${esc(orig)}</div>
+        <div class="tgt ${isRTL ? 'rtl' : ''}">${esc(translated)}</div>
+      `;
+      feed.appendChild(el);
       feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
     }
+    function esc(s) { const d = document.createElement('div'); d.innerText = s; return d.innerHTML; }
 
     function changeLanguage() {
       currentLang = document.getElementById('lang-select').value;
       localStorage.setItem('bt_target_lang', currentLang);
-      connectWebSocket(currentLang);
+      connectWS(currentLang);
     }
 
-    let isTTSMuted = false;
-    let ttsVolume = 1.0;
-
-    // Audio is OFF by default — toast will offer to enable it
-    function initAudioMode() {
-      window.btMode = 'audio';
-      isTTSMuted = true; // start muted
-      document.getElementById('audio-controls-panel').style.display = 'flex';
-      // Show toast after a short delay so page settles first
-      setTimeout(showAudioToast, 1800);
+    // ── Audio toggle (single button) ──────────────────────────────────────
+    function toggleAudio() {
+      if (!audioOn) {
+        // Turning ON — need user gesture to unlock TTS
+        const primer = new SpeechSynthesisUtterance('');
+        speechSynthesis.speak(primer);
+        audioOn = true;
+        updateAudioBtn();
+      } else {
+        audioOn = false;
+        speechSynthesis.cancel();
+        updateAudioBtn();
+      }
     }
 
-    function showAudioToast() {
-      document.getElementById('audio-toast').classList.add('show');
+    function updateAudioBtn() {
+      const btn = document.getElementById('audio-btn');
+      const lbl = document.getElementById('audio-btn-label');
+      const dict = translations[localStorage.getItem('bt_lang') || 'en'];
+      if (audioOn) {
+        btn.className = 'audio-toggle on';
+        btn.innerHTML = '🔊 <span id="audio-btn-label">' + (dict.btn_audio_on || 'Audio On') + '</span>';
+      } else {
+        btn.className = 'audio-toggle off';
+        btn.innerHTML = '🔇 <span id="audio-btn-label">' + (dict.btn_audio_off || 'Audio Off') + '</span>';
+      }
     }
 
-    function dismissToast() {
-      const toast = document.getElementById('audio-toast');
-      toast.classList.remove('show');
-      // After slide-out animation finishes, hide completely
-      setTimeout(() => { toast.classList.add('hidden'); }, 450);
-    }
-
-    function enableAudioFromToast() {
-      // Unlock speech synthesis (requires user gesture — this click counts)
+    // ── Toast ─────────────────────────────────────────────────────────────
+    function enableAudio() {
       const primer = new SpeechSynthesisUtterance('');
-      window.speechSynthesis.speak(primer);
-      isTTSMuted = false;
-      document.getElementById('btn-play').style.opacity = '1';
-      document.getElementById('btn-stop').style.opacity = '0.55';
-      dismissToast();
+      speechSynthesis.speak(primer);
+      audioOn = true;
+      updateAudioBtn();
+      closeToast();
+    }
+    function closeToast() {
+      document.getElementById('toast-overlay').classList.remove('visible');
     }
 
-    function resumeAudio() {
-      isTTSMuted = false;
-      document.getElementById('btn-play').style.opacity = '1';
-      document.getElementById('btn-stop').style.opacity = '0.55';
-    }
-
-    function stopAudio() {
-      isTTSMuted = true;
-      document.getElementById('btn-play').style.opacity = '0.55';
-      document.getElementById('btn-stop').style.opacity = '1';
-      window.speechSynthesis.cancel();
-    }
-
-    function updateVolume(val) {
-      ttsVolume = parseFloat(val);
-    }
-
-    function playTTS(text, lang) {
-      if (isTTSMuted) return;
+    // ── TTS engine ────────────────────────────────────────────────────────
+    function speak(text, lang) {
       if (!('speechSynthesis' in window)) return;
-
       const msg = new SpeechSynthesisUtterance(text);
-      const codeMap = {
-        en: 'en-US', tr: 'tr-TR', de: 'de-DE', fr: 'fr-FR',
-        es: 'es-ES', ar: 'ar-SA', ur: 'ur-PK', zh: 'zh-CN', ja: 'ja-JP'
-      };
-      const targetLocale = (codeMap[lang] || lang).substring(0, 2);
-      msg.lang   = codeMap[lang] || lang;
-      msg.rate   = 0.95;
-      msg.volume = ttsVolume;
+      const map = { en:'en-US', tr:'tr-TR', de:'de-DE', fr:'fr-FR', es:'es-ES', ar:'ar-SA', ur:'ur-PK', zh:'zh-CN', ja:'ja-JP' };
+      const locale = map[lang] || lang;
+      msg.lang = locale;
+      msg.rate = 0.95;
 
       const voices = speechSynthesis.getVoices();
-      let langVoices = voices.filter(v =>
-        v.lang.startsWith(targetLocale) || v.lang.replace('-', '_').startsWith(targetLocale)
-      );
+      const prefix = locale.substring(0, 2);
+      let pool = voices.filter(v => v.lang.startsWith(prefix));
 
-      // Extended fallbacks for Arabic / Urdu
-      if (lang === 'ur' && langVoices.length === 0)
-        langVoices = voices.filter(v => v.lang.startsWith('hi') || v.name.includes('Urdu'));
-      if (lang === 'ar' && langVoices.length === 0)
-        langVoices = voices.filter(v => v.name.includes('Arabic') || v.name.includes('العربية'));
+      // Fallbacks for Arabic / Urdu
+      if (lang === 'ur' && !pool.length) pool = voices.filter(v => v.lang.startsWith('hi') || v.name.includes('Urdu'));
+      if (lang === 'ar' && !pool.length) pool = voices.filter(v => v.name.includes('Arabic') || v.name.includes('العربية'));
 
-      const preferredNames = [
-        'Natural', 'Female', 'Google Türkçe', 'Google US English',
-        'Google UK English Female', 'Yelda', 'Emel', 'Zira', 'Tessa',
-        'Samantha', 'Victoria', 'Maha', 'Laila', 'Tarik', 'Maged',
-        'Hoda', 'Naayf', 'Google'
-      ];
-
-      let selectedVoice = null;
-      for (const kw of preferredNames) {
-        const found = langVoices.find(v => v.name.includes(kw) || v.name.includes('العربية'));
-        if (found) { selectedVoice = found; break; }
+      const preferred = ['Natural','Female','Google','Yelda','Emel','Zira','Samantha','Tessa','Victoria','Maha','Laila','Hoda'];
+      let voice = null;
+      for (const kw of preferred) {
+        voice = pool.find(v => v.name.includes(kw));
+        if (voice) break;
       }
-      if (!selectedVoice && langVoices.length > 0) {
-        selectedVoice = langVoices.find(v =>
-          !v.name.toLowerCase().includes('tolga') &&
-          !v.name.toLowerCase().includes('cem')
-        ) || langVoices[0];
-      }
-      if (selectedVoice) msg.voice = selectedVoice;
-      else console.warn(`[TTS] No voice found for '${lang}'.`);
+      if (!voice && pool.length) voice = pool[0];
+      if (voice) msg.voice = voice;
 
-      window.speechSynthesis.speak(msg);
+      speechSynthesis.speak(msg);
     }
 
+    // ── Boot ──────────────────────────────────────────────────────────────
     document.addEventListener('DOMContentLoaded', () => {
       if ('speechSynthesis' in window) speechSynthesis.getVoices();
-      initAudioMode();
-      initParticipant();
+      init();
     });
-
-    // Unlock speech synthesis on first user interaction
-    document.addEventListener('click', () => {
-      if (window.btMode === 'audio' && window.speechSynthesis) {
-        const primer = new SpeechSynthesisUtterance('');
-        window.speechSynthesis.speak(primer);
-      }
-    }, { once: true });
   </script>
 </body>
 </html>
