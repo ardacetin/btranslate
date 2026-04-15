@@ -51,7 +51,7 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
             print("[GATE] Whisper returned zero segments — skipped")
             return ""
 
-        avg_no_speech = sum(s.get("no_speech_prob", 0) for s in segments) / len(segments)
+        avg_no_speech = sum(getattr(s, 'no_speech_prob', 0) for s in segments) / len(segments)
         if avg_no_speech > 0.5:
             print(f"[GATE] High no_speech_prob ({avg_no_speech:.2f}) — skipped")
             return ""

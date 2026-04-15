@@ -449,13 +449,13 @@
         const d = await res.json();
         currentEventCode = d.event_code;
         document.getElementById('setup-section').style.display = 'none';
-
-        const joinUrl = `${location.origin}/participant?code=${d.event_code}`;
-        document.getElementById('qrcode').innerHTML = '';
-        new QRCode(document.getElementById('qrcode'), { text: joinUrl, width: 200, height: 200, colorDark:'#ffffff', colorLight:'transparent', correctLevel: QRCode.CorrectLevel.H });
-
         document.getElementById('broadcast-section').style.display = 'block';
         document.getElementById('display-code').innerText = currentEventCode;
+
+        // Generate QR after container is visible
+        const joinUrl = `${location.origin}/participant?code=${d.event_code}`;
+        document.getElementById('qrcode').innerHTML = '';
+        new QRCode(document.getElementById('qrcode'), { text: joinUrl, width: 200, height: 200, colorDark:'#1f2937', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.H });
       } catch(e) { alert('Failed to create session.'); }
     }
 

@@ -6,10 +6,170 @@
   <title>btranslate - Dinamik AI Çeviri Stüdyosu</title>
   <link rel="stylesheet" href="/static/styles.css">
   <meta name="description" content="Yapay zeka destekli eşzamanlı ses referanslı çeviri stüdyosu.">
-</head>
-<body style="margin-top: 0;">
+  <style>
+    /* ── Hero ──────────────────────────────────────── */
+    .home-hero {
+      text-align: center;
+      padding: 7rem 2rem 3rem;
+      max-width: 700px;
+      margin: 0 auto;
+      animation: fadeInDown 0.7s ease-out forwards;
+    }
+    .home-hero h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--accent-color);
+      margin-bottom: 1rem;
+    }
+    .home-hero h1 span { color: var(--text-primary); }
+    .home-hero .tagline {
+      font-size: 1.15rem;
+      color: var(--text-secondary);
+      max-width: 520px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.6;
+    }
 
-  <!-- Navbar Navigation -->
+    /* Join card — the star */
+    .join-card {
+      background: var(--surface-color-solid);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 420px;
+      margin: 0 auto;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.08);
+      text-align: left;
+      transition: all 0.3s;
+    }
+    .join-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 44px rgba(122,35,44,0.12);
+    }
+    .join-card h3 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.2rem;
+      margin-bottom: 0.4rem;
+    }
+    .join-card .desc {
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.2rem;
+      line-height: 1.5;
+    }
+    .join-row {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .join-row input {
+      flex: 1;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-align: center;
+      font-size: 1.1rem;
+      padding: 0.7rem;
+    }
+    .join-row button {
+      padding: 0.7rem 1.5rem;
+      white-space: nowrap;
+    }
+
+    /* ── Features ──────────────────────────────────── */
+    .feat-section {
+      max-width: 900px;
+      margin: 3rem auto 2rem;
+      padding: 0 2rem;
+    }
+    .feat-section h2 {
+      text-align: center;
+      font-size: 1.6rem;
+      margin-bottom: 2rem;
+    }
+    .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    .feat-box {
+      background: var(--surface-color-solid);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 1.8rem 1.5rem;
+      text-align: center;
+      transition: transform 0.3s;
+    }
+    .feat-box:hover { transform: translateY(-3px); }
+    .feat-box .icon-wrap {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: rgba(122,35,44,0.08);
+      color: var(--accent-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1rem;
+    }
+    .feat-box h3 { font-size: 1rem; margin-bottom: 0.3rem; }
+    .feat-box p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+
+    /* ── Host link — subtle bottom section ─────────── */
+    .host-section {
+      max-width: 500px;
+      margin: 2rem auto 4rem;
+      padding: 0 2rem;
+      text-align: center;
+    }
+    .host-section .divider {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      opacity: 0.5;
+    }
+    .host-section .divider::before,
+    .host-section .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border-color);
+    }
+    .host-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.6rem 1.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .host-link:hover {
+      border-color: var(--accent-color);
+      color: var(--accent-color);
+      background: rgba(122,35,44,0.03);
+    }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      .home-hero h1 { font-size: 2.4rem; }
+      .feat-grid { grid-template-columns: 1fr; }
+      .join-card { margin: 0 1rem; }
+    }
+  </style>
+</head>
+<body style="margin-top:0;">
+
   <nav class="navbar">
     <a href="/" class="nav-brand" data-i18n="nav_title">B-Translate</a>
     <div class="lang-switcher">
@@ -19,88 +179,76 @@
     </div>
   </nav>
 
-  <!-- Hero Section -->
-  <div class="hero-section" style="padding-top: 8rem;">
-    <h1 class="hero-title" data-i18n="hero_title">Communication <br> <span style="color: var(--text-primary);">Without Borders.</span></h1>
-    <p class="hero-subtitle" data-i18n="hero_subtitle">Instantly transcribe and translate your events and meetings using AI to multiple languages in real-time.</p>
-    
-    <div class="action-cards">
-      <!-- Host Card -->
-      <div class="action-card">
-        <div class="feature-icon-wrapper" style="width: 48px; height: 48px; margin-bottom: 1rem;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
-        </div>
-        <h3 style="margin-bottom: 0.5rem;" data-i18n="card_host_title">Start Broadcast</h3>
-        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;" data-i18n="card_host_desc">Capture audio and broadcast to the server instantly. Manage the session via the dashboard.</p>
-        <button class="btn-primary" style="width: 100%;" onclick="window.location.href='/host'" data-i18n="card_host_btn">Log In as Host</button>
-      </div>
-      
-      <!-- Participant Card -->
-      <div class="action-card">
-        <div class="feature-icon-wrapper" style="width: 48px; height: 48px; margin-bottom: 1rem;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-        </div>
-        <h3 style="margin-bottom: 0.5rem;" data-i18n="card_part_title">Join as Participant</h3>
-        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem;" data-i18n="card_part_desc">Enter your event code and start reading real-time translations in your native language.</p>
-        
-        <div style="display: flex; gap: 0.5rem;">
-          <input type="text" id="eventCode" data-i18n-placeholder="placeholder_code" placeholder="Event Code" autocomplete="off" style="text-transform: uppercase; width: 60%; box-shadow: none;">
-          <button class="btn-secondary" style="width: 40%; padding: 0.5rem;" onclick="joinEvent()" data-i18n="card_part_btn">Join</button>
-        </div>
+  <!-- ── Hero ── -->
+  <div class="home-hero">
+    <h1 data-i18n="hero_title">Communication <br><span>Without Borders.</span></h1>
+    <p class="tagline" data-i18n="hero_subtitle">Instantly transcribe and translate your events and meetings using AI to multiple languages in real-time.</p>
+
+    <!-- Join Card -->
+    <div class="join-card">
+      <h3>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span data-i18n="card_part_title">Join as Participant</span>
+      </h3>
+      <p class="desc" data-i18n="card_part_desc">Enter your event code and start reading real-time translations in your native language.</p>
+      <div class="join-row">
+        <input type="text" id="eventCode" data-i18n-placeholder="placeholder_code" placeholder="Event Code" autocomplete="off">
+        <button class="btn-primary" onclick="joinEvent()" data-i18n="card_part_btn">Join</button>
       </div>
     </div>
   </div>
 
-  <!-- Features Section -->
-  <div class="feature-section">
-    <h2 style="text-align: center; font-size: 2rem;" data-i18n="feats_title">Core System Features</h2>
-    <div class="feature-grid">
-      <div class="feature-item">
-        <div class="feature-icon-wrapper">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+  <!-- ── Features ── -->
+  <div class="feat-section">
+    <h2 data-i18n="feats_title">Core System Features</h2>
+    <div class="feat-grid">
+      <div class="feat-box">
+        <div class="icon-wrap">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
-        <h3 style="margin-bottom: 0.5rem;" data-i18n="feat_1_title">Ultra Low Latency (Real-Time)</h3>
-        <p style="color: var(--text-secondary); font-size: 0.95rem;" data-i18n="feat_1_desc">Flawless text streaming via WebSockets with less than 3 seconds delay.</p>
+        <h3 data-i18n="feat_1_title">Ultra Low Latency (Real-Time)</h3>
+        <p data-i18n="feat_1_desc">Flawless text streaming via WebSockets with less than 3 seconds delay.</p>
       </div>
-
-      <div class="feature-item">
-        <div class="feature-icon-wrapper">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+      <div class="feat-box">
+        <div class="icon-wrap">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         </div>
-        <h3 style="margin-bottom: 0.5rem;" data-i18n="feat_2_title">Multi-Language Support</h3>
-        <p style="color: var(--text-secondary); font-size: 0.95rem;" data-i18n="feat_2_desc">Participants can select their native languages instantly like English, German, French, etc.</p>
+        <h3 data-i18n="feat_2_title">Multi-Language Support</h3>
+        <p data-i18n="feat_2_desc">Participants can select their native languages instantly like English, German, French, etc.</p>
       </div>
-
-      <div class="feature-item">
-        <div class="feature-icon-wrapper">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"></path><polygon points="10 2 12.5 5.5 15 2 10 2"></polygon></svg>
+      <div class="feat-box">
+        <div class="icon-wrap">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/></svg>
         </div>
-        <h3 style="margin-bottom: 0.5rem;" data-i18n="feat_3_title">AI Powered (Whisper & GPT-4)</h3>
-        <p style="color: var(--text-secondary); font-size: 0.95rem;" data-i18n="feat_3_desc">High-accuracy speech recognition paired with context-aware semantic translations.</p>
+        <h3 data-i18n="feat_3_title">AI Powered (Whisper & GPT-4)</h3>
+        <p data-i18n="feat_3_desc">High-accuracy speech recognition paired with context-aware semantic translations.</p>
       </div>
-
-      <div class="feature-item">
-        <div class="feature-icon-wrapper">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+      <div class="feat-box">
+        <div class="icon-wrap">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
         </div>
-        <h3 style="margin-bottom: 0.5rem;" data-i18n="feat_4_title">Immersive Audio (TTS)</h3>
-        <p style="color: var(--text-secondary); font-size: 0.95rem;" data-i18n="feat_4_desc">Listen to translations read aloud dynamically with high-quality regional voices.</p>
+        <h3 data-i18n="feat_4_title">Immersive Audio (TTS)</h3>
+        <p data-i18n="feat_4_desc">Listen to translations read aloud dynamically with high-quality regional voices.</p>
       </div>
     </div>
   </div>
 
-  <footer class="site-footer" data-i18n="footer_copy">
-    © 2026 B-Translate. Made with ❤️ by Beykoz Üniversitesi Bilgi İşlem Direktörlüğü.
-  </footer>
-  
+  <!-- ── Host link — subtle ── -->
+  <div class="host-section">
+    <div class="divider">Host</div>
+    <a class="host-link" href="/host">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+      <span data-i18n="card_host_btn">Log In as Host</span>
+    </a>
+  </div>
+
+  <footer class="site-footer" data-i18n="footer_copy">© 2026 B-Translate. Made with ❤️ by Beykoz Üniversitesi Bilgi İşlem Direktörlüğü.</footer>
+
   <script src="/static/lang.js"></script>
   <script>
     function joinEvent() {
       const code = document.getElementById('eventCode').value.trim().toUpperCase();
-      if (!code) {
-        alert('Lütfen geçerli bir Oda Kodu / Etkinlik Kodu girin.');
-        return;
-      }
+      if (!code) { alert('Lütfen geçerli bir Oda Kodu / Etkinlik Kodu girin.'); return; }
       window.location.href = `/participant?code=${code}`;
     }
   </script>
