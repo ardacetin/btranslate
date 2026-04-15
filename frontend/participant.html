@@ -10,6 +10,92 @@
       justify-content: flex-start;
     }
 
+    /* ── Audio Hint Toast ──────────────────────────────── */
+    .audio-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(120px);
+      background: #1f2937;
+      color: white;
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      max-width: 360px;
+      width: calc(100% - 2rem);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      z-index: 500;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .audio-toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+    .audio-toast-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .audio-toast-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .audio-toast-body h4 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 0.2rem;
+    }
+    .audio-toast-body p {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.5;
+    }
+    .audio-toast-warning {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(245,158,11,0.15);
+      border: 1px solid rgba(245,158,11,0.4);
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.78rem;
+      color: #fbbf24;
+      line-height: 1.4;
+    }
+    .audio-toast-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .toast-btn-enable {
+      flex: 1;
+      background: #7A232C;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 0.55rem 1rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toast-btn-enable:hover { background: #5A1920; }
+    .toast-btn-dismiss {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.7);
+      border: none;
+      border-radius: 8px;
+      padding: 0.55rem 0.9rem;
+      font-size: 0.88rem;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .toast-btn-dismiss:hover { background: rgba(255,255,255,0.15); }
+
     /* ── Mode Selection Overlay ───────────────────────── */
     .mode-overlay {
       background: var(--surface-color);
@@ -280,33 +366,8 @@
 
   <div class="container" style="max-width: 860px; margin-top: 5.5rem;">
 
-    <!-- ── Mode Selection Overlay ── -->
-    <div id="mode-overlay" class="mode-overlay">
-      <h2 data-i18n="mode_title">How would you like to participate?</h2>
-      <p data-i18n="mode_desc">Listen mode reads translations aloud as they arrive. Text mode shows subtitles only.</p>
-      <div class="mode-buttons">
-        <button class="mode-btn text-mode" onclick="setMode('text')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
-            <line x1="16" y1="13" x2="8" y2="13"></line>
-            <line x1="16" y1="17" x2="8" y2="17"></line>
-          </svg>
-          <span data-i18n="mode_text">Read Text</span>
-        </button>
-        <button class="mode-btn audio-mode" onclick="setMode('audio')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-          </svg>
-          <span data-i18n="mode_audio">Listen Aloud</span>
-        </button>
-      </div>
-    </div>
-
     <!-- ── Main Live Interface ── -->
-    <div id="main-interface" style="display:none;">
+    <div id="main-interface">
 
       <!-- Header row -->
       <div class="live-header">
@@ -366,6 +427,24 @@
       </div>
 
     </div><!-- /main-interface -->
+  </div>
+
+  <!-- ── Audio Hint Toast ── -->
+  <div id="audio-toast" class="audio-toast" role="dialog" aria-live="polite">
+    <div class="audio-toast-top">
+      <div class="audio-toast-icon">🎙️</div>
+      <div class="audio-toast-body">
+        <h4 data-i18n="toast_audio_title">Enable Audio Narration?</h4>
+        <p data-i18n="toast_audio_desc">Translations can be read aloud as they arrive. You can mute anytime.</p>
+      </div>
+    </div>
+    <div class="audio-toast-warning">
+      🎧 <span data-i18n="toast_audio_warn">Make sure your headphones are on before enabling audio to avoid disturbing others.</span>
+    </div>
+    <div class="audio-toast-actions">
+      <button class="toast-btn-enable" onclick="enableAudioFromToast()" data-i18n="toast_btn_enable">Enable Audio</button>
+      <button class="toast-btn-dismiss" onclick="dismissToast()" data-i18n="toast_btn_dismiss">No Thanks</button>
+    </div>
   </div>
 
   <footer class="site-footer" data-i18n="footer_copy">
@@ -481,15 +560,31 @@
     let isTTSMuted = false;
     let ttsVolume = 1.0;
 
-    function setMode(mode) {
-      window.btMode = mode;
-      document.getElementById('mode-overlay').style.display = 'none';
-      document.getElementById('main-interface').style.display = 'block';
-      if (mode === 'audio') {
-        document.getElementById('audio-controls-panel').style.display = 'flex';
-        const primer = new SpeechSynthesisUtterance('');
-        window.speechSynthesis.speak(primer);
-      }
+    // Audio is OFF by default — toast will offer to enable it
+    function initAudioMode() {
+      window.btMode = 'audio';
+      isTTSMuted = true; // start muted
+      document.getElementById('audio-controls-panel').style.display = 'flex';
+      // Show toast after a short delay so page settles first
+      setTimeout(showAudioToast, 1800);
+    }
+
+    function showAudioToast() {
+      document.getElementById('audio-toast').classList.add('show');
+    }
+
+    function dismissToast() {
+      document.getElementById('audio-toast').classList.remove('show');
+    }
+
+    function enableAudioFromToast() {
+      // Unlock speech synthesis (requires user gesture — this click counts)
+      const primer = new SpeechSynthesisUtterance('');
+      window.speechSynthesis.speak(primer);
+      isTTSMuted = false;
+      document.getElementById('btn-play').style.opacity = '1';
+      document.getElementById('btn-stop').style.opacity = '0.55';
+      dismissToast();
     }
 
     function resumeAudio() {
@@ -560,8 +655,17 @@
 
     document.addEventListener('DOMContentLoaded', () => {
       if ('speechSynthesis' in window) speechSynthesis.getVoices();
+      initAudioMode();
       initParticipant();
     });
+
+    // Unlock speech synthesis on first user interaction
+    document.addEventListener('click', () => {
+      if (window.btMode === 'audio' && window.speechSynthesis) {
+        const primer = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(primer);
+      }
+    }, { once: true });
   </script>
 </body>
 </html>
