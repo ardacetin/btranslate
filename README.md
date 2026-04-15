@@ -58,6 +58,7 @@ Open `http://localhost:8000` in your browser.
 |----------|-------------|
 | `OPENAI_API_KEY` | OpenAI API key (required) |
 | `JWT_SECRET_KEY` | Secret for JWT token signing |
+| `ADMIN_PASSWORD` | Initial password for the 'admin' user (defaults to 'admin123') |
 
 ## Project Structure
 

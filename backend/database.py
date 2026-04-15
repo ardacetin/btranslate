@@ -56,15 +56,21 @@ def init_db():
     db = SessionLocal()
     try:
         if not db.query(User).first():
-            # Delay import to avoid circular dependency
+            # Get initial admin password from environment or use default
+            initial_password = os.getenv("ADMIN_PASSWORD", "admin123")
+            
             from auth import get_password_hash
             admin_user = User(
                 username="admin",
-                hashed_password=get_password_hash("admin123"),
+                hashed_password=get_password_hash(initial_password),
                 role="admin"
             )
             db.add(admin_user)
             db.commit()
+            if initial_password == "admin123":
+                print("[WARNING] Admin user created with default password 'admin123'. Please change it via Dashboard!")
+            else:
+                print(f"[INFO] Admin user created with password provided via environment variable.")
     finally:
         db.close()
 
