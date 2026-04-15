@@ -465,7 +465,7 @@
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
 
-        // VAD (enhanced)
+        // VAD (tuned for silence→speech transitions)
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         const analyser = ctx.createAnalyser();
         ctx.createMediaStreamSource(stream).connect(analyser);
@@ -476,7 +476,7 @@
           analyser.getByteFrequencyData(buf);
           const speech = buf.slice(4, 40);
           const avg = speech.reduce((a,b)=>a+b,0) / speech.length;
-          if (avg > 40) { vFrames++; if (vFrames >= 3) voiced = true; }
+          if (avg > 30) { vFrames++; if (vFrames >= 2) voiced = true; }
         }, 100);
 
         let mime = 'audio/webm;codecs=opus';
@@ -505,7 +505,7 @@
 
           mediaRecorder.ondataavailable = async (e) => {
             if (e.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-              if (voiced && e.data.size > 5000) {
+              if (voiced && e.data.size > 2000) {
                 socket.send(await e.data.arrayBuffer());
               }
               voiced = false; vFrames = 0;

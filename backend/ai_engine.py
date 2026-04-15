@@ -10,10 +10,10 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY and OPENAI_API_KEY != "your-openai-api-key-here" else None
 
 # ── Minimum audio payload size (bytes) ──────────────────────────────────────
-# WebM/Opus silence encodes to roughly 1-4 KB.  Real speech in a 3-second
-# chunk is typically 15 KB+.  Anything under this threshold is almost
-# certainly silence or mic hiss that slipped past client-side VAD.
-MIN_AUDIO_BYTES = 8000
+# Pure silence encodes to ~1-2 KB. Partial speech after a pause can be
+# as small as 3-4 KB.  We keep the gate low to avoid dropping the first
+# spoken chunk after a silence break.
+MIN_AUDIO_BYTES = 3000
 
 
 async def transcribe_audio(audio_bytes: bytes) -> str:
@@ -52,7 +52,7 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
             return ""
 
         avg_no_speech = sum(getattr(s, 'no_speech_prob', 0) for s in segments) / len(segments)
-        if avg_no_speech > 0.5:
+        if avg_no_speech > 0.75:
             print(f"[GATE] High no_speech_prob ({avg_no_speech:.2f}) — skipped")
             return ""
 
