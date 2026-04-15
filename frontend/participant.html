@@ -32,6 +32,9 @@
     .audio-toast.show {
       transform: translateX(-50%) translateY(0);
     }
+    .audio-toast.hidden {
+      display: none !important;
+    }
     .audio-toast-top {
       display: flex;
       align-items: flex-start;
@@ -574,7 +577,10 @@
     }
 
     function dismissToast() {
-      document.getElementById('audio-toast').classList.remove('show');
+      const toast = document.getElementById('audio-toast');
+      toast.classList.remove('show');
+      // After slide-out animation finishes, hide completely
+      setTimeout(() => { toast.classList.add('hidden'); }, 450);
     }
 
     function enableAudioFromToast() {
