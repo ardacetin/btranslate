@@ -471,13 +471,42 @@
     }
 
     // ── TTS engine ────────────────────────────────────────────────────────
+    // Chrome bug workaround: speechSynthesis silently pauses after ~15s.
+    // Calling resume() periodically keeps it alive.
+    setInterval(() => {
+      if (audioOn && speechSynthesis.speaking) {
+        speechSynthesis.resume();
+      }
+    }, 5000);
+
+    let ttsQueue = [];
+    let ttsBusy = false;
+
     function speak(text, lang) {
       if (!('speechSynthesis' in window)) return;
+
+      // Queue management: keep max 2 items in queue to prevent lag buildup
+      ttsQueue.push({ text, lang });
+      if (ttsQueue.length > 3) {
+        // Drop oldest, keep latest 2
+        speechSynthesis.cancel();
+        ttsBusy = false;
+        ttsQueue = ttsQueue.slice(-2);
+      }
+
+      if (!ttsBusy) processQueue();
+    }
+
+    function processQueue() {
+      if (ttsQueue.length === 0) { ttsBusy = false; return; }
+      ttsBusy = true;
+
+      const { text, lang } = ttsQueue.shift();
       const msg = new SpeechSynthesisUtterance(text);
       const map = { en:'en-US', tr:'tr-TR', de:'de-DE', fr:'fr-FR', es:'es-ES', ar:'ar-SA', ur:'ur-PK', zh:'zh-CN', ja:'ja-JP' };
       const locale = map[lang] || lang;
       msg.lang = locale;
-      msg.rate = 0.95;
+      msg.rate = 1.0;
 
       const voices = speechSynthesis.getVoices();
       const prefix = locale.substring(0, 2);
@@ -495,6 +524,9 @@
       }
       if (!voice && pool.length) voice = pool[0];
       if (voice) msg.voice = voice;
+
+      msg.onend = () => processQueue();
+      msg.onerror = () => processQueue();
 
       speechSynthesis.speak(msg);
     }
