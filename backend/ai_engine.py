@@ -59,22 +59,40 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
         text = response.text.strip()
         lower_text = text.lower()
 
-        # ── Gate 3: hard-block known hallucination patterns ────────────────
-        hard_blocks = [
-            "thank you", "thanks for watching", "goodbye", "good bye",
-            "bye bye", "see you", "don't forget", "please subscribe",
-            "like and subscribe", "please like", "subscribe",
+        # ── Gate 3: smart-block known hallucination patterns ────────────────
+        # Whisper often hallucinates these on silence. We should block them, 
+        # but ONLY if they make up the majority of the text, to avoid dropping 
+        # legitimate sentences like "I want to thank you all".
+        hallucination_phrases = [
+            "thank you for watching", "thanks for watching", "goodbye", "good bye",
+            "bye bye", "see you next time", "don't forget to subscribe", "please subscribe",
+            "like and subscribe", "please like and subscribe", "subscribe to my channel",
             "transcribed by", "otter.ai", "amara.org", "by amara",
-            "subtitles by", "captions by", "copyright",
-            "abone", "beğen", "yorum yap", "altyazı",
-            "müzik", "[müzik]", "(müzik)", "[music]", "(music)",
+            "subtitles by", "captions by", "copyright", 
+            "abone olmayı unutmayın", "izlediğiniz için teşekkürler", "kanalima abone olun",
+            "müzik", "[müzik]", "(müzik)", "[music]", "(music)", "music",
             "[silence]", "(silence)", "[sessizlik]", "(sessizlik)",
-            "♪", "you.", "welcome to",
+            "♪", "thank you", "thanks", "teşekkürler", "teşekkür ederim"
         ]
-        for phrase in hard_blocks:
-            if phrase in lower_text:
-                print(f"[FILTER] Blocked: '{text[:60]}'")
-                return ""
+        
+        # Check if the text is short and matches a hallucination exactly (or with punctuation)
+        clean_text = re.sub(r'[^\w\s]', '', lower_text).strip()
+        
+        is_hallucination = False
+        for phrase in hallucination_phrases:
+            clean_phrase = re.sub(r'[^\w\s]', '', phrase.lower()).strip()
+            # If the spoken text is exactly the hallucination
+            if clean_text == clean_phrase:
+                is_hallucination = True
+                break
+            # Or if it's very short and contains the hallucination
+            if len(clean_text.split()) <= 5 and clean_phrase in clean_text:
+                is_hallucination = True
+                break
+                
+        if is_hallucination:
+            print(f"[FILTER] Blocked as hallucination: '{text[:60]}'")
+            return ""
 
         # ── Gate 4: reject very short / garbage output ─────────────────────
         if len(text) < 4:
