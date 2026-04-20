@@ -427,7 +427,7 @@
     function changeLanguage() {
       currentLang = document.getElementById('lang-select').value;
       localStorage.setItem('bt_target_lang', currentLang);
-      connectWS(currentLang);
+      location.reload();
     }
 
     // ── Audio toggle (single button) ──────────────────────────────────────
