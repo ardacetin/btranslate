@@ -497,7 +497,7 @@
           mediaRecorder.start();
           window.recordInterval = setInterval(() => {
             if (mediaRecorder.state === 'recording') { mediaRecorder.stop(); mediaRecorder.start(); }
-          }, 3000);
+          }, 5000);
 
           window.pingInterval = setInterval(() => {
             if (socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);

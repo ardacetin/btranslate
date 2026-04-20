@@ -125,8 +125,9 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                     "role": "system",
                     "content": (
                         f"You are a real-time simultaneous interpreter. "
-                        f"Translate the following spoken text from {source_lang} to {target_lang}. "
-                        f"Reply ONLY with the translated text. No additions."
+                        f"Translate the following spoken text from {'its original language' if source_lang == 'auto' else source_lang} to {target_lang}. "
+                        f"IMPORTANT: The text might be an incomplete sentence fragment. Translate it exactly as it is, without trying to complete or fix the sentence. "
+                        f"Reply ONLY with the translated text. Do not add any notes, greetings, or filler."
                     )
                 },
                 {"role": "user", "content": text}
