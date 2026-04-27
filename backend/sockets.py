@@ -78,7 +78,7 @@ class ConnectionManager:
 
     # ── Deepgram Streaming Pipeline ───────────────────────────────────────
 
-    async def start_deepgram_stream(self, event_code: str):
+    async def start_deepgram_stream(self, event_code: str, rate: int = 16000):
         """
         Initialize a Deepgram Nova-3 streaming connection for this event.
         When Deepgram returns a finalized transcript, it triggers
@@ -92,7 +92,8 @@ class ConnectionManager:
 
         stt = DeepgramStreamingSTT(
             on_transcript_callback=on_transcript,
-            language="multi",  # Auto-detect language
+            language="tr",
+            sample_rate=rate,
         )
         await stt.start()
         session["dg_stt"] = stt

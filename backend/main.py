@@ -151,14 +151,14 @@ def get_session(event_code: str, db: DBSession = Depends(get_db)):
     return {"event_code": session.event_code, "event_name": session.event_name, "source_language": session.source_language}
 
 @app.websocket("/ws/host/{event_code}")
-async def websocket_host(websocket: WebSocket, event_code: str):
+async def websocket_host(websocket: WebSocket, event_code: str, rate: int = 16000):
     await manager.connect_host(websocket, event_code)
     try:
         if DEEPGRAM_API_KEY:
             # Tell client to use PCM streaming mode
             await websocket.send_text('{"mode":"deepgram"}')
-            # Start Deepgram streaming connection
-            await manager.start_deepgram_stream(event_code)
+            # Start Deepgram streaming connection with the exact sample rate
+            await manager.start_deepgram_stream(event_code, rate)
             while True:
                 audio_bytes = await websocket.receive_bytes()
                 if len(audio_bytes) < 10:

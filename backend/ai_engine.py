@@ -40,9 +40,10 @@ class DeepgramStreamingSTT:
 
     DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen"
 
-    def __init__(self, on_transcript_callback, language: str = "tr"):
+    def __init__(self, on_transcript_callback, language: str = "tr", sample_rate: int = 16000):
         self.callback = on_transcript_callback
         self.language = language
+        self.sample_rate = sample_rate
         self.ws = None
         self._running = False
         self._listen_task = None
@@ -64,7 +65,7 @@ class DeepgramStreamingSTT:
             f"&endpointing=500"
             f"&encoding=linear16"
             f"&channels=1"
-            f"&sample_rate=16000"
+            f"&sample_rate={self.sample_rate}"
         )
 
         url = f"{self.DEEPGRAM_WS_URL}{params}"
