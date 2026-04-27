@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import asyncio
 import httpx
@@ -41,17 +40,18 @@ class DeepgramStreamingSTT:
 
     DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen"
 
-    def __init__(self, on_transcript_callback, language: str = "multi"):
+    def __init__(self, on_transcript_callback, language: str = "tr"):
         self.callback = on_transcript_callback
         self.language = language
         self.ws = None
         self._running = False
         self._listen_task = None
+        self._bytes_sent = 0
 
     async def start(self):
         """Open the Deepgram WebSocket connection."""
         if not DEEPGRAM_API_KEY:
-            print("[DG-STT] No Deepgram API key — running in mock mode")
+            print("[DG-STT] No Deepgram API key — skipping")
             return
 
         params = (
@@ -59,35 +59,41 @@ class DeepgramStreamingSTT:
             f"&language={self.language}"
             f"&smart_format=true"
             f"&punctuate=true"
-            f"&interim_results=false"
+            f"&interim_results=true"
             f"&vad_events=true"
-            f"&endpointing=300"
+            f"&endpointing=500"
             f"&encoding=linear16"
             f"&channels=1"
             f"&sample_rate=16000"
         )
 
+        url = f"{self.DEEPGRAM_WS_URL}{params}"
+        headers = {"Authorization": f"Token {DEEPGRAM_API_KEY}"}
+        print(f"[DG-STT] Connecting to: {self.DEEPGRAM_WS_URL}?model=nova-3&language={self.language}&...")
+
         try:
             # websockets v14+ uses 'additional_headers', older uses 'extra_headers'
             try:
                 self.ws = await websockets.connect(
-                    f"{self.DEEPGRAM_WS_URL}{params}",
-                    additional_headers={"Authorization": f"Token {DEEPGRAM_API_KEY}"},
+                    url,
+                    additional_headers=headers,
                     ping_interval=20,
                     ping_timeout=10,
                 )
             except TypeError:
                 self.ws = await websockets.connect(
-                    f"{self.DEEPGRAM_WS_URL}{params}",
-                    extra_headers={"Authorization": f"Token {DEEPGRAM_API_KEY}"},
+                    url,
+                    extra_headers=headers,
                     ping_interval=20,
                     ping_timeout=10,
                 )
+
             self._running = True
             self._listen_task = asyncio.create_task(self._listen_loop())
-            print("[DG-STT] Connection opened successfully")
+            print("[DG-STT] ✓ Connection opened successfully")
+
         except Exception as e:
-            print(f"[DG-STT] Failed to start: {e}")
+            print(f"[DG-STT] ✗ Failed to start: {e}")
 
     async def _listen_loop(self):
         """Background task that listens for Deepgram responses."""
@@ -99,19 +105,43 @@ class DeepgramStreamingSTT:
 
                     if msg_type == "Results":
                         is_final = data.get("is_final", False)
+                        speech_final = data.get("speech_final", False)
                         channel = data.get("channel", {})
                         alts = channel.get("alternatives", [])
-                        if alts and is_final:
+
+                        if alts:
                             transcript = alts[0].get("transcript", "").strip()
+                            confidence = alts[0].get("confidence", 0)
+
                             if transcript:
-                                print(f"[DG-STT] Final: '{transcript[:60]}'")
-                                await self.callback(transcript)
+                                if is_final:
+                                    print(f"[DG-STT] FINAL ({confidence:.2f}): '{transcript[:80]}'")
+                                    await self.callback(transcript)
+                                else:
+                                    print(f"[DG-STT] interim: '{transcript[:50]}'")
+
+                    elif msg_type == "Metadata":
+                        print(f"[DG-STT] Metadata: model={data.get('model_info', {}).get('name', '?')}")
+
+                    elif msg_type == "SpeechStarted":
+                        print("[DG-STT] Speech started")
+
+                    elif msg_type == "UtteranceEnd":
+                        print("[DG-STT] Utterance ended")
+
+                    elif msg_type == "Error":
+                        print(f"[DG-STT] ✗ API Error: {data}")
+
+                    else:
+                        print(f"[DG-STT] Unknown type: {msg_type}")
+
                 except json.JSONDecodeError:
-                    pass
+                    print(f"[DG-STT] Non-JSON message: {str(message)[:100]}")
                 except Exception as e:
                     print(f"[DG-STT] Message error: {e}")
-        except websockets.exceptions.ConnectionClosed:
-            print("[DG-STT] Connection closed")
+
+        except websockets.exceptions.ConnectionClosed as e:
+            print(f"[DG-STT] Connection closed: {e}")
         except Exception as e:
             print(f"[DG-STT] Listen error: {e}")
         finally:
@@ -122,6 +152,10 @@ class DeepgramStreamingSTT:
         if self.ws and self._running:
             try:
                 await self.ws.send(audio_bytes)
+                self._bytes_sent += len(audio_bytes)
+                # Log periodically
+                if self._bytes_sent % 100000 < len(audio_bytes):
+                    print(f"[DG-STT] Sent {self._bytes_sent // 1000}KB total audio")
             except Exception as e:
                 print(f"[DG-STT] Send error: {e}")
 
@@ -130,14 +164,13 @@ class DeepgramStreamingSTT:
         self._running = False
         if self.ws:
             try:
-                # Send close message to Deepgram
                 await self.ws.send(json.dumps({"type": "CloseStream"}))
                 await self.ws.close()
             except Exception:
                 pass
         if self._listen_task:
             self._listen_task.cancel()
-        print("[DG-STT] Stopped")
+        print(f"[DG-STT] Stopped (sent {self._bytes_sent // 1000}KB total)")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -149,7 +182,7 @@ MIN_AUDIO_BYTES = 3000
 async def transcribe_audio_whisper(audio_bytes: bytes) -> str:
     """Legacy Whisper-based transcription (fallback if no DEEPGRAM_API_KEY)."""
     if not openai_client:
-        return "This is a mocked transcription of the audio buffer."
+        return ""
 
     if len(audio_bytes) < MIN_AUDIO_BYTES:
         return ""
@@ -206,20 +239,23 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                     "content": (
                         f"You are a real-time simultaneous interpreter. "
                         f"Translate the following spoken text from {'its original language' if source_lang == 'auto' else source_lang} to {target_lang}. "
-                        f"IMPORTANT: The text might be an incomplete sentence fragment. Translate it exactly as it is, without trying to complete or fix the sentence. "
-                        f"Reply ONLY with the translated text. Do not add any notes, greetings, or filler."
+                        f"CRITICAL RULES:\n"
+                        f"1. Translate ONLY what is said. Do not invent, add, or complete anything.\n"
+                        f"2. If the text is an incomplete fragment, translate that fragment only.\n"
+                        f"3. Reply with ONLY the translated text. No notes, no greetings, no filler.\n"
+                        f"4. If the input is empty or just noise characters, reply with an empty string."
                     )
                 },
                 {"role": "user", "content": text}
             ],
-            temperature=0.2,
+            temperature=0.1,
         )
         res = response.choices[0].message.content.strip()
-        print(f"[TRANSLATED] -> {target_lang}: '{res[:40]}...'")
+        print(f"[TRANSLATED] '{text[:30]}' → {target_lang}: '{res[:40]}'")
         return res
     except Exception as e:
         print(f"[ERROR] Translation failed: {e}")
-        return f"Error translating to {target_lang}."
+        return f"[Translation error]"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -229,6 +265,9 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
 async def synthesize_speech(text: str, target_lang: str) -> bytes | None:
     """Convert text to speech using Deepgram Aura REST API."""
     if not DEEPGRAM_API_KEY:
+        return None
+
+    if not text or len(text.strip()) < 2:
         return None
 
     voice_model = TTS_VOICE_MAP.get(target_lang, "aura-2-asteria-en")
@@ -245,7 +284,7 @@ async def synthesize_speech(text: str, target_lang: str) -> bytes | None:
                 json={"text": text},
             )
             if response.status_code == 200:
-                print(f"[TTS] Generated {len(response.content)}B audio ({voice_model})")
+                print(f"[TTS] {len(response.content)}B audio ({voice_model})")
                 return response.content
             else:
                 print(f"[TTS] Error {response.status_code}: {response.text[:100]}")

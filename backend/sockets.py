@@ -125,13 +125,17 @@ class ConnectionManager:
         """Translate text, generate TTS audio, and send to all participants."""
         session = self.active_sessions.get(event_code)
         if not session:
+            print(f"[BROADCAST] ✗ No session for {event_code}")
             return
 
         participants_dict = session["participants"]
         if not participants_dict:
+            print(f"[BROADCAST] ✗ No participants in {event_code}")
             return
 
-        print(f"[BROADCAST] '{original_text[:40]}...' -> {list(participants_dict.keys())}")
+        langs = list(participants_dict.keys())
+        counts = {l: len(ws) for l, ws in participants_dict.items() if ws}
+        print(f"[BROADCAST] '{original_text[:50]}' → {counts}")
 
         async def translate_and_send(target_lang: str, websockets: List[WebSocket]):
             if not websockets:

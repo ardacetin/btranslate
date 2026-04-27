@@ -508,23 +508,37 @@
 
       const processor = nativeCtx.createScriptProcessor(4096, 1, 1);
       source.connect(processor);
-      processor.connect(nativeCtx.destination);
+      // Connect to a silent gain node (NOT destination) to keep processor alive
+      // without causing audio feedback through speakers
+      const silentGain = nativeCtx.createGain();
+      silentGain.gain.value = 0;
+      processor.connect(silentGain);
+      silentGain.connect(nativeCtx.destination);
       window._processor = processor;
 
       // Resample ratio (e.g. 48000→16000 = keep every 3rd sample)
       const ratio = nativeRate / TARGET_RATE;
+      let chunkCount = 0;
 
       processor.onaudioprocess = (e) => {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
         const float32 = e.inputBuffer.getChannelData(0);
+
         // Downsample to 16kHz
-        const outLen = Math.floor(float32.length / ratio);
+        const outLen = Math.ceil(float32.length / ratio);
         const int16 = new Int16Array(outLen);
         for (let i = 0; i < outLen; i++) {
-          const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)]));
+          const srcIdx = Math.min(Math.floor(i * ratio), float32.length - 1);
+          const s = Math.max(-1, Math.min(1, float32[srcIdx]));
           int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
         socket.send(int16.buffer);
+        chunkCount++;
+
+        // Log every ~5 seconds for debugging
+        if (chunkCount % 60 === 1) {
+          console.log(`[PCM] chunk #${chunkCount}, ${int16.length} samples, native=${nativeRate}Hz`);
+        }
       };
 
       // Heartbeat
@@ -532,7 +546,7 @@
         if (socket && socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);
       }, 25000);
 
-      console.log(`[B-Translate] PCM streaming: ${nativeRate}Hz → ${TARGET_RATE}Hz (ratio ${ratio.toFixed(2)})`);
+      console.log(`[B-Translate] PCM streaming started: ${nativeRate}Hz → ${TARGET_RATE}Hz (ratio ${ratio.toFixed(2)})`);
     }
 
     // ── V1: MediaRecorder chunks for Whisper ─────────
