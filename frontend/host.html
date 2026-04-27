@@ -464,7 +464,7 @@
       if (!currentEventCode) return;
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true },
+          audio: { echoCancellation: true, noiseSuppression: true },
           video: false
         });
 
@@ -478,45 +478,101 @@
           document.getElementById('btn-start').style.display = 'none';
           document.getElementById('btn-stop').style.display = 'inline-flex';
           document.querySelector('.qr-hero').classList.add('recording');
-
-          // ── Stream raw PCM 16kHz mono to server ────────────────────
-          const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-          const source = audioCtx.createMediaStreamSource(stream);
-          window._audioCtx = audioCtx;
-
-          // ScriptProcessor (widely supported) to capture raw PCM
-          const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-          source.connect(processor);
-          processor.connect(audioCtx.destination);
-          window._processor = processor;
-
-          processor.onaudioprocess = (e) => {
-            if (socket.readyState !== WebSocket.OPEN) return;
-            const float32 = e.inputBuffer.getChannelData(0);
-            // Convert Float32 → Int16 PCM
-            const int16 = new Int16Array(float32.length);
-            for (let i = 0; i < float32.length; i++) {
-              const s = Math.max(-1, Math.min(1, float32[i]));
-              int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-            }
-            socket.send(int16.buffer);
-          };
-
-          // Heartbeat ping
-          window.pingInterval = setInterval(() => {
-            if (socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);
-          }, 25000);
         };
+
+        // Server sends initial mode message: {"mode":"deepgram"} or {"mode":"whisper"}
+        socket.onmessage = (e) => {
+          try {
+            const msg = JSON.parse(e.data);
+            if (msg.mode === 'deepgram') {
+              startPCMStreaming(stream);
+            } else {
+              startChunkStreaming(stream);
+            }
+          } catch(ex) { console.error('Mode parse error', ex); }
+          socket.onmessage = null; // Only handle first message
+        };
+
         socket.onerror = () => stopBroadcast();
         socket.onclose = () => stopBroadcast();
       } catch(e) { alert('Microphone access denied.'); console.error(e); }
     }
 
+    // ── V2: Raw PCM 16kHz streaming for Deepgram ─────
+    function startPCMStreaming(stream) {
+      const TARGET_RATE = 16000;
+      const nativeCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const nativeRate = nativeCtx.sampleRate;
+      const source = nativeCtx.createMediaStreamSource(stream);
+      window._audioCtx = nativeCtx;
+
+      const processor = nativeCtx.createScriptProcessor(4096, 1, 1);
+      source.connect(processor);
+      processor.connect(nativeCtx.destination);
+      window._processor = processor;
+
+      // Resample ratio (e.g. 48000→16000 = keep every 3rd sample)
+      const ratio = nativeRate / TARGET_RATE;
+
+      processor.onaudioprocess = (e) => {
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        const float32 = e.inputBuffer.getChannelData(0);
+        // Downsample to 16kHz
+        const outLen = Math.floor(float32.length / ratio);
+        const int16 = new Int16Array(outLen);
+        for (let i = 0; i < outLen; i++) {
+          const s = Math.max(-1, Math.min(1, float32[Math.floor(i * ratio)]));
+          int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        socket.send(int16.buffer);
+      };
+
+      // Heartbeat
+      window.pingInterval = setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);
+      }, 25000);
+
+      console.log(`[B-Translate] PCM streaming: ${nativeRate}Hz → ${TARGET_RATE}Hz (ratio ${ratio.toFixed(2)})`);
+    }
+
+    // ── V1: MediaRecorder chunks for Whisper ─────────
+    function startChunkStreaming(stream) {
+      let mime = 'audio/webm;codecs=opus';
+      if (!MediaRecorder.isTypeSupported(mime)) mime = 'audio/mp4';
+      const mr = new MediaRecorder(stream, { mimeType: mime });
+      window._mediaRecorder = mr;
+
+      mr.ondataavailable = async (e) => {
+        if (e.data.size > 500 && socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(await e.data.arrayBuffer());
+        }
+      };
+
+      mr.start();
+      window.recordInterval = setInterval(() => {
+        if (mr.state === 'recording') { mr.stop(); mr.start(); }
+      }, 5000);
+
+      // Heartbeat
+      window.pingInterval = setInterval(() => {
+        if (socket && socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);
+      }, 25000);
+
+      console.log('[B-Translate] Whisper chunk mode (5s intervals)');
+    }
+
     function stopBroadcast() {
       clearInterval(window.pingInterval);
-      // Clean up audio processing
+      clearInterval(window.recordInterval);
+      // V2 cleanup
       if (window._processor) { window._processor.disconnect(); window._processor = null; }
       if (window._audioCtx) { window._audioCtx.close(); window._audioCtx = null; }
+      // V1 cleanup
+      if (window._mediaRecorder && window._mediaRecorder.state !== 'inactive') {
+        window._mediaRecorder.stop();
+        window._mediaRecorder.stream.getTracks().forEach(t => t.stop());
+        window._mediaRecorder = null;
+      }
       if (socket) socket.close();
       const dict = translations[localStorage.getItem('bt_lang') || 'en'];
       document.getElementById('status-indicator').innerText = dict.status_stopped;

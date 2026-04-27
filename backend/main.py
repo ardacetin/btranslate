@@ -155,16 +155,18 @@ async def websocket_host(websocket: WebSocket, event_code: str):
     await manager.connect_host(websocket, event_code)
     try:
         if DEEPGRAM_API_KEY:
-            # ── V2: Deepgram Nova-3 Streaming ────────────────────────
-            # Start a persistent Deepgram connection for this session
+            # Tell client to use PCM streaming mode
+            await websocket.send_text('{"mode":"deepgram"}')
+            # Start Deepgram streaming connection
             await manager.start_deepgram_stream(event_code)
             while True:
                 audio_bytes = await websocket.receive_bytes()
                 if len(audio_bytes) < 10:
-                    continue  # Ignore ping payloads
+                    continue
                 await manager.send_audio_to_deepgram(event_code, audio_bytes)
         else:
-            # ── V1 Fallback: Whisper chunk-based ─────────────────────
+            # Tell client to use MediaRecorder chunk mode
+            await websocket.send_text('{"mode":"whisper"}')
             while True:
                 audio_bytes = await websocket.receive_bytes()
                 if len(audio_bytes) < 10:
