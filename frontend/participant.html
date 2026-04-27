@@ -399,7 +399,15 @@
       socket.onmessage = (e) => {
         const d = JSON.parse(e.data);
         addMsg(d.original, d.translated);
-        if (audioOn) speak(d.translated, currentLang);
+        if (audioOn) {
+          if (d.audio) {
+            // V2: Play server-generated Deepgram Aura audio (base64 mp3)
+            playServerAudio(d.audio);
+          } else {
+            // Fallback: browser TTS
+            speak(d.translated, currentLang);
+          }
+        }
       };
       socket.onclose = () => {
         dot.classList.remove('live');
@@ -529,6 +537,37 @@
       msg.onerror = () => processQueue();
 
       speechSynthesis.speak(msg);
+    }
+
+    // ── Server Audio Playback (Deepgram Aura) ────────────────────────────
+    let audioQueue = [];
+    let audioPlaying = false;
+
+    function playServerAudio(base64Audio) {
+      audioQueue.push(base64Audio);
+      // Keep queue manageable
+      if (audioQueue.length > 3) {
+        audioQueue = audioQueue.slice(-2);
+      }
+      if (!audioPlaying) processAudioQueue();
+    }
+
+    function processAudioQueue() {
+      if (audioQueue.length === 0) { audioPlaying = false; return; }
+      audioPlaying = true;
+
+      const b64 = audioQueue.shift();
+      const byteChars = atob(b64);
+      const byteArray = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) {
+        byteArray[i] = byteChars.charCodeAt(i);
+      }
+      const blob = new Blob([byteArray], { type: 'audio/mp3' });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => { URL.revokeObjectURL(url); processAudioQueue(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); processAudioQueue(); };
+      audio.play().catch(() => processAudioQueue());
     }
 
     // ── Boot ──────────────────────────────────────────────────────────────

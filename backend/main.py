@@ -11,6 +11,7 @@ import uuid
 from database import get_db, init_db, EventSession, User
 from sockets import manager, log_activity
 from auth import verify_password, create_access_token, get_current_user, check_admin, get_password_hash
+from ai_engine import DEEPGRAM_API_KEY
 
 app = FastAPI(title="btranslate API")
 
@@ -25,6 +26,10 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    if DEEPGRAM_API_KEY:
+        print("[BOOT] Deepgram API key found — using Nova-3 streaming STT + Aura TTS")
+    else:
+        print("[BOOT] No Deepgram key — falling back to Whisper chunk-based STT + browser TTS")
 
 # Mount frontend static files
 import os
@@ -149,16 +154,22 @@ def get_session(event_code: str, db: DBSession = Depends(get_db)):
 async def websocket_host(websocket: WebSocket, event_code: str):
     await manager.connect_host(websocket, event_code)
     try:
-        while True:
-            # Host sends audio chunks as bytes
-            audio_bytes = await websocket.receive_bytes()
-            if len(audio_bytes) < 10:
-                # Ignore ping payloads
-                continue
-            
-            # We don't have source_lang easily accessible here without query DB if we want,
-            # but manager uses "auto" by default. For MVP, auto is fine.
-            await manager.broadcast_translations(event_code, audio_bytes, source_lang="auto")
+        if DEEPGRAM_API_KEY:
+            # ── V2: Deepgram Nova-3 Streaming ────────────────────────
+            # Start a persistent Deepgram connection for this session
+            await manager.start_deepgram_stream(event_code)
+            while True:
+                audio_bytes = await websocket.receive_bytes()
+                if len(audio_bytes) < 10:
+                    continue  # Ignore ping payloads
+                await manager.send_audio_to_deepgram(event_code, audio_bytes)
+        else:
+            # ── V1 Fallback: Whisper chunk-based ─────────────────────
+            while True:
+                audio_bytes = await websocket.receive_bytes()
+                if len(audio_bytes) < 10:
+                    continue
+                await manager.broadcast_translations_whisper(event_code, audio_bytes, source_lang="auto")
     except WebSocketDisconnect:
         manager.disconnect_host(event_code)
     except Exception as e:

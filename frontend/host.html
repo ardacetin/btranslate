@@ -463,25 +463,10 @@
     async function startBroadcast() {
       if (!currentEventCode) return;
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio:true, video:false });
-
-        // VAD (tuned for silence→speech transitions)
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const analyser = ctx.createAnalyser();
-        ctx.createMediaStreamSource(stream).connect(analyser);
-        analyser.fftSize = 512;
-        const buf = new Uint8Array(analyser.frequencyBinCount);
-        let voiced = false, vFrames = 0;
-        window.vadInterval = setInterval(() => {
-          analyser.getByteFrequencyData(buf);
-          const speech = buf.slice(4, 40);
-          const avg = speech.reduce((a,b)=>a+b,0) / speech.length;
-          if (avg > 30) { vFrames++; if (vFrames >= 2) voiced = true; }
-        }, 100);
-
-        let mime = 'audio/webm;codecs=opus';
-        if (!MediaRecorder.isTypeSupported(mime)) mime = 'audio/mp4';
-        mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true },
+          video: false
+        });
 
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}`);
@@ -494,23 +479,33 @@
           document.getElementById('btn-stop').style.display = 'inline-flex';
           document.querySelector('.qr-hero').classList.add('recording');
 
-          mediaRecorder.start();
-          window.recordInterval = setInterval(() => {
-            if (mediaRecorder.state === 'recording') { mediaRecorder.stop(); mediaRecorder.start(); }
-          }, 5000);
+          // ── Stream raw PCM 16kHz mono to server ────────────────────
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+          const source = audioCtx.createMediaStreamSource(stream);
+          window._audioCtx = audioCtx;
 
+          // ScriptProcessor (widely supported) to capture raw PCM
+          const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+          source.connect(processor);
+          processor.connect(audioCtx.destination);
+          window._processor = processor;
+
+          processor.onaudioprocess = (e) => {
+            if (socket.readyState !== WebSocket.OPEN) return;
+            const float32 = e.inputBuffer.getChannelData(0);
+            // Convert Float32 → Int16 PCM
+            const int16 = new Int16Array(float32.length);
+            for (let i = 0; i < float32.length; i++) {
+              const s = Math.max(-1, Math.min(1, float32[i]));
+              int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            }
+            socket.send(int16.buffer);
+          };
+
+          // Heartbeat ping
           window.pingInterval = setInterval(() => {
             if (socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);
           }, 25000);
-
-          mediaRecorder.ondataavailable = async (e) => {
-            if (e.data.size > 0 && socket.readyState === WebSocket.OPEN) {
-              if (voiced && e.data.size > 2000) {
-                socket.send(await e.data.arrayBuffer());
-              }
-              voiced = false; vFrames = 0;
-            }
-          };
         };
         socket.onerror = () => stopBroadcast();
         socket.onclose = () => stopBroadcast();
@@ -518,8 +513,10 @@
     }
 
     function stopBroadcast() {
-      [window.recordInterval, window.pingInterval, window.vadInterval].forEach(i => clearInterval(i));
-      if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); mediaRecorder.stream.getTracks().forEach(t=>t.stop()); }
+      clearInterval(window.pingInterval);
+      // Clean up audio processing
+      if (window._processor) { window._processor.disconnect(); window._processor = null; }
+      if (window._audioCtx) { window._audioCtx.close(); window._audioCtx = null; }
       if (socket) socket.close();
       const dict = translations[localStorage.getItem('bt_lang') || 'en'];
       document.getElementById('status-indicator').innerText = dict.status_stopped;

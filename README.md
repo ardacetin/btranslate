@@ -56,7 +56,8 @@ Open `http://localhost:8000` in your browser.
 
 | Variable | Description |
 |----------|-------------|
-| `OPENAI_API_KEY` | OpenAI API key (required) |
+| `OPENAI_API_KEY` | OpenAI API key for GPT-4o-mini translation (required) |
+| `DEEPGRAM_API_KEY` | Deepgram API key for Nova-3 STT + Aura TTS (recommended) |
 | `JWT_SECRET_KEY` | Secret for JWT token signing |
 | `ADMIN_PASSWORD` | Initial password for the 'admin' user (defaults to 'admin123') |
 
