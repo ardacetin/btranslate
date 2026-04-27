@@ -64,6 +64,10 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}
 
+@app.get("/api/auth/me")
+def read_users_me(current_user: User = Depends(get_current_user)):
+    return {"status": "ok", "role": current_user.role}
+
 # --- USER MANAGEMENT ENDPOINTS ---
 
 class UserResponse(BaseModel):

@@ -355,16 +355,31 @@
     let currentEventCode = null;
     let mediaRecorder = null;
     let socket = null;
-    let autoToken = localStorage.getItem('bt_token');
+    async function checkAuth() {
+      const token = localStorage.getItem('bt_token');
+      if (!token) return; // leave login panel visible
 
-    if (autoToken) {
-      document.getElementById('login-panel').style.display = 'none';
-      document.getElementById('app-panel').style.display = 'flex';
-      if (localStorage.getItem('bt_role') === 'admin') {
-        document.getElementById('link-users').style.display = '';
-        document.getElementById('link-logs').style.display = '';
+      try {
+        const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) {
+           localStorage.removeItem('bt_token');
+           localStorage.removeItem('bt_role');
+           return;
+        }
+        const d = await res.json();
+        localStorage.setItem('bt_role', d.role);
+        
+        document.getElementById('login-panel').style.display = 'none';
+        document.getElementById('app-panel').style.display = 'flex';
+        if (d.role === 'admin') {
+          document.getElementById('link-users').style.display = '';
+          document.getElementById('link-logs').style.display = '';
+        }
+      } catch (e) {
+        console.error('Auth check failed:', e);
       }
     }
+    checkAuth();
 
     // ── Auth ──────────────────────────────────────────
     async function login() {
