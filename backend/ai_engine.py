@@ -68,12 +68,21 @@ class DeepgramStreamingSTT:
         )
 
         try:
-            self.ws = await websockets.connect(
-                f"{self.DEEPGRAM_WS_URL}{params}",
-                extra_headers={"Authorization": f"Token {DEEPGRAM_API_KEY}"},
-                ping_interval=20,
-                ping_timeout=10,
-            )
+            # websockets v14+ uses 'additional_headers', older uses 'extra_headers'
+            try:
+                self.ws = await websockets.connect(
+                    f"{self.DEEPGRAM_WS_URL}{params}",
+                    additional_headers={"Authorization": f"Token {DEEPGRAM_API_KEY}"},
+                    ping_interval=20,
+                    ping_timeout=10,
+                )
+            except TypeError:
+                self.ws = await websockets.connect(
+                    f"{self.DEEPGRAM_WS_URL}{params}",
+                    extra_headers={"Authorization": f"Token {DEEPGRAM_API_KEY}"},
+                    ping_interval=20,
+                    ping_timeout=10,
+                )
             self._running = True
             self._listen_task = asyncio.create_task(self._listen_loop())
             print("[DG-STT] Connection opened successfully")
