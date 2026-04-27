@@ -78,7 +78,7 @@ class ConnectionManager:
 
     # ── Deepgram Streaming Pipeline ───────────────────────────────────────
 
-    async def start_deepgram_stream(self, event_code: str, rate: int = 16000):
+    async def start_deepgram_stream(self, event_code: str, rate: int = 16000, lang: str = "tr"):
         """
         Initialize a Deepgram Nova-3 streaming connection for this event.
         When Deepgram returns a finalized transcript, it triggers
@@ -91,11 +91,11 @@ class ConnectionManager:
             if not is_final:
                 await self._broadcast_interim(event_code, text)
             else:
-                await self._broadcast_to_participants(event_code, text)
+                await self._broadcast_to_participants(event_code, text, source_lang=lang)
 
         stt = DeepgramStreamingSTT(
             on_transcript_callback=on_transcript,
-            language="multi",
+            language=lang,
             sample_rate=rate,
         )
         await stt.start()

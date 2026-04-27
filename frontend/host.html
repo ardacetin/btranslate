@@ -276,6 +276,16 @@
         <div class="form-group" style="margin-bottom:1rem;">
           <input type="text" id="event-name" placeholder="E.g., Q3 Global Townhall" data-i18n-placeholder="lbl_event_name_placeholder" style="text-align:center;">
         </div>
+        <div class="form-group" style="margin-bottom:1.5rem;">
+          <select id="source-lang" style="width:100%; padding:0.85rem; border-radius:10px; border:1px solid var(--border-color); font-family:'Inter',sans-serif; text-align:center; background:var(--bg-color); color:var(--text-primary); cursor:pointer;">
+            <option value="tr" selected>Speaker Language: Turkish</option>
+            <option value="en">Speaker Language: English</option>
+            <option value="ar">Speaker Language: Arabic</option>
+            <option value="ur">Speaker Language: Urdu</option>
+            <option value="de">Speaker Language: German</option>
+            <option value="multi">Auto Detect (Multi-Language)</option>
+          </select>
+        </div>
         <button class="btn-primary" style="width:100%;" onclick="createSession()" data-i18n="btn_gen_code">Generate Event Code</button>
       </div>
 
@@ -455,14 +465,17 @@
       alert('Password updated'); loadUsers();
     }
 
-    // ── Session ───────────────────────────────────────
     async function createSession() {
       const eName = document.getElementById('event-name').value.trim() || 'Live Event';
+      const sLang = document.getElementById('source-lang').value;
+      
       try {
-        const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ source_language:'auto', event_name:eName }) });
+        const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ source_language: sLang, event_name:eName }) });
         if (res.status === 401) { logout(); return; }
         const d = await res.json();
         currentEventCode = d.event_code;
+        localStorage.setItem('bt_host_lang', sLang);
+        
         document.getElementById('setup-section').style.display = 'none';
         document.getElementById('broadcast-section').style.display = 'block';
         document.getElementById('display-code').innerText = currentEventCode;
@@ -488,8 +501,9 @@
         const nativeRate = nativeCtx.sampleRate;
         window._audioCtx = nativeCtx;
 
+        const sLang = localStorage.getItem('bt_host_lang') || 'tr';
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?rate=${nativeRate}`);
+        socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?rate=${nativeRate}&lang=${sLang}`);
 
         socket.onopen = () => {
           const dict = translations[localStorage.getItem('bt_lang') || 'en'];

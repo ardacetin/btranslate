@@ -55,9 +55,14 @@ class DeepgramStreamingSTT:
             print("[DG-STT] No Deepgram API key — skipping")
             return
 
+        if self.language == "multi" or self.language == "auto":
+            lang_param = "&detect_language=true"
+        else:
+            lang_param = f"&language={self.language}"
+
         params = (
             f"?model=nova-3"
-            f"&language={self.language}"
+            f"{lang_param}"
             f"&smart_format=true"
             f"&punctuate=true"
             f"&interim_results=true"
