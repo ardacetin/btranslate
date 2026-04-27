@@ -116,6 +116,75 @@
     .feat-box h3 { font-size: 1rem; margin-bottom: 0.3rem; }
     .feat-box p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
 
+    /* ── How It Works ──────────────────────────────── */
+    .hiw-section {
+      max-width: 700px;
+      margin: 3rem auto 2rem;
+      padding: 0 2rem;
+    }
+    .hiw-section h2 {
+      text-align: center;
+      font-size: 1.6rem;
+      margin-bottom: 2.5rem;
+    }
+    .hiw-steps {
+      position: relative;
+      padding-left: 2rem;
+    }
+    /* Vertical connecting line */
+    .hiw-steps::before {
+      content: '';
+      position: absolute;
+      left: 1.1rem;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--accent-color), var(--border-color));
+      border-radius: 2px;
+    }
+    .hiw-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 1.2rem;
+      margin-bottom: 1.8rem;
+      position: relative;
+    }
+    .hiw-step:last-child { margin-bottom: 0; }
+    .hiw-num {
+      flex-shrink: 0;
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 50%;
+      background: var(--accent-color);
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 0 0 4px var(--bg-color);
+      transition: transform 0.2s;
+    }
+    .hiw-step:hover .hiw-num {
+      transform: scale(1.15);
+    }
+    .hiw-content {
+      padding-top: 0.15rem;
+    }
+    .hiw-content h4 {
+      font-size: 1rem;
+      margin: 0 0 0.25rem;
+      color: var(--text-primary);
+    }
+    .hiw-content p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin: 0;
+    }
+
     /* ── Host link — subtle bottom section ─────────── */
     .host-section {
       max-width: 500px;
@@ -229,6 +298,55 @@
         </div>
         <h3 data-i18n="feat_4_title">Immersive Audio (TTS)</h3>
         <p data-i18n="feat_4_desc">Listen to translations read aloud dynamically with high-quality regional voices.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── How It Works ── -->
+  <div class="hiw-section">
+    <h2 data-i18n="hiw_title">How It Works</h2>
+    <div class="hiw-steps">
+      <div class="hiw-step">
+        <div class="hiw-num">1</div>
+        <div class="hiw-content">
+          <h4 data-i18n="hiw_s1_title">Create a Session</h4>
+          <p data-i18n="hiw_s1_desc">The host logs in and creates a broadcast session. A unique QR code and event code are generated instantly.</p>
+        </div>
+      </div>
+      <div class="hiw-step">
+        <div class="hiw-num">2</div>
+        <div class="hiw-content">
+          <h4 data-i18n="hiw_s2_title">Start Broadcasting</h4>
+          <p data-i18n="hiw_s2_desc">Audio is captured as a raw PCM stream (16kHz mono) and streamed continuously to the server via WebSocket.</p>
+        </div>
+      </div>
+      <div class="hiw-step">
+        <div class="hiw-num">3</div>
+        <div class="hiw-content">
+          <h4 data-i18n="hiw_s3_title">AI Transcription</h4>
+          <p data-i18n="hiw_s3_desc">Deepgram Nova-3 transcribes speech in real-time with built-in voice activity detection — zero hallucination, under 300ms latency.</p>
+        </div>
+      </div>
+      <div class="hiw-step">
+        <div class="hiw-num">4</div>
+        <div class="hiw-content">
+          <h4 data-i18n="hiw_s4_title">Smart Translation</h4>
+          <p data-i18n="hiw_s4_desc">GPT-4o-mini translates each finalized transcript to every requested language with full context awareness.</p>
+        </div>
+      </div>
+      <div class="hiw-step">
+        <div class="hiw-num">5</div>
+        <div class="hiw-content">
+          <h4 data-i18n="hiw_s5_title">Voice Synthesis</h4>
+          <p data-i18n="hiw_s5_desc">Deepgram Aura converts translated text to studio-quality audio on the server — first byte in under 250ms.</p>
+        </div>
+      </div>
+      <div class="hiw-step">
+        <div class="hiw-num">6</div>
+        <div class="hiw-content">
+          <h4 data-i18n="hiw_s6_title">Live Delivery</h4>
+          <p data-i18n="hiw_s6_desc">Participants receive both text and audio via WebSocket. They see and hear the translation the moment the speaker finishes a sentence.</p>
+        </div>
       </div>
     </div>
   </div>
