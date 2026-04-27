@@ -9,7 +9,6 @@ from ai_engine import (
     translate_text,
     synthesize_speech,
     transcribe_audio_whisper,
-    dg_client,
     DEEPGRAM_API_KEY,
 )
 
