@@ -86,13 +86,16 @@ class ConnectionManager:
         """
         session = self.get_or_create_session(event_code)
 
-        async def on_transcript(text: str):
-            """Called by DeepgramStreamingSTT when a final transcript arrives."""
-            await self._broadcast_to_participants(event_code, text)
+        async def on_transcript(text: str, is_final: bool):
+            """Called by DeepgramStreamingSTT when a transcript arrives."""
+            if not is_final:
+                await self._broadcast_interim(event_code, text)
+            else:
+                await self._broadcast_to_participants(event_code, text)
 
         stt = DeepgramStreamingSTT(
             on_transcript_callback=on_transcript,
-            language="tr",
+            language="multi",
             sample_rate=rate,
         )
         await stt.start()
@@ -122,8 +125,37 @@ class ConnectionManager:
 
     # ── Core broadcast logic (shared by both pipelines) ───────────────────
 
+    async def _broadcast_interim(self, event_code: str, interim_text: str):
+        """Send interim (live-typing) text to participants without translating."""
+        session = self.active_sessions.get(event_code)
+        if not session:
+            return
+
+        participants_dict = session["participants"]
+        if not participants_dict:
+            return
+
+        message = json.dumps({
+            "is_interim": True,
+            "original": interim_text
+        })
+
+        # Broadcast to everyone immediately
+        for target_lang, ws_list in participants_dict.items():
+            dead = []
+            for ws in ws_list:
+                try:
+                    await ws.send_text(message)
+                except Exception:
+                    dead.append(ws)
+            for ws in dead:
+                try:
+                    ws_list.remove(ws)
+                except ValueError:
+                    pass
+
     async def _broadcast_to_participants(self, event_code: str, original_text: str, source_lang: str = "auto"):
-        """Translate text, generate TTS audio, and send to all participants."""
+        """Translate final text, generate TTS audio, and send to all participants."""
         session = self.active_sessions.get(event_code)
         if not session:
             print(f"[BROADCAST] ✗ No session for {event_code}")
@@ -153,6 +185,7 @@ class ConnectionManager:
 
             # 3. Build message
             message = json.dumps({
+                "is_interim": False,
                 "original": original_text,
                 "translated": translated_text,
                 "target_lang": target_lang,

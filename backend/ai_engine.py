@@ -40,7 +40,7 @@ class DeepgramStreamingSTT:
 
     DEEPGRAM_WS_URL = "wss://api.deepgram.com/v1/listen"
 
-    def __init__(self, on_transcript_callback, language: str = "tr", sample_rate: int = 16000):
+    def __init__(self, on_transcript_callback, language: str = "multi", sample_rate: int = 16000):
         self.callback = on_transcript_callback
         self.language = language
         self.sample_rate = sample_rate
@@ -62,7 +62,7 @@ class DeepgramStreamingSTT:
             f"&punctuate=true"
             f"&interim_results=true"
             f"&vad_events=true"
-            f"&endpointing=500"
+            f"&endpointing=300"
             f"&encoding=linear16"
             f"&channels=1"
             f"&sample_rate={self.sample_rate}"
@@ -117,9 +117,10 @@ class DeepgramStreamingSTT:
                             if transcript:
                                 if is_final:
                                     print(f"[DG-STT] FINAL ({confidence:.2f}): '{transcript[:80]}'")
-                                    await self.callback(transcript)
+                                    await self.callback(transcript, True)
                                 else:
-                                    print(f"[DG-STT] interim: '{transcript[:50]}'")
+                                    # Don't spam logs for every interim word
+                                    await self.callback(transcript, False)
 
                     elif msg_type == "Metadata":
                         print(f"[DG-STT] Metadata: model={data.get('model_info', {}).get('name', '?')}")

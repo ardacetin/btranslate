@@ -398,14 +398,18 @@
       };
       socket.onmessage = (e) => {
         const d = JSON.parse(e.data);
-        addMsg(d.original, d.translated);
-        if (audioOn) {
-          if (d.audio) {
-            // V2: Play server-generated Deepgram Aura audio (base64 mp3)
-            playServerAudio(d.audio);
-          } else {
-            // Fallback: browser TTS
-            speak(d.translated, currentLang);
+        if (d.is_interim) {
+          updateInterimMsg(d.original);
+        } else {
+          addFinalMsg(d.original, d.translated);
+          if (audioOn) {
+            if (d.audio) {
+              // V2: Play server-generated Deepgram Aura audio (base64 mp3)
+              playServerAudio(d.audio);
+            } else {
+              // Fallback: browser TTS
+              speak(d.translated, currentLang);
+            }
           }
         }
       };
@@ -419,7 +423,25 @@
     }
 
     // ── Feed ──────────────────────────────────────────────────────────────
-    function addMsg(orig, translated) {
+    let currentInterimEl = null;
+
+    function updateInterimMsg(orig) {
+      if (!currentInterimEl) {
+        currentInterimEl = document.createElement('div');
+        currentInterimEl.className = 'msg interim';
+        currentInterimEl.style.opacity = '0.6';
+        currentInterimEl.style.fontStyle = 'italic';
+        feed.appendChild(currentInterimEl);
+      }
+      currentInterimEl.innerHTML = `<div class="src" translate="no">${esc(orig)}...</div>`;
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function addFinalMsg(orig, translated) {
+      if (currentInterimEl) {
+        currentInterimEl.remove();
+        currentInterimEl = null;
+      }
       const el = document.createElement('div');
       el.className = 'msg';
       const isRTL = currentLang === 'ar' || currentLang === 'ur';
