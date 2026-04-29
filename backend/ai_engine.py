@@ -263,8 +263,9 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                         f"CRITICAL RULES:\n"
                         f"1. Translate ONLY what is said. Do not invent, add, or complete anything.\n"
                         f"2. If the text is an incomplete fragment, translate that fragment only.\n"
-                        f"3. Reply with ONLY the translated text. No notes, no greetings, no filler.\n"
-                        f"4. If the input is empty or just noise characters, reply with an empty string."
+                        f"3. Do NOT translate proper names (people's names, surnames, cities). Keep them exactly as spoken.\n"
+                        f"4. Reply with ONLY the translated text. No notes, no greetings, no filler.\n"
+                        f"5. If the input is empty or just noise characters, reply with an empty string."
                     )
                 },
                 {"role": "user", "content": text}

@@ -159,8 +159,15 @@ async def websocket_host(websocket: WebSocket, event_code: str, rate: int = 1600
     await manager.connect_host(websocket, event_code)
     try:
         if DEEPGRAM_API_KEY:
-            # Tell client to use PCM streaming mode
-            await websocket.send_text('{"mode":"deepgram"}')
+            # Tell client to use PCM streaming mode and status
+            status_json = json.dumps({
+                "mode": "deepgram",
+                "status": {
+                    "deepgram": bool(DEEPGRAM_API_KEY),
+                    "gpt": bool(OPENAI_API_KEY)
+                }
+            })
+            await websocket.send_text(status_json)
             # Start Deepgram streaming connection with exact language and sample rate
             await manager.start_deepgram_stream(event_code, rate, lang)
             while True:
@@ -170,7 +177,14 @@ async def websocket_host(websocket: WebSocket, event_code: str, rate: int = 1600
                 await manager.send_audio_to_deepgram(event_code, audio_bytes)
         else:
             # Tell client to use MediaRecorder chunk mode
-            await websocket.send_text('{"mode":"whisper"}')
+            status_json = json.dumps({
+                "mode": "whisper",
+                "status": {
+                    "deepgram": False,
+                    "gpt": bool(OPENAI_API_KEY)
+                }
+            })
+            await websocket.send_text(status_json)
             while True:
                 audio_bytes = await websocket.receive_bytes()
                 if len(audio_bytes) < 10:
