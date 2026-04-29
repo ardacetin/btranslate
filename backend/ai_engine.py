@@ -96,10 +96,22 @@ class DeepgramStreamingSTT:
 
             self._running = True
             self._listen_task = asyncio.create_task(self._listen_loop())
+            self._keepalive_task = asyncio.create_task(self._keepalive_loop())
             print("[DG-STT] ✓ Connection opened successfully")
 
         except Exception as e:
-            print(f"[DG-STT] ✗ Failed to start: {e}")
+            print(f"[DG-STT] Connection failed: {e}")
+            self.ws = None
+
+    async def _keepalive_loop(self):
+        """Send Deepgram KeepAlive message every 8 seconds to prevent NET0001 timeout."""
+        while self._running and self.ws:
+            try:
+                await asyncio.sleep(8)
+                if self._running and self.ws:
+                    await self.ws.send(json.dumps({"type": "KeepAlive"}))
+            except Exception:
+                pass
 
     async def _listen_loop(self):
         """Background task that listens for Deepgram responses."""
@@ -169,6 +181,8 @@ class DeepgramStreamingSTT:
     async def stop(self):
         """Close the Deepgram connection."""
         self._running = False
+        if getattr(self, "_keepalive_task", None):
+            self._keepalive_task.cancel()
         if self.ws:
             try:
                 await self.ws.send(json.dumps({"type": "CloseStream"}))
