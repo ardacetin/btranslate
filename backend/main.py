@@ -7,11 +7,12 @@ from sqlalchemy.orm import Session as DBSession
 from pydantic import BaseModel
 from typing import List
 import uuid
+import json
 
 from database import get_db, init_db, EventSession, User
 from sockets import manager, log_activity
 from auth import verify_password, create_access_token, get_current_user, check_admin, get_password_hash
-from ai_engine import DEEPGRAM_API_KEY
+from ai_engine import DEEPGRAM_API_KEY, OPENAI_API_KEY
 
 app = FastAPI(title="btranslate API")
 
