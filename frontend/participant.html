@@ -7,14 +7,17 @@
   <link rel="stylesheet" href="/static/styles.css">
   <style>
     html, body {
-      overflow-x: hidden;
+      overflow: hidden; /* Force no body scroll so feed-box scrolls */
       width: 100%;
+      height: 100%;
       margin: 0;
       padding: 0;
     }
     body { 
       justify-content: flex-start; 
       background-image: radial-gradient(circle at top center, rgba(122, 35, 44, 0.03), transparent 60%);
+      display: flex;
+      flex-direction: column;
     }
 
     .container {
@@ -24,7 +27,8 @@
       padding: 1rem;
       display: flex;
       flex-direction: column;
-      min-height: calc(100vh - 5rem);
+      flex: 1;
+      min-height: 0; /* Prevent flex overflow */
     }
 
     /* ── Header Bar ─────────────────────────────────── */
@@ -157,7 +161,7 @@
     /* ── Feed ────────────────────────────────────────── */
     .feed-box {
       flex: 1;
-      height: 60vh;
+      min-height: 0; /* Crucial for flex child to scroll */
       overflow-y: auto;
       overflow-x: hidden;
       display: flex;
@@ -332,7 +336,6 @@
       .feed-box { 
         padding: 0.75rem; 
         gap: 0.6rem;
-        height: calc(100vh - 220px); 
       }
       .msg { padding: 0.75rem 0.8rem; }
       .msg .tgt { font-size: 1.1rem; }
