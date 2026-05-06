@@ -170,6 +170,8 @@
       box-shadow: inset 0 2px 8px rgba(0,0,0,0.03);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
     }
     .feed-empty {
       margin: auto;
@@ -487,6 +489,16 @@
     // ── Feed ──────────────────────────────────────────────────────────────
     let currentInterimEl = null;
 
+    function scrollToBottom() {
+      // Use requestAnimationFrame and a slightly longer timeout to ensure 
+      // the DOM has reflowed and animations haven't messed up scrollHeight
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (feed) feed.scrollTop = feed.scrollHeight;
+        }, 100);
+      });
+    }
+
     function updateInterimMsg(orig) {
       if (!currentInterimEl) {
         currentInterimEl = document.createElement('div');
@@ -496,9 +508,7 @@
         feed.appendChild(currentInterimEl);
       }
       currentInterimEl.innerHTML = `<div class="src" translate="no">${esc(orig)}...</div>`;
-      setTimeout(() => {
-        feed.scrollTop = feed.scrollHeight;
-      }, 10);
+      scrollToBottom();
     }
 
     function addFinalMsg(orig, translated) {
@@ -514,9 +524,7 @@
         <div class="tgt ${isRTL ? 'rtl' : ''}">${esc(translated)}</div>
       `;
       feed.appendChild(el);
-      setTimeout(() => {
-        feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
-      }, 50);
+      scrollToBottom();
     }
     function esc(s) { const d = document.createElement('div'); d.innerText = s; return d.innerHTML; }
 
