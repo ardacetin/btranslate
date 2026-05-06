@@ -496,7 +496,9 @@
         feed.appendChild(currentInterimEl);
       }
       currentInterimEl.innerHTML = `<div class="src" translate="no">${esc(orig)}...</div>`;
-      feed.scrollTop = feed.scrollHeight;
+      setTimeout(() => {
+        feed.scrollTop = feed.scrollHeight;
+      }, 10);
     }
 
     function addFinalMsg(orig, translated) {
@@ -512,7 +514,9 @@
         <div class="tgt ${isRTL ? 'rtl' : ''}">${esc(translated)}</div>
       `;
       feed.appendChild(el);
-      feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
+      setTimeout(() => {
+        feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
+      }, 50);
     }
     function esc(s) { const d = document.createElement('div'); d.innerText = s; return d.innerHTML; }
 
