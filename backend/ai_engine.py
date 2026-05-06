@@ -65,7 +65,6 @@ class DeepgramStreamingSTT:
             f"{lang_param}"
             f"&smart_format=true"
             f"&punctuate=true"
-            f"&dictation=true"
             f"&interim_results=true"
             f"&vad_events=true"
             f"&endpointing=300"
