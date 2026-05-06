@@ -61,10 +61,11 @@ class DeepgramStreamingSTT:
             lang_param = f"&language={self.language}"
 
         params = (
-            f"?model=nova-3"
+            f"?model=nova-2"
             f"{lang_param}"
             f"&smart_format=true"
             f"&punctuate=true"
+            f"&dictation=true"
             f"&interim_results=true"
             f"&vad_events=true"
             f"&endpointing=300"
@@ -75,7 +76,7 @@ class DeepgramStreamingSTT:
 
         url = f"{self.DEEPGRAM_WS_URL}{params}"
         headers = {"Authorization": f"Token {DEEPGRAM_API_KEY}"}
-        print(f"[DG-STT] Connecting to: {self.DEEPGRAM_WS_URL}?model=nova-3&language={self.language}&...")
+        print(f"[DG-STT] Connecting to: {self.DEEPGRAM_WS_URL}?model=nova-2&language={self.language}&...")
 
         try:
             # websockets v14+ uses 'additional_headers', older uses 'extra_headers'
