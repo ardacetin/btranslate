@@ -564,7 +564,9 @@
 
     // ── V2: Raw PCM streaming for Deepgram ─────
     function startPCMStreaming(stream, nativeCtx, nativeRate) {
+      window._stream = stream;
       const source = nativeCtx.createMediaStreamSource(stream);
+      window._source = source; // CRITICAL: Prevent Safari/Chrome garbage collection
 
       const processor = nativeCtx.createScriptProcessor(4096, 1, 1);
       source.connect(processor);
@@ -575,12 +577,15 @@
       processor.connect(silentGain);
       silentGain.connect(nativeCtx.destination);
       window._processor = processor;
+      window._silentGain = silentGain;
 
       let chunkCount = 0;
 
       const analyser = nativeCtx.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
+      window._analyser = analyser; // Prevent GC
+      
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       
       function drawMicLevel() {
@@ -654,6 +659,10 @@
       clearInterval(window.recordInterval);
       // V2 cleanup
       if (window._processor) { window._processor.disconnect(); window._processor = null; }
+      if (window._silentGain) { window._silentGain.disconnect(); window._silentGain = null; }
+      if (window._analyser) { window._analyser.disconnect(); window._analyser = null; }
+      if (window._source) { window._source.disconnect(); window._source = null; }
+      if (window._stream) { window._stream.getTracks().forEach(t => t.stop()); window._stream = null; }
       if (window._audioCtx) { window._audioCtx.close(); window._audioCtx = null; }
       // V1 cleanup
       if (window._mediaRecorder && window._mediaRecorder.state !== 'inactive') {
