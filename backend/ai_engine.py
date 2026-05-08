@@ -19,13 +19,6 @@ openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 TTS_VOICE_MAP = {
     "en": "aura-2-asteria-en",
     "tr": "aura-2-asteria-en",
-    "de": "aura-2-asteria-de",
-    "fr": "aura-2-asteria-fr",
-    "es": "aura-2-asteria-es",
-    "ja": "aura-2-asteria-ja",
-    "ar": "aura-2-asteria-en",
-    "ur": "aura-2-asteria-en",
-    "zh": "aura-2-asteria-en",
 }
 
 
