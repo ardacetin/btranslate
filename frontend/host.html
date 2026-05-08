@@ -8,33 +8,17 @@
   <style>
     body { justify-content: flex-start; }
 
+    /* ── Login ──────────────────────────────────────── */
     .login-card {
       max-width: 380px;
       margin: 0 auto;
       background: var(--surface-color);
-      border: 1px solid var(--border-color);
+      border:1px solid var(--border-color);
       border-radius: 16px;
       padding: 2.5rem 2rem;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.08);
       text-align: center;
-      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s;
-      position: relative;
     }
-    .login-card::before {
-      content: "";
-      position: absolute;
-      top: -1px; left: -1px; right: -1px; bottom: -1px;
-      background: linear-gradient(135deg, rgba(122,35,44,0.4), transparent 60%);
-      z-index: -1;
-      border-radius: 17px;
-      opacity: 0;
-      transition: opacity 0.4s;
-    }
-    .login-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 44px rgba(122,35,44,0.1), 0 0 0 1px rgba(122,35,44,0.05);
-    }
-    .login-card:hover::before { opacity: 1; }
     .login-card h2 {
       font-size: 1.6rem;
       margin-bottom: 1.5rem;
@@ -58,25 +42,8 @@
       border-radius: 16px;
       padding: 2.5rem 2rem;
       text-align: center;
-      box-shadow: 0 12px 32px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02);
-      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s;
-      position: relative;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
     }
-    .setup-card::before {
-      content: "";
-      position: absolute;
-      top: -1px; left: -1px; right: -1px; bottom: -1px;
-      background: linear-gradient(135deg, rgba(122,35,44,0.4), transparent 60%);
-      z-index: -1;
-      border-radius: 17px;
-      opacity: 0;
-      transition: opacity 0.4s;
-    }
-    .setup-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 44px rgba(122,35,44,0.1), 0 0 0 1px rgba(122,35,44,0.05);
-    }
-    .setup-card:hover::before { opacity: 1; }
     .setup-card h2 {
       font-size: 1.4rem;
       margin-bottom: 0.4rem;
@@ -94,34 +61,16 @@
       border: 1px solid var(--border-color);
       border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 12px 36px rgba(0,0,0,0.08);
-      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .broadcast-card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 18px 48px rgba(0,0,0,0.12);
+      box-shadow: 0 10px 32px rgba(0,0,0,0.08);
     }
 
     /* QR hero section */
     .qr-hero {
-      background: linear-gradient(135deg, #1f2937 0%, #000000 100%);
+      background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
       padding: 2.5rem 2rem 2rem;
       text-align: center;
       color: white;
       position: relative;
-      overflow: hidden;
-    }
-    .qr-hero::after {
-      content: "";
-      position: absolute;
-      top: -50%; left: -50%; width: 200%; height: 200%;
-      background: radial-gradient(circle, rgba(122,35,44,0.35) 0%, transparent 60%);
-      animation: rotateGlow 15s linear infinite;
-      pointer-events: none;
-    }
-    @keyframes rotateGlow {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
     .qr-hero .code-label {
       font-size: 0.7rem;
