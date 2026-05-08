@@ -7,101 +7,107 @@
   <link rel="stylesheet" href="/static/styles.css">
   <meta name="description" content="Yapay zeka destekli eşzamanlı ses referanslı çeviri stüdyosu.">
   <style>
+    /* ── Layout & Animations ───────────────────────── */
+    @keyframes slideUpFade {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .animate-up {
+      animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      opacity: 0;
+    }
+    .delay-1 { animation-delay: 0.1s; }
+    .delay-2 { animation-delay: 0.2s; }
+    .delay-3 { animation-delay: 0.3s; }
+
     /* ── Hero ──────────────────────────────────────── */
     .home-hero {
       text-align: center;
-      padding: 7rem 2rem 3rem;
-      max-width: 700px;
+      padding: 6rem 1.5rem 3rem;
+      max-width: 800px;
       margin: 0 auto;
-      animation: fadeInDown 0.7s ease-out forwards;
     }
     .home-hero h1 {
       font-size: 3.5rem;
       font-weight: 800;
+      letter-spacing: -0.02em;
       line-height: 1.1;
-      color: var(--accent-color);
-      margin-bottom: 1rem;
+      color: var(--text-primary);
+      margin-bottom: 1.2rem;
     }
-    .home-hero h1 span { color: var(--text-primary); }
+    .home-hero h1 span { color: var(--accent-color); }
     .home-hero .tagline {
       font-size: 1.15rem;
       color: var(--text-secondary);
-      max-width: 520px;
+      max-width: 580px;
       margin: 0 auto 2.5rem;
       line-height: 1.6;
+      font-weight: 400;
     }
 
-    /* Join card — the star */
+    /* Join card (SaaS style) */
     .join-card {
-      background: var(--surface-color-solid);
+      background: #ffffff;
       border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 2rem;
-      max-width: 420px;
+      border-radius: 12px;
+      padding: 2.5rem;
+      max-width: 440px;
       margin: 0 auto;
-      box-shadow: 0 12px 36px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.02);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
       text-align: left;
-      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-      position: relative;
-    }
-    .join-card::before {
-      content: "";
-      position: absolute;
-      top: -1px; left: -1px; right: -1px; bottom: -1px;
-      background: linear-gradient(135deg, rgba(122,35,44,0.4), transparent 60%);
-      z-index: -1;
-      border-radius: 17px;
-      opacity: 0;
-      transition: opacity 0.4s;
+      transition: box-shadow 0.3s ease;
     }
     .join-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 44px rgba(122,35,44,0.1), 0 0 0 1px rgba(122,35,44,0.05);
-    }
-    .join-card:hover::before {
-      opacity: 1;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
     }
     .join-card h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      font-size: 1.2rem;
-      margin-bottom: 0.4rem;
     }
     .join-card .desc {
-      font-size: 0.88rem;
+      font-size: 0.9rem;
       color: var(--text-secondary);
-      margin-bottom: 1.2rem;
+      margin-bottom: 1.5rem;
       line-height: 1.5;
     }
     .join-row {
       display: flex;
-      gap: 0.5rem;
+      flex-direction: column;
+      gap: 0.75rem;
     }
     .join-row input {
-      flex: 1;
+      width: 100%;
       text-transform: uppercase;
-      font-weight: 600;
-      letter-spacing: 2px;
+      letter-spacing: 1px;
       text-align: center;
-      font-size: 1.1rem;
-      padding: 0.7rem;
+      font-size: 1rem;
+      padding: 0.8rem;
+      border-radius: 8px;
     }
     .join-row button {
-      padding: 0.7rem 1.5rem;
-      white-space: nowrap;
+      width: 100%;
+      padding: 0.85rem;
+      font-size: 1rem;
     }
 
     /* ── Features ──────────────────────────────────── */
     .feat-section {
-      max-width: 900px;
-      margin: 3rem auto 2rem;
-      padding: 0 2rem;
+      max-width: 1000px;
+      margin: 4rem auto 3rem;
+      padding: 0 1.5rem;
     }
     .feat-section h2 {
       text-align: center;
-      font-size: 1.6rem;
-      margin-bottom: 2rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 2.5rem;
+      color: var(--text-primary);
     }
     .feat-grid {
       display: grid;
@@ -109,167 +115,135 @@
       gap: 1.5rem;
     }
     .feat-box {
-      background: var(--surface-color-solid);
+      background: #ffffff;
       border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 1.8rem 1.5rem;
-      text-align: center;
-      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-      position: relative;
-      overflow: hidden;
-    }
-    .feat-box::before {
-      content: "";
-      position: absolute;
-      top: 0; left: 0; width: 100%; height: 3px;
-      background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
-      transform: scaleX(0);
-      transition: transform 0.4s ease;
-    }
-    .feat-box:hover::before {
-      transform: scaleX(1);
+      border-radius: 12px;
+      padding: 2rem 1.5rem;
+      text-align: left;
+      transition: box-shadow 0.3s ease, transform 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
     }
     .feat-box:hover { 
-      transform: translateY(-5px); 
-      box-shadow: 0 15px 30px rgba(0,0,0,0.06);
+      transform: translateY(-2px); 
+      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
     }
     .feat-box .icon-wrap {
-      width: 52px; height: 52px;
+      width: 48px; height: 48px;
       border-radius: 50%;
-      background: rgba(122,35,44,0.08);
-      color: var(--accent-color);
+      background: #f3f4f6; /* light gray */
+      color: var(--text-primary);
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 1rem;
-      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.4s;
+      margin-bottom: 1.25rem;
+      transition: color 0.3s;
     }
     .feat-box:hover .icon-wrap {
-      transform: scale(1.1) rotate(5deg);
-      background: rgba(122,35,44,0.15);
+      color: var(--accent-color);
     }
-    .feat-box h3 { font-size: 1rem; margin-bottom: 0.3rem; }
-    .feat-box p { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
+    .feat-box h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary); }
+    .feat-box p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
 
     /* ── How It Works ──────────────────────────────── */
     .hiw-section {
       max-width: 700px;
-      margin: 3rem auto 2rem;
-      padding: 0 2rem;
+      margin: 5rem auto 3rem;
+      padding: 0 1.5rem;
     }
     .hiw-section h2 {
       text-align: center;
-      font-size: 1.6rem;
-      margin-bottom: 2.5rem;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 3rem;
+      color: var(--text-primary);
     }
     .hiw-steps {
       position: relative;
-      padding-left: 2rem;
     }
     /* Vertical connecting line */
     .hiw-steps::before {
       content: '';
       position: absolute;
-      left: 1.1rem;
+      left: 17px; /* center of 34px circle */
       top: 0;
       bottom: 0;
-      width: 2px;
-      background: linear-gradient(to bottom, var(--accent-color), var(--border-color));
-      border-radius: 2px;
+      width: 1px;
+      background: var(--border-color);
     }
     .hiw-step {
       display: flex;
       align-items: flex-start;
-      gap: 1.2rem;
-      margin-bottom: 1.8rem;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
       position: relative;
     }
     .hiw-step:last-child { margin-bottom: 0; }
     .hiw-num {
       flex-shrink: 0;
-      width: 2.2rem;
-      height: 2.2rem;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       background: var(--accent-color);
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.95rem;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.9rem;
       display: flex;
       align-items: center;
       justify-content: center;
       position: relative;
       z-index: 1;
-      box-shadow: 0 0 0 4px var(--bg-color);
-      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
-    }
-    .hiw-step:hover .hiw-num {
-      transform: scale(1.15);
-      box-shadow: 0 0 0 6px rgba(122,35,44,0.15);
+      border: 4px solid var(--bg-color); /* fake gap */
+      box-sizing: content-box;
+      margin-left: -4px;
     }
     .hiw-content {
-      padding-top: 0.15rem;
+      padding-top: 0.3rem;
     }
     .hiw-content h4 {
-      font-size: 1rem;
-      margin: 0 0 0.25rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin: 0 0 0.4rem;
       color: var(--text-primary);
     }
     .hiw-content p {
-      font-size: 0.85rem;
+      font-size: 0.95rem;
       color: var(--text-secondary);
-      line-height: 1.5;
+      line-height: 1.6;
       margin: 0;
     }
 
     /* ── Host link — subtle bottom section ─────────── */
     .host-section {
       max-width: 500px;
-      margin: 2rem auto 4rem;
-      padding: 0 2rem;
+      margin: 4rem auto 4rem;
+      padding: 0 1.5rem;
       text-align: center;
-    }
-    .host-section .divider {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1.2rem;
-      color: var(--text-secondary);
-      font-size: 0.78rem;
-      opacity: 0.5;
-    }
-    .host-section .divider::before,
-    .host-section .divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border-color);
     }
     .host-link {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.6rem 1.5rem;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
+      padding: 0.6rem 1rem;
       background: transparent;
       color: var(--text-secondary);
       font-size: 0.85rem;
+      font-weight: 500;
       font-family: 'Inter', sans-serif;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: color 0.2s;
       text-decoration: none;
     }
     .host-link:hover {
-      border-color: var(--accent-color);
-      color: var(--accent-color);
-      background: rgba(122,35,44,0.03);
+      color: var(--text-primary);
     }
 
     /* Mobile */
     @media (max-width: 768px) {
-      .home-hero h1 { font-size: 2.4rem; }
+      .home-hero h1 { font-size: 2.5rem; }
       .feat-grid { grid-template-columns: 1fr; }
-      .join-card { margin: 0 1rem; }
+      .join-card { margin: 0; }
     }
   </style>
 </head>
@@ -285,12 +259,12 @@
   </nav>
 
   <!-- ── Hero ── -->
-  <div class="home-hero">
+  <div class="home-hero animate-up">
     <h1 data-i18n="hero_title">Communication <br><span>Without Borders.</span></h1>
     <p class="tagline" data-i18n="hero_subtitle">Instantly transcribe and translate your events and meetings using AI to multiple languages in real-time.</p>
 
     <!-- Join Card -->
-    <div class="join-card">
+    <div class="join-card animate-up delay-1">
       <h3>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         <span data-i18n="card_part_title">Join as Participant</span>
@@ -304,7 +278,7 @@
   </div>
 
   <!-- ── Features ── -->
-  <div class="feat-section">
+  <div class="feat-section animate-up delay-2">
     <h2 data-i18n="feats_title">Core System Features</h2>
     <div class="feat-grid">
       <div class="feat-box">
@@ -339,7 +313,7 @@
   </div>
 
   <!-- ── How It Works ── -->
-  <div class="hiw-section">
+  <div class="hiw-section animate-up delay-3">
     <h2 data-i18n="hiw_title">How It Works</h2>
     <div class="hiw-steps">
       <div class="hiw-step">
@@ -388,8 +362,7 @@
   </div>
 
   <!-- ── Host link — subtle ── -->
-  <div class="host-section">
-    <div class="divider">Host</div>
+  <div class="host-section animate-up delay-3">
     <a class="host-link" href="/host">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
       <span data-i18n="card_host_btn">Log In as Host</span>
