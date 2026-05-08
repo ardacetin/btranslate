@@ -3,6 +3,7 @@ import json
 import asyncio
 import httpx
 import websockets
+from typing import Optional
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
@@ -284,7 +285,7 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
 # 4. DEEPGRAM AURA TTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-async def synthesize_speech(text: str, target_lang: str) -> bytes | None:
+async def synthesize_speech(text: str, target_lang: str) -> Optional[bytes]:
     """Convert text to speech using Deepgram Aura REST API."""
     if not DEEPGRAM_API_KEY:
         return None

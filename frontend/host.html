@@ -232,11 +232,72 @@
       word-break: break-all;
     }
 
+    /* Admin Modal Improvements */
+    .user-list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      background: #f9fafb;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s;
+    }
+    .user-list-item:hover {
+      background: #f3f4f6;
+    }
+    .user-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .user-controls input {
+      padding: 0.4rem 0.6rem;
+      font-size: 0.8rem;
+      width: 90px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      background: white;
+    }
+    .user-controls button {
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 0.4rem 0.6rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+      transition: transform 0.1s, opacity 0.2s;
+    }
+    .user-controls button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    .btn-upd { background: var(--accent-color); }
+    .btn-del { background: var(--danger-color); }
+    
+    .add-user-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid rgba(0,0,0,0.06);
+    }
+    .add-user-row input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+
     /* Mobile */
     @media (max-width: 600px) {
       .qr-hero .code-value { font-size: 2.2rem; letter-spacing: 4px; }
       .mic-controls { padding: 1rem; }
       .login-card { margin: 0 1rem; }
+      .add-user-row { flex-direction: column; }
     }
   </style>
 </head>
@@ -333,6 +394,7 @@
 
       <!-- Admin links — subtle & small -->
       <div class="admin-links">
+        <a onclick="endSession()" data-i18n="btn_new_session">New Session</a>
         <a onclick="logout()" data-i18n="btn_logout">Logout</a>
         <a id="link-users" onclick="toggleModal('admin-modal')" style="display:none;" data-i18n="btn_usermgmt">Users</a>
         <a id="link-logs" onclick="toggleModal('logs-modal')" style="display:none;">Logs</a>
@@ -347,14 +409,13 @@
     <div class="modal-card">
       <button class="modal-close" onclick="toggleModal('admin-modal')">&times;</button>
       <h3 data-i18n="admin_title">User Management</h3>
-      <div style="max-height:200px; overflow-y:auto; margin-bottom:1rem;">
-        <ul id="user-list" style="list-style:none; padding:0; display:flex; flex-direction:column; gap:0.5rem;"></ul>
+      <div style="max-height:250px; overflow-y:auto;">
+        <ul id="user-list" style="list-style:none; padding:0; margin:0;"></ul>
       </div>
-      <hr style="border:0; border-top:1px solid rgba(0,0,0,0.08); margin:0.75rem 0;">
-      <div style="display:flex; gap:0.5rem;">
-        <input type="text" id="new-user" placeholder="Username" style="flex:1;">
-        <input type="password" id="new-pass" placeholder="Password" style="flex:1;">
-        <button class="btn-primary" onclick="createUser()" data-i18n="btn_add">Add</button>
+      <div class="add-user-row">
+        <input type="text" id="new-user" placeholder="Username">
+        <input type="password" id="new-pass" placeholder="Password">
+        <button class="btn-primary" onclick="createUser()" data-i18n="btn_add">Add User</button>
       </div>
     </div>
   </div>
@@ -414,7 +475,7 @@
 
     // ── Auth ──────────────────────────────────────────
     async function login() {
-      const u = document.getElementById('login-user').value;
+      const u = document.getElementById('login-user').value.trim();
       const p = document.getElementById('login-pass').value;
       const body = new URLSearchParams(); body.append('username', u); body.append('password', p);
       try {
@@ -423,10 +484,22 @@
         const d = await res.json();
         localStorage.setItem('bt_token', d.access_token);
         localStorage.setItem('bt_role', d.role);
+        // Do not auto-clear event code on login, let checkAuth handle it
         location.reload();
       } catch(e) { document.getElementById('login-error').innerText = e.message; }
     }
-    function logout() { localStorage.removeItem('bt_token'); localStorage.removeItem('bt_role'); location.reload(); }
+    function logout() { 
+        localStorage.removeItem('bt_token'); 
+        localStorage.removeItem('bt_role'); 
+        localStorage.removeItem('bt_event_code'); 
+        localStorage.removeItem('bt_host_lang'); 
+        location.reload(); 
+    }
+    function endSession() {
+        localStorage.removeItem('bt_event_code');
+        localStorage.removeItem('bt_host_lang');
+        location.reload();
+    }
 
     // ── Modals ────────────────────────────────────────
     function toggleModal(id) {
@@ -454,25 +527,35 @@
       const dict = translations[localStorage.getItem('bt_lang') || 'en'] || translations['en'];
       users.forEach(u => {
         const li = document.createElement('li');
-        li.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:0.5rem; background:rgba(0,0,0,0.03); border-radius:6px;';
+        li.className = 'user-list-item';
         let ctrls = '';
         if (u.username !== 'admin') {
-          ctrls = `<div style="display:flex;gap:0.4rem;align-items:center;">
-            <input type="password" id="pw-${u.id}" placeholder="•••" style="padding:0.25rem 0.4rem;font-size:0.78rem;width:70px;box-shadow:none;">
-            <button onclick="updatePassword(${u.id})" style="background:var(--accent-color);border:none;color:white;border-radius:4px;cursor:pointer;padding:0.25rem 0.5rem;font-size:0.75rem;">${dict.btn_upd||'Upd'}</button>
-            <button onclick="deleteUser(${u.id})" style="background:var(--danger-color);border:none;color:white;border-radius:4px;cursor:pointer;padding:0.25rem 0.5rem;font-size:0.75rem;">${dict.btn_del||'Del'}</button>
+          ctrls = `<div class="user-controls">
+            <input type="password" id="pw-${u.id}" placeholder="New PW">
+            <button class="btn-upd" onclick="updatePassword(${u.id})">${dict.btn_upd||'Update'}</button>
+            <button class="btn-del" onclick="deleteUser(${u.id})">${dict.btn_del||'Delete'}</button>
           </div>`;
         }
-        li.innerHTML = `<span style="font-weight:600;font-size:0.88rem;">${u.username}</span> ${ctrls}`;
+        li.innerHTML = `<span style="font-weight:600;font-size:0.9rem;">${u.username}</span> ${ctrls}`;
         ul.appendChild(li);
       });
     }
 
     async function createUser() {
-      const u = document.getElementById('new-user').value, p = document.getElementById('new-pass').value;
-      await fetch('/api/users', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({username:u,password:p,role:'user'}) });
-      document.getElementById('new-user').value = ''; document.getElementById('new-pass').value = '';
-      loadUsers();
+      const u = document.getElementById('new-user').value.trim();
+      const p = document.getElementById('new-pass').value;
+      if (!u || !p) return alert('Username and Password are required');
+      try {
+        const res = await fetch('/api/users', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({username:u,password:p,role:'user'}) });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || 'Failed to create user');
+        }
+        document.getElementById('new-user').value = ''; document.getElementById('new-pass').value = '';
+        loadUsers();
+      } catch (e) {
+          alert(e.message);
+      }
     }
     async function deleteUser(id) {
       if (!confirm('Are you sure?')) return;
