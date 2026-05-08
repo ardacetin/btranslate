@@ -28,9 +28,15 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background-image: radial-gradient(circle at top right, rgba(122, 35, 44, 0.05), transparent 40%),
-                    radial-gradient(circle at bottom left, rgba(31, 41, 55, 0.03), transparent 40%);
-  background-attachment: fixed;
+  background: linear-gradient(-45deg, #f2f2f2, #ffffff, #f9ebed, #eef0f3);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 h1, h2, h3, h4 {
@@ -175,18 +181,35 @@ input:focus, select:focus {
   font-weight: 600;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   box-shadow: 0 4px 6px rgba(122, 35, 44, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 150%; height: 150%;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.5s ease-out;
+  border-radius: 50%;
+}
+
+.btn-primary:hover::after {
+  transform: translate(-50%, -50%) scale(1);
 }
 
 .btn-primary:hover {
   background-color: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 10px rgba(122, 35, 44, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(122, 35, 44, 0.3);
 }
 
 .btn-secondary {
