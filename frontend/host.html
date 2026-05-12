@@ -608,6 +608,7 @@
         // Get the actual sample rate to tell the server exactly what we're sending
         const nativeCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
         const nativeRate = nativeCtx.sampleRate;
+        if (nativeCtx.state === 'suspended') await nativeCtx.resume();
         window._audioCtx = nativeCtx;
 
         const sLang = localStorage.getItem('bt_host_lang') || 'tr';
@@ -663,7 +664,6 @@
       window._source = source; // CRITICAL: Prevent Safari/Chrome garbage collection
 
       const processor = nativeCtx.createScriptProcessor(4096, 1, 1);
-      source.connect(processor);
       // Connect to a silent gain node (NOT destination) to keep processor alive
       // without causing audio feedback through speakers
       const silentGain = nativeCtx.createGain();
@@ -678,7 +678,8 @@
       const analyser = nativeCtx.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
-      window._analyser = analyser; // Prevent GC
+      analyser.connect(processor); // Chain it through analyser to prevent GC optimization
+      window._analyser = analyser;
       
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
       
