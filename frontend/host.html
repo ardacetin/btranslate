@@ -461,7 +461,7 @@
         document.getElementById('app-panel').style.display = 'flex';
         
         if (localStorage.getItem('bt_event_code')) {
-            currentEventCode = localStorage.getItem('bt_event_code');
+            currentEventCode = "LIVE";
             document.getElementById('setup-section').style.display = 'none';
             document.getElementById('broadcast-section').style.display = 'block';
             const joinUrl = `${location.origin}/participant?code=${currentEventCode}`;
@@ -582,15 +582,15 @@
         const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ source_language: sLang, event_name:eName }) });
         if (res.status === 401) { logout(); return; }
         const d = await res.json();
-        currentEventCode = d.event_code;
+        currentEventCode = 'LIVE';
         localStorage.setItem('bt_host_lang', sLang);
-        localStorage.setItem('bt_event_code', currentEventCode);
+        localStorage.setItem('bt_event_code', 'LIVE');
         
         document.getElementById('setup-section').style.display = 'none';
         document.getElementById('broadcast-section').style.display = 'block';
 
         // Generate QR after container is visible
-        const joinUrl = `${location.origin}/participant?code=${d.event_code}`;
+        const joinUrl = `${location.origin}/participant?code=LIVE`;
         document.getElementById('qrcode').innerHTML = '';
         new QRCode(document.getElementById('qrcode'), { text: joinUrl, width: 200, height: 200, colorDark:'#1f2937', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.H });
       } catch(e) { alert('Failed to create session.'); }
