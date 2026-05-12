@@ -460,7 +460,6 @@
         dot.classList.add('live');
         const dict = translations[localStorage.getItem('bt_lang') || 'en'];
         st.innerText = `${dict.status_connected} ${eventCode}`;
-        const w = document.getElementById('wait-msg'); if (w) w.remove();
         window._ping = setInterval(() => { if (socket.readyState === 1) socket.send('PING'); }, 25000);
       };
       socket.onmessage = (e) => {
@@ -503,6 +502,7 @@
     }
 
     function updateInterimMsg(orig) {
+      const w = document.getElementById('wait-msg'); if (w) w.remove();
       if (!currentInterimEl) {
         currentInterimEl = document.createElement('div');
         currentInterimEl.className = 'msg interim';
@@ -515,6 +515,7 @@
     }
 
     function addFinalMsg(orig, translated) {
+      const w = document.getElementById('wait-msg'); if (w) w.remove();
       if (currentInterimEl) {
         currentInterimEl.remove();
         currentInterimEl = null;

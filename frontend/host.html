@@ -664,10 +664,10 @@
       window._source = source; // CRITICAL: Prevent Safari/Chrome garbage collection
 
       const processor = nativeCtx.createScriptProcessor(4096, 1, 1);
-      // Connect to a silent gain node (NOT destination) to keep processor alive
-      // without causing audio feedback through speakers
+      // Connect to a near-silent gain node (NOT absolute 0) to keep processor alive
+      // without causing audio feedback, preventing browser from pruning the audio graph
       const silentGain = nativeCtx.createGain();
-      silentGain.gain.value = 0;
+      silentGain.gain.value = 0.00001;
       processor.connect(silentGain);
       silentGain.connect(nativeCtx.destination);
       window._processor = processor;
@@ -678,7 +678,7 @@
       const analyser = nativeCtx.createAnalyser();
       analyser.fftSize = 256;
       source.connect(analyser);
-      analyser.connect(processor); // Chain it through analyser to prevent GC optimization
+      source.connect(processor); // Parallel connection
       window._analyser = analyser;
       
       const dataArray = new Uint8Array(analyser.frequencyBinCount);
