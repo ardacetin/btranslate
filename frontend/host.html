@@ -352,10 +352,9 @@
 
           <!-- QR Hero -->
           <div class="qr-hero">
-            <div class="code-label" data-i18n="lbl_event_code">YOUR EVENT CODE</div>
-            <div class="code-value" id="display-code"></div>
+            <div class="code-label">LIVE EVENT QR</div>
             <div class="qr-wrap"><div id="qrcode"></div></div>
-            <p class="share-hint" data-i18n="lbl_share_code">Share this code or QR with participants</p>
+            <p class="share-hint" data-i18n="lbl_share_code">Share this QR with participants</p>
           </div>
 
           <!-- Mic controls -->
@@ -382,6 +381,9 @@
             <div class="status-line">
               <span class="status-dot" id="status-dot"></span>
               <span id="status-indicator" data-i18n="status_ready">Ready to broadcast</span>
+            </div>
+            <div class="status-line" style="margin-top: 0.5rem; font-weight: 600; color: var(--accent-color);">
+              👥 <span id="participant-count-val">0</span> Listener(s)
             </div>
           </div>
 
@@ -454,7 +456,6 @@
             currentEventCode = localStorage.getItem('bt_event_code');
             document.getElementById('setup-section').style.display = 'none';
             document.getElementById('broadcast-section').style.display = 'block';
-            document.getElementById('display-code').innerText = currentEventCode;
             const joinUrl = `${location.origin}/participant?code=${currentEventCode}`;
             new QRCode(document.getElementById('qrcode'), { text: joinUrl, width: 200, height: 200, colorDark:'#1f2937', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.H });
         }
@@ -579,7 +580,6 @@
         
         document.getElementById('setup-section').style.display = 'none';
         document.getElementById('broadcast-section').style.display = 'block';
-        document.getElementById('display-code').innerText = currentEventCode;
 
         // Generate QR after container is visible
         const joinUrl = `${location.origin}/participant?code=${d.event_code}`;
@@ -615,10 +615,15 @@
           document.querySelector('.qr-hero').classList.add('recording');
         };
 
-        // Server sends initial status and mode message
+        window._streamingStarted = false;
+        // Server sends status, mode, and real-time participant counts
         socket.onmessage = (e) => {
           try {
             const msg = JSON.parse(e.data);
+            if (msg.type === 'participant_count') {
+                document.getElementById('participant-count-val').innerText = msg.count;
+                return;
+            }
             if (msg.status) {
               const dg = document.getElementById('dg-status');
               const gpt = document.getElementById('gpt-status');
@@ -627,13 +632,15 @@
               gpt.innerText = msg.status.gpt ? '🟢 GPT Bağlı' : '🔴 GPT Hatalı';
               gpt.style.color = msg.status.gpt ? 'var(--success-color)' : 'var(--danger-color)';
             }
-            if (msg.mode === 'deepgram') {
-              startPCMStreaming(stream, nativeCtx, nativeRate);
-            } else {
-              startChunkStreaming(stream);
+            if (msg.mode && !window._streamingStarted) {
+              if (msg.mode === 'deepgram') {
+                startPCMStreaming(stream, nativeCtx, nativeRate);
+              } else {
+                startChunkStreaming(stream);
+              }
+              window._streamingStarted = true;
             }
           } catch(ex) { console.error('Mode parse error', ex); }
-          socket.onmessage = null; // Only handle first message
         };
 
         socket.onerror = () => stopBroadcast();

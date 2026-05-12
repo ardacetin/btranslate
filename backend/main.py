@@ -140,12 +140,17 @@ def view_system_logs(current_user: User = Depends(check_admin)):
 
 @app.post("/api/sessions")
 def create_session(req: CreateSessionRequest, db: DBSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    event_code = str(uuid.uuid4())[:8].upper() # e.g. "8A9B2C3D"
-    new_session = EventSession(event_code=event_code, event_name=req.event_name, source_language=req.source_language)
-    db.add(new_session)
+    event_code = "LIVE"
+    new_session = db.query(EventSession).filter(EventSession.event_code == event_code).first()
+    if not new_session:
+        new_session = EventSession(event_code=event_code, event_name=req.event_name, source_language=req.source_language)
+        db.add(new_session)
+    else:
+        new_session.event_name = req.event_name
+        new_session.source_language = req.source_language
     db.commit()
     db.refresh(new_session)
-    log_activity(f"EVENT CREATED: {new_session.event_name} ({event_code}) by {current_user.username}")
+    log_activity(f"EVENT STARTED/UPDATED: {new_session.event_name} ({event_code}) by {current_user.username}")
     return {"event_code": new_session.event_code, "event_name": new_session.event_name, "source_language": new_session.source_language}
 
 @app.get("/api/sessions/{event_code}")

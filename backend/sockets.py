@@ -60,6 +60,16 @@ class ConnectionManager:
 
     # ── Participants ──────────────────────────────────────────────────────
 
+    async def _update_host_participant_count(self, event_code: str):
+        session = self.active_sessions.get(event_code)
+        if session and session.get("host"):
+            total = sum(len(w) for w in session["participants"].values())
+            msg = json.dumps({"type": "participant_count", "count": total})
+            try:
+                await session["host"].send_text(msg)
+            except Exception:
+                pass
+
     async def connect_participant(self, websocket: WebSocket, event_code: str, target_lang: str):
         await websocket.accept()
         session = self.get_or_create_session(event_code)
@@ -68,11 +78,13 @@ class ConnectionManager:
         session["participants"][target_lang].append(websocket)
         total = sum(len(w) for w in session["participants"].values())
         log_activity(f"PARTICIPANT joined {event_code} (Lang: {target_lang}). Total in room: {total}")
+        await self._update_host_participant_count(event_code)
 
     def disconnect_participant(self, websocket: WebSocket, event_code: str, target_lang: str):
         if event_code in self.active_sessions:
             try:
                 self.active_sessions[event_code]["participants"][target_lang].remove(websocket)
+                asyncio.create_task(self._update_host_participant_count(event_code))
             except (ValueError, KeyError):
                 pass
 

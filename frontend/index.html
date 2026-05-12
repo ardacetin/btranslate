@@ -76,24 +76,10 @@
       margin-bottom: 1.5rem;
       line-height: 1.5;
     }
-    .join-row {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    .join-row input {
-      width: 100%;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      text-align: center;
-      font-size: 1rem;
-      padding: 0.8rem;
-      border-radius: 8px;
-    }
     .join-row button {
       width: 100%;
-      padding: 0.85rem;
-      font-size: 1rem;
+      padding: 1rem;
+      font-size: 1.1rem;
     }
 
     /* ── Features ──────────────────────────────────── */
@@ -267,12 +253,11 @@
     <div class="join-card animate-up delay-1">
       <h3>
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span data-i18n="card_part_title">Join as Participant</span>
+        <span data-i18n="card_part_title">Join Live Event</span>
       </h3>
-      <p class="desc" data-i18n="card_part_desc">Enter your event code and start reading real-time translations in your native language.</p>
+      <p class="desc" data-i18n="card_part_desc">Click below to join the live session and start reading real-time translations.</p>
       <div class="join-row">
-        <input type="text" id="eventCode" data-i18n-placeholder="placeholder_code" placeholder="Event Code" autocomplete="off">
-        <button class="btn-primary" onclick="joinEvent()" data-i18n="card_part_btn">Join</button>
+        <button class="btn-primary" onclick="joinEvent()" data-i18n="card_part_btn">Join Event</button>
       </div>
     </div>
   </div>
@@ -374,9 +359,7 @@
   <script src="/static/lang.js?v=2"></script>
   <script>
     function joinEvent() {
-      const code = document.getElementById('eventCode').value.trim().toUpperCase();
-      if (!code) { alert('Lütfen geçerli bir Oda Kodu / Etkinlik Kodu girin.'); return; }
-      window.location.href = `/participant?code=${code}`;
+      window.location.href = `/participant?code=LIVE`;
     }
   </script>
 </body>
