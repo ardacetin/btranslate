@@ -197,10 +197,10 @@ async def websocket_host(websocket: WebSocket, event_code: str, rate: int = 1600
                     continue
                 await manager.broadcast_translations_whisper(event_code, audio_bytes, source_lang="auto")
     except WebSocketDisconnect:
-        manager.disconnect_host(event_code)
+        manager.disconnect_host(event_code, websocket)
     except Exception as e:
         print(f"Host WS Error: {e}")
-        manager.disconnect_host(event_code)
+        manager.disconnect_host(event_code, websocket)
 
 @app.websocket("/ws/participant/{event_code}/{target_lang}")
 async def websocket_participant(websocket: WebSocket, event_code: str, target_lang: str):

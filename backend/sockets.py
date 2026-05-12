@@ -49,14 +49,16 @@ class ConnectionManager:
         session["host"] = websocket
         log_activity(f"HOST connected to Broadcast {event_code}")
 
-    def disconnect_host(self, event_code: str):
+    def disconnect_host(self, event_code: str, websocket: WebSocket):
         if event_code in self.active_sessions:
-            self.active_sessions[event_code]["host"] = None
-            # Stop Deepgram STT connection if active
-            dg_stt = self.active_sessions[event_code].get("dg_stt")
-            if dg_stt:
-                asyncio.create_task(dg_stt.stop())
-                self.active_sessions[event_code]["dg_stt"] = None
+            session = self.active_sessions[event_code]
+            if session.get("host") == websocket:
+                session["host"] = None
+                # Stop Deepgram STT connection if active
+                dg_stt = session.get("dg_stt")
+                if dg_stt:
+                    asyncio.create_task(dg_stt.stop())
+                    session["dg_stt"] = None
 
     # ── Participants ──────────────────────────────────────────────────────
 
@@ -111,6 +113,11 @@ class ConnectionManager:
             sample_rate=rate,
         )
         await stt.start()
+        
+        old_stt = session.get("dg_stt")
+        if old_stt:
+            asyncio.create_task(old_stt.stop())
+            
         session["dg_stt"] = stt
         return stt
 
