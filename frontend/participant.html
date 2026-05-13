@@ -30,6 +30,127 @@
       min-height: 0; /* Prevent flex overflow */
     }
 
+    /* ── TV Mode ────────────────────────────────────── */
+    #tv-mode {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;
+      z-index: 9999;
+      display: none;
+      flex-direction: column;
+      font-family: 'Inter', sans-serif;
+    }
+    .tv-video-bg {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle at center, #1a1a24 0%, #000000 100%);
+      z-index: 0;
+    }
+    .tv-header {
+      position: absolute;
+      top: 2rem; left: 2rem; right: 2rem;
+      z-index: 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .tv-brand {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .tv-logo {
+      color: #fff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    .tv-live-badge {
+      background: rgba(220,38,38,0.2);
+      color: #ef4444;
+      border: 1px solid rgba(239,68,68,0.3);
+      padding: 0.2rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      animation: pulseLive 2s infinite;
+    }
+    @keyframes pulseLive {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+    .tv-status-bar {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    .tv-pill {
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #e5e7eb;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .tv-pill.exit-btn {
+      cursor: pointer;
+      background: rgba(255,255,255,0.1);
+      transition: background 0.2s;
+    }
+    .tv-pill.exit-btn:hover {
+      background: rgba(255,255,255,0.2);
+    }
+    .tv-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #10b981;
+    }
+    .tv-lower-third {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      z-index: 2;
+      background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+      padding: 4rem 4rem 2rem 4rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+    }
+    .tv-subtitle-box {
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      margin-bottom: 2rem;
+    }
+    .tv-subtitle {
+      color: #fff;
+      font-size: 2.8rem;
+      line-height: 1.4;
+      font-weight: 600;
+      text-shadow: 0 4px 12px rgba(0,0,0,0.8);
+      max-width: 95%;
+      margin: 0;
+    }
+    .tv-subtitle.interim {
+      color: #9ca3af;
+    }
+    .tv-footer {
+      display: flex;
+      justify-content: space-between;
+      color: rgba(255,255,255,0.3);
+      font-size: 0.75rem;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 1rem;
+    }
+
     /* ── Header Bar ─────────────────────────────────── */
     .feed-topbar {
       display: flex;
@@ -378,6 +499,9 @@
         <button class="audio-toggle off" id="audio-btn" onclick="toggleAudio()">
           🔇 <span id="audio-btn-label" data-i18n="btn_audio_off">Audio Off</span>
         </button>
+        <button class="audio-toggle off" onclick="toggleTVMode()" style="background:#1f2937; color:#fff; border-color:#1f2937;">
+          📺 <span data-i18n="btn_tv_mode">TV Mode</span>
+        </button>
       </div>
     </div>
 
@@ -408,6 +532,31 @@
       <div class="toast-btns">
         <button class="btn-enable" onclick="enableAudio()" data-i18n="toast_btn_enable">🔊 Enable Audio</button>
         <button class="btn-skip" onclick="closeToast()" data-i18n="toast_btn_dismiss">No Thanks</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TV Mode UI ── -->
+  <div id="tv-mode">
+    <div class="tv-video-bg"></div>
+    <div class="tv-header">
+      <div class="tv-brand">
+        <div class="tv-logo">B-Translate</div>
+        <div class="tv-live-badge">LIVE</div>
+      </div>
+      <div class="tv-status-bar">
+        <div class="tv-pill"><div class="tv-dot"></div> <span id="tv-lang-label">English</span></div>
+        <div class="tv-pill" id="tv-audio-indicator">🔇</div>
+        <div class="tv-pill exit-btn" onclick="toggleTVMode()">Exit TV Mode</div>
+      </div>
+    </div>
+    <div class="tv-lower-third">
+      <div class="tv-subtitle-box">
+        <div id="tv-subtitle-text" class="tv-subtitle interim">Waiting for transmission...</div>
+      </div>
+      <div class="tv-footer">
+        <div>⚠️ AI-assisted translation. May contain semantic errors.</div>
+        <div>B-Translate | Beykoz University IT Directorate</div>
       </div>
     </div>
   </div>
@@ -454,6 +603,25 @@
       connectWS(currentLang);
       // Show audio toast after page settles
       setTimeout(() => { document.getElementById('toast-overlay').classList.add('visible'); }, 2000);
+    }
+
+    // ── TV Mode ───────────────────────────────────────────────────────────
+    function toggleTVMode() {
+      const tvMode = document.getElementById('tv-mode');
+      if (tvMode.style.display === 'flex') {
+        tvMode.style.display = 'none';
+        document.documentElement.style.overflow = '';
+        document.body.style.overflow = '';
+      } else {
+        tvMode.style.display = 'flex';
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+        
+        // Update TV Mode status indicators
+        const langMap = { 'en': 'English', 'tr': 'Turkish' };
+        document.getElementById('tv-lang-label').innerText = langMap[currentLang] || currentLang;
+        document.getElementById('tv-audio-indicator').innerText = audioOn ? '🔊' : '🔇';
+      }
     }
 
     // ── WebSocket ─────────────────────────────────────────────────────────
@@ -520,6 +688,10 @@
       }
       currentInterimEl.innerHTML = `<div class="src" translate="no">${esc(orig)}...</div>`;
       scrollToBottom();
+      
+      // Update TV Mode
+      document.getElementById('tv-subtitle-text').classList.add('interim');
+      document.getElementById('tv-subtitle-text').innerText = orig;
     }
 
     function addFinalMsg(orig, translated) {
@@ -537,6 +709,10 @@
       `;
       feed.appendChild(el);
       scrollToBottom();
+      
+      // Update TV Mode
+      document.getElementById('tv-subtitle-text').classList.remove('interim');
+      document.getElementById('tv-subtitle-text').innerText = translated;
     }
     function esc(s) { const d = document.createElement('div'); d.innerText = s; return d.innerHTML; }
 
