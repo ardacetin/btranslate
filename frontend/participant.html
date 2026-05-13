@@ -132,15 +132,24 @@
     }
     .tv-subtitle {
       color: #fff;
-      font-size: 2.8rem;
-      line-height: 1.4;
+      font-size: 3rem;
+      line-height: 1.3;
       font-weight: 600;
       text-shadow: 0 4px 12px rgba(0,0,0,0.8);
       max-width: 95%;
       margin: 0;
     }
-    .tv-subtitle.interim {
+    .tv-subtitle-og {
       color: #9ca3af;
+      font-size: 1.1rem;
+      font-weight: 500;
+      margin-top: 0.8rem;
+      max-width: 95%;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      letter-spacing: 0.5px;
+    }
+    .tv-subtitle.interim {
+      color: #d1d5db;
     }
     .tv-footer {
       display: flex;
@@ -552,7 +561,8 @@
     </div>
     <div class="tv-lower-third">
       <div class="tv-subtitle-box">
-        <div id="tv-subtitle-text" class="tv-subtitle interim">Waiting for transmission...</div>
+        <div id="tv-subtitle-translated" class="tv-subtitle interim" data-i18n="waiting_msg">Waiting for transmission...</div>
+        <div id="tv-subtitle-original" class="tv-subtitle-og"></div>
       </div>
       <div class="tv-footer">
         <div>⚠️ AI-assisted translation. May contain semantic errors.</div>
@@ -690,8 +700,11 @@
       scrollToBottom();
       
       // Update TV Mode
-      document.getElementById('tv-subtitle-text').classList.add('interim');
-      document.getElementById('tv-subtitle-text').innerText = orig;
+      const tvTrans = document.getElementById('tv-subtitle-translated');
+      if (tvTrans.innerText === "Waiting for transmission..." || tvTrans.innerText === "Yayın bekleniyor...") {
+         tvTrans.innerText = "...";
+      }
+      document.getElementById('tv-subtitle-original').innerText = orig;
     }
 
     function addFinalMsg(orig, translated) {
@@ -711,8 +724,9 @@
       scrollToBottom();
       
       // Update TV Mode
-      document.getElementById('tv-subtitle-text').classList.remove('interim');
-      document.getElementById('tv-subtitle-text').innerText = translated;
+      document.getElementById('tv-subtitle-translated').classList.remove('interim');
+      document.getElementById('tv-subtitle-translated').innerText = translated;
+      document.getElementById('tv-subtitle-original').innerText = orig;
     }
     function esc(s) { const d = document.createElement('div'); d.innerText = s; return d.innerHTML; }
 
