@@ -49,6 +49,11 @@ def read_host():
 def read_participant():
     return FileResponse(os.path.join(frontend_dir, "participant.html"))
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    from fastapi import Response
+    return Response(status_code=204)
+
 class CreateSessionRequest(BaseModel):
     event_name: str = "Live Event"
     source_language: str = "auto"

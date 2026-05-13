@@ -77,15 +77,15 @@ class DeepgramStreamingSTT:
                 self.ws = await websockets.connect(
                     url,
                     additional_headers=headers,
-                    ping_interval=20,
-                    ping_timeout=10,
+                    ping_interval=None,
+                    ping_timeout=None,
                 )
             except TypeError:
                 self.ws = await websockets.connect(
                     url,
                     extra_headers=headers,
-                    ping_interval=20,
-                    ping_timeout=10,
+                    ping_interval=None,
+                    ping_timeout=None,
                 )
 
             self._running = True
