@@ -11,6 +11,7 @@ from ai_engine import (
     transcribe_audio_whisper,
     DEEPGRAM_API_KEY,
 )
+from database import SessionLocal, EventSession, Transcript, Translation
 
 def log_activity(msg: str):
     stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -189,6 +190,22 @@ class ConnectionManager:
         counts = {l: len(ws) for l, ws in participants_dict.items() if ws}
         print(f"[BROADCAST] '{original_text[:50]}' → {counts}")
 
+        # Save Transcript to DB
+        transcript_id = None
+        db = SessionLocal()
+        try:
+            db_session = db.query(EventSession).filter(EventSession.event_code == event_code).first()
+            if db_session:
+                transcript_obj = Transcript(session_id=db_session.id, original_text=original_text)
+                db.add(transcript_obj)
+                db.commit()
+                db.refresh(transcript_obj)
+                transcript_id = transcript_obj.id
+        except Exception as e:
+            print(f"[DB] Failed to save transcript: {e}")
+        finally:
+            db.close()
+
         async def translate_and_send(target_lang: str, websockets: List[WebSocket]):
             if not websockets:
                 return
@@ -210,6 +227,22 @@ class ConnectionManager:
                 "target_lang": target_lang,
                 "audio": audio_b64,  # base64 mp3 or null
             })
+
+            # Save Translation to DB
+            if transcript_id:
+                db2 = SessionLocal()
+                try:
+                    translation_obj = Translation(
+                        transcript_id=transcript_id,
+                        target_language=target_lang,
+                        translated_text=translated_text
+                    )
+                    db2.add(translation_obj)
+                    db2.commit()
+                except Exception as e:
+                    print(f"[DB] Failed to save translation: {e}")
+                finally:
+                    db2.close()
 
             # 4. Send to all participants of this language
             dead = []

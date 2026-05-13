@@ -8,8 +8,9 @@ from pydantic import BaseModel
 from typing import List
 import uuid
 import json
+import datetime
 
-from database import get_db, init_db, EventSession, User
+from database import get_db, init_db, EventSession, User, Transcript, Translation
 from sockets import manager, log_activity
 from auth import verify_password, create_access_token, get_current_user, check_admin, get_password_hash
 from ai_engine import DEEPGRAM_API_KEY, OPENAI_API_KEY
@@ -164,6 +165,37 @@ def get_session(event_code: str, db: DBSession = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"event_code": session.event_code, "event_name": session.event_name, "source_language": session.source_language}
+
+@app.get("/api/sessions/{event_code}/export")
+def export_session_history(event_code: str, db: DBSession = Depends(get_db)):
+    session = db.query(EventSession).filter(EventSession.event_code == event_code).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    transcripts = db.query(Transcript).filter(Transcript.session_id == session.id).order_by(Transcript.created_at).all()
+    
+    lines = []
+    lines.append(f"Event: {session.event_name} (Code: {session.event_code})")
+    lines.append(f"Export Date: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    lines.append("-" * 50)
+    lines.append("")
+    
+    for t in transcripts:
+        time_str = t.created_at.strftime('%H:%M:%S')
+        lines.append(f"[{time_str}] SOURCE: {t.original_text}")
+        
+        translations = db.query(Translation).filter(Translation.transcript_id == t.id).all()
+        for tr in translations:
+            lines.append(f"[{time_str}] TRANSLATION ({tr.target_language.upper()}): {tr.translated_text}")
+        
+        lines.append("")
+    
+    content = "\n".join(lines)
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(
+        content,
+        headers={"Content-Disposition": f"attachment; filename=history_{event_code}.txt"}
+    )
 
 @app.websocket("/ws/host/{event_code}")
 async def websocket_host(websocket: WebSocket, event_code: str, rate: int = 16000, lang: str = "tr"):

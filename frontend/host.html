@@ -345,12 +345,7 @@
         <div class="form-group" style="margin-bottom:1rem;">
           <input type="text" id="event-name" placeholder="E.g., Q3 Global Townhall" data-i18n-placeholder="lbl_event_name_placeholder" style="text-align:center;">
         </div>
-        <div class="form-group" style="margin-bottom:1.5rem;">
-          <select id="source-lang" style="width:100%; padding:0.85rem; border-radius:10px; border:1px solid var(--border-color); font-family:'Inter',sans-serif; text-align:center; background:var(--bg-color); color:var(--text-primary); cursor:pointer;">
-            <option value="tr" selected>Speaker Language: Turkish</option>
-            <option value="en">Speaker Language: English</option>
-          </select>
-        </div>
+
         <button class="btn-primary" style="width:100%;" onclick="createSession()" data-i18n="btn_gen_code">Generate Event Code</button>
       </div>
 
@@ -400,6 +395,7 @@
 
       <!-- Admin links — subtle & small -->
       <div class="admin-links">
+        <a onclick="window.open(`/api/sessions/LIVE/export`, `_blank`)" data-i18n="btn_download_history">Download History</a>
         <a onclick="endSession()" data-i18n="btn_new_session">New Session</a>
         <a onclick="logout()" data-i18n="btn_logout">Logout</a>
         <a id="link-users" onclick="toggleModal('admin-modal')" style="display:none;" data-i18n="btn_usermgmt">Users</a>
@@ -576,7 +572,7 @@
 
     async function createSession() {
       const eName = document.getElementById('event-name').value.trim() || 'Live Event';
-      const sLang = document.getElementById('source-lang').value;
+      const sLang = 'auto';
       
       try {
         const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ source_language: sLang, event_name:eName }) });
@@ -611,7 +607,7 @@
         if (nativeCtx.state === 'suspended') await nativeCtx.resume();
         window._audioCtx = nativeCtx;
 
-        const sLang = localStorage.getItem('bt_host_lang') || 'tr';
+        const sLang = localStorage.getItem('bt_host_lang') || 'auto';
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
         socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?rate=${nativeRate}&lang=${sLang}`);
 

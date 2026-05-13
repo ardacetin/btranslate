@@ -356,11 +356,6 @@
 
   <nav class="navbar">
     <a href="/" class="nav-brand" data-i18n="nav_title">B-Translate</a>
-    <div class="lang-switcher">
-      <span class="lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')">EN</span>
-      <span>|</span>
-      <span class="lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')">TR</span>
-    </div>
   </nav>
 
   <div class="container">
@@ -441,7 +436,20 @@
       } catch(e) { console.error(e); }
 
       const saved = localStorage.getItem('bt_target_lang');
-      if (saved) { currentLang = saved; document.getElementById('lang-select').value = saved; }
+      if (saved) { 
+        currentLang = saved; 
+        document.getElementById('lang-select').value = saved; 
+        if (localStorage.getItem('bt_lang') !== saved) {
+          localStorage.setItem('bt_lang', saved);
+          changeSiteLanguage(saved);
+        }
+      } else {
+        // If no target lang is saved, set it to the current UI lang
+        const uiLang = localStorage.getItem('bt_lang') || 'en';
+        currentLang = uiLang;
+        document.getElementById('lang-select').value = uiLang;
+        localStorage.setItem('bt_target_lang', uiLang);
+      }
 
       connectWS(currentLang);
       // Show audio toast after page settles
@@ -535,6 +543,7 @@
     function changeLanguage() {
       currentLang = document.getElementById('lang-select').value;
       localStorage.setItem('bt_target_lang', currentLang);
+      localStorage.setItem('bt_lang', currentLang); // Sync UI language with translation target
       location.reload();
     }
 
