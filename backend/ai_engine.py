@@ -291,9 +291,21 @@ async def synthesize_speech(text: str, target_lang: str) -> Optional[bytes]:
     if not text or len(text.strip()) < 2:
         return None
 
-    if target_lang != "en":
-        # Deepgram Aura currently only supports English voices well.
-        # Returning None forces the frontend to fallback to native browser TTS (which is excellent for Turkish).
+    if target_lang == "tr":
+        # Use OpenAI TTS for Turkish
+        if openai_client:
+            try:
+                response = await openai_client.audio.speech.create(
+                    model="tts-1",
+                    voice="alloy",
+                    input=text
+                )
+                tts_bytes = response.read()
+                print(f"[TTS] OpenAI TTS {len(tts_bytes)}B audio (alloy)")
+                return tts_bytes
+            except Exception as e:
+                print(f"[TTS] OpenAI failed: {e}")
+                return None
         return None
 
     voice_model = TTS_VOICE_MAP.get(target_lang, "aura-2-asteria-en")
