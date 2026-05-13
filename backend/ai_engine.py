@@ -245,6 +245,10 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
     if not openai_client:
         return f"[Mock {target_lang}] {text}"
 
+    lang_map = {"tr": "Turkish", "en": "English"}
+    source_name = lang_map.get(source_lang, source_lang)
+    target_name = lang_map.get(target_lang, target_lang)
+
     try:
         response = await openai_client.chat.completions.create(
             model="gpt-4o-mini",
@@ -253,13 +257,14 @@ async def translate_text(text: str, source_lang: str, target_lang: str) -> str:
                     "role": "system",
                     "content": (
                         f"You are a real-time simultaneous interpreter. "
-                        f"Translate the following spoken text from {'its original language' if source_lang == 'auto' else source_lang} to {target_lang}. "
+                        f"Translate the following spoken text into {target_name}. "
                         f"CRITICAL RULES:\n"
-                        f"1. Translate ONLY what is said. Do not invent, add, or complete anything.\n"
-                        f"2. If the text is an incomplete fragment, translate that fragment only.\n"
-                        f"3. Do NOT translate proper names (people's names, surnames, cities). Keep them exactly as spoken.\n"
-                        f"4. Reply with ONLY the translated text. No notes, no greetings, no filler.\n"
-                        f"5. If the input is empty or just noise characters, reply with an empty string."
+                        f"1. If the text is already in {target_name}, just return it exactly as is.\n"
+                        f"2. Translate ONLY what is said. Do not invent, add, or complete anything.\n"
+                        f"3. If the text is an incomplete fragment, translate that fragment only.\n"
+                        f"4. Do NOT translate proper names (people's names, surnames, cities). Keep them exactly as spoken.\n"
+                        f"5. Reply with ONLY the translated text. No notes, no greetings, no filler.\n"
+                        f"6. If the input is empty or just noise characters, reply with an empty string."
                     )
                 },
                 {"role": "user", "content": text}
