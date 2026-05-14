@@ -160,14 +160,22 @@ def create_session(req: CreateSessionRequest, db: DBSession = Depends(get_db), c
 def get_session(event_code: str, db: DBSession = Depends(get_db)):
     session = db.query(EventSession).filter(EventSession.event_code == event_code).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        # Auto-create session if it doesn't exist (e.g. after DB reset on Render)
+        session = EventSession(event_code=event_code, event_name="Live Event", source_language="auto")
+        db.add(session)
+        db.commit()
+        db.refresh(session)
     return {"event_code": session.event_code, "event_name": session.event_name, "source_language": session.source_language}
 
 @app.get("/api/sessions/{event_code}/export")
 def export_session_history(event_code: str, db: DBSession = Depends(get_db)):
     session = db.query(EventSession).filter(EventSession.event_code == event_code).first()
     if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+        # Auto-create so export never 404s
+        session = EventSession(event_code=event_code, event_name="Live Event", source_language="auto")
+        db.add(session)
+        db.commit()
+        db.refresh(session)
     
     transcripts = db.query(Transcript).filter(Transcript.session_id == session.id).order_by(Transcript.created_at).all()
     
