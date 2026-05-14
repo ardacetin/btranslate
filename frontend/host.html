@@ -683,34 +683,14 @@
       document.getElementById('mic-level-container').style.display = 'block';
       drawMicLevel();
 
-      let consecutiveSilenceChunks = 0;
 
       processor.onaudioprocess = (e) => {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
         const float32 = e.inputBuffer.getChannelData(0);
 
-        // --- VAD / NOISE GATE (Client-Side) ---
-        // Calculate the Root Mean Square (RMS) volume of the audio chunk
-        let sumSquare = 0;
-        for (let i = 0; i < float32.length; i++) {
-            sumSquare += float32[i] * float32[i];
-        }
-        const rms = Math.sqrt(sumSquare / float32.length);
-        
-        // If the volume is extremely low (silence or light background hum)
-        if (rms < 0.005) {
-            consecutiveSilenceChunks++;
-            // Send a few silent chunks so the server knows the speech ended, then stop sending completely
-            if (consecutiveSilenceChunks > 6) {
-                return; // DROP PACKET: Do not send to OpenAI
-            }
-        } else {
-            // Speech detected, reset silence counter
-            consecutiveSilenceChunks = 0;
-        }
-        // ----------------------------------------
-
         // Convert directly without manual resampling distortion
+        // gpt-realtime-translate expects continuous PCM16 audio
+        // including silence between phrases (no client-side noise gate needed)
         const int16 = new Int16Array(float32.length);
         for (let i = 0; i < float32.length; i++) {
           const s = Math.max(-1, Math.min(1, float32[i]));
