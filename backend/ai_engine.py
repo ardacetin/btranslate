@@ -96,10 +96,22 @@ class RealtimeTranslationSession:
                     event_type = data.get("type", "")
 
                     if event_type == "response.audio_transcript.delta":
-                        await self.callback(self.target_language, {
-                            "type": "session.output_transcript.delta",
-                            "delta": data.get("delta", "")
-                        })
+                        text_delta = data.get("delta", "")
+                        
+                        # --- HALÜSİNASYON KARA LİSTESİ (Blacklist) ---
+                        blacklist = ["yardımcı olabilirim", "nasıl yardımcı", "mutluluk duyarım", "how can i help", "thanks for watching", "izlediğiniz için teşekkürler", "subscribe", "abone ol", "www."]
+                        text_lower = text_delta.lower()
+                        
+                        # If the delta alone is suspicious, or if we want to filter the whole stream, 
+                        # checking delta directly might be tricky for partial words, but we can check if it matches exactly or contains obvious bad words.
+                        # Actually, a better way is to check the delta. If a delta contains these phrases, drop it.
+                        is_hallucination = any(bad_phrase in text_lower for bad_phrase in blacklist)
+                        
+                        if not is_hallucination:
+                            await self.callback(self.target_language, {
+                                "type": "session.output_transcript.delta",
+                                "delta": text_delta
+                            })
                     
                     elif event_type == "response.audio.delta":
                         await self.callback(self.target_language, {
