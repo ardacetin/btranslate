@@ -9,11 +9,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-REALTIME_WS_URL = "wss://api.openai.com/v1/realtime/translations?model=gpt-realtime-translate"
+REALTIME_WS_URL = "wss://api.openai.com/v1/realtime?model=gpt-4o-mini-realtime-preview"
 
 class RealtimeTranslationSession:
     """
-    Manages a persistent WebSocket connection to OpenAI's GPT-Realtime-Translate model.
+    Manages a persistent WebSocket connection to OpenAI's GPT-Realtime model.
     """
 
     def __init__(self, target_language: str, on_event_callback: Callable):
@@ -22,7 +22,6 @@ class RealtimeTranslationSession:
         self.ws = None
         self._running = False
         self._listen_task = None
-        self._bytes_sent = 0
 
     async def start(self):
         """Open the OpenAI Realtime Translation WebSocket connection."""
@@ -57,12 +56,26 @@ class RealtimeTranslationSession:
             session_update = {
                 "type": "session.update",
                 "session": {
-                    "audio": {
-                        "input": {
-                            "transcription": {"model": "gpt-realtime-whisper"},
-                            "noise_reduction": {"type": "near_field"}
-                        },
-                        "output": {"language": self.target_language}
+                    "modalities": ["audio", "text"],
+                    "instructions": (
+                        f"You are an expert, professional simultaneous translator. Translate the user's speech into {self.target_language}. "
+                        "CRITICAL RULES: "
+                        "1. Wait for complete sentences or meaningful phrases before translating to ensure perfect context and grammatical accuracy. "
+                        "2. NEVER translate proper nouns, human names, company names, brands, or technical acronyms (e.g., 'B-Translate', 'Beykoz Üniversitesi', 'Apple'). Keep them exactly as spoken. "
+                        "3. Do not answer questions or converse with the user. Output ONLY the translated text and audio. "
+                        "4. Ensure the translation is natural, fluent, and highly professional."
+                    ),
+                    "voice": "alloy",
+                    "input_audio_format": "pcm16",
+                    "output_audio_format": "pcm16",
+                    "input_audio_transcription": {
+                        "model": "whisper-1"
+                    },
+                    "turn_detection": {
+                        "type": "server_vad",
+                        "threshold": 0.5,
+                        "prefix_padding_ms": 300,
+                        "silence_duration_ms": 800  # Cümle bitişini daha iyi anlaması için süreyi artırdık
                     }
                 }
             }
@@ -83,15 +96,29 @@ class RealtimeTranslationSession:
                     data = json.loads(message)
                     event_type = data.get("type", "")
 
-                    if event_type in [
-                        "session.output_transcript.delta",
-                        "session.input_transcript.delta",
-                        "session.output_audio.delta"
-                    ]:
-                        await self.callback(self.target_language, data)
+                    if event_type == "response.audio_transcript.delta":
+                        await self.callback(self.target_language, {
+                            "type": "session.output_transcript.delta",
+                            "delta": data.get("delta", "")
+                        })
+                    
+                    elif event_type == "response.audio.delta":
+                        await self.callback(self.target_language, {
+                            "type": "session.output_audio.delta",
+                            "audio": data.get("delta", "")
+                        })
+                        
+                    elif event_type == "conversation.item.input_audio_transcription.completed":
+                        await self.callback(self.target_language, {
+                            "type": "session.input_transcript.delta",
+                            "delta": data.get("transcript", "") + " "
+                        })
                         
                     elif event_type == "error":
                         print(f"[REALTIME ERROR] {data}")
+                        error_info = data.get("error", {})
+                        if error_info.get("code") == "session_expired":
+                            break
 
                 except json.JSONDecodeError:
                     pass
@@ -104,6 +131,8 @@ class RealtimeTranslationSession:
             print(f"[REALTIME] Listen error: {e}")
         finally:
             self._running = False
+            if self.ws:
+                asyncio.create_task(self.ws.close())
 
     async def send_audio(self, audio_bytes: bytes):
         """Send raw audio bytes to OpenAI as a base64 encoded input buffer append."""
@@ -111,7 +140,7 @@ class RealtimeTranslationSession:
             try:
                 b64_audio = base64.b64encode(audio_bytes).decode('utf-8')
                 event = {
-                    "type": "session.input_audio_buffer.append",
+                    "type": "input_audio_buffer.append",
                     "audio": b64_audio
                 }
                 await self.ws.send(json.dumps(event))

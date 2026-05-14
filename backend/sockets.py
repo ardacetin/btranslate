@@ -123,6 +123,9 @@ class ConnectionManager:
         
         # Fan out the audio to all active languages
         for lang, rt_session in session.get("rt_sessions", {}).items():
+            if getattr(rt_session, '_running', False) is False:
+                print(f"[SOCKETS] Reconnecting dead Realtime session for {lang}")
+                await rt_session.start()
             await rt_session.send_audio(audio_bytes)
 
     # ── Event Handling ────────────────────────────────────────────────────
@@ -166,7 +169,7 @@ class ConnectionManager:
                 asyncio.create_task(self._update_db_history(session, None))
 
         elif event_type == "session.output_audio.delta":
-            delta = data.get("delta", "")
+            delta = data.get("audio", "")
             if delta:
                 msg["audio"] = delta
                 should_broadcast = True
