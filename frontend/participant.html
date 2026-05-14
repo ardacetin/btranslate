@@ -290,13 +290,10 @@
     /* ── Feed ────────────────────────────────────────── */
     .feed-box {
       flex: 1;
-      min-height: 0; /* Crucial for flex child to scroll */
+      min-height: 0;
       overflow-y: auto;
       overflow-x: hidden;
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-      padding: 1rem;
+      padding: 1.2rem 1.4rem;
       border-radius: 16px;
       background: rgba(255,255,255,0.7);
       border: 1px solid var(--border-color);
@@ -305,6 +302,7 @@
       -webkit-backdrop-filter: blur(8px);
       -webkit-overflow-scrolling: touch;
       scroll-behavior: smooth;
+      line-height: 1.7;
     }
     .feed-empty {
       margin: auto;
@@ -316,42 +314,57 @@
       flex-direction: column;
       align-items: center;
       gap: 0.5rem;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
     }
 
-    /* Individual message bubble */
-    .msg {
-      animation: slideUp 0.3s ease-out forwards;
-      opacity: 0;
-      padding: 0.8rem 1rem;
-      border-radius: 12px;
-      background: #ffffff;
-      border-left: 4px solid var(--accent-color);
-      box-shadow: 0 2px 6px rgba(0,0,0,0.04);
-      width: 100%;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
+    /* Continuous transcript segments */
+    .segment {
+      margin-bottom: 1rem;
+      padding-bottom: 0.8rem;
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+      animation: fadeIn 0.25s ease-out;
     }
-    .msg .src {
-      font-size: 0.8rem;
+    .segment:last-child {
+      border-bottom: none;
+    }
+    .segment .seg-time {
+      font-size: 0.7rem;
       color: var(--text-secondary);
-      font-style: italic;
-      margin-bottom: 0.3rem;
+      opacity: 0.6;
+      margin-bottom: 0.2rem;
+      font-weight: 500;
+      letter-spacing: 0.5px;
     }
-    .msg .tgt {
+    .segment .seg-translated {
       font-size: 1.15rem;
       font-weight: 600;
       color: var(--text-primary);
-      line-height: 1.5;
+      line-height: 1.6;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
-    .msg .tgt.rtl {
+    .segment .seg-translated.rtl {
       direction: rtl;
       text-align: right;
       font-family: Arial, sans-serif;
     }
+    .segment .seg-original {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      font-style: italic;
+      margin-top: 0.25rem;
+      line-height: 1.4;
+    }
+    .segment.active .seg-translated {
+      color: var(--accent-color);
+    }
 
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
     }
 
     /* ── Toast ───────────────────────────────────────── */
@@ -464,10 +477,9 @@
       #lang-select, .audio-toggle { width: 100%; font-size: 0.9rem; padding: 0.6rem; }
       .feed-box { 
         padding: 0.75rem; 
-        gap: 0.6rem;
       }
-      .msg { padding: 0.75rem 0.8rem; }
-      .msg .tgt { font-size: 1.1rem; }
+      .segment .seg-translated { font-size: 1.05rem; }
+      .segment { margin-bottom: 0.75rem; padding-bottom: 0.6rem; }
       .ai-disclaimer { font-size: 0.75rem; padding: 0.5rem 0.6rem; }
       
       .site-footer { padding: 1rem; font-size: 0.8rem; }
@@ -518,7 +530,7 @@
     <div class="ai-disclaimer" data-i18n="disclaimer">⚠️ AI-powered translation — may contain errors.</div>
 
     <!-- Feed -->
-    <div class="feed-box" id="feed">
+    <div class="feed-box" id="feed" style="position:relative;">
       <div class="feed-empty" id="wait-msg">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span data-i18n="waiting_msg">Waiting for transmission...</span>
@@ -667,62 +679,79 @@
       socket.onerror = (err) => console.error('WS:', err);
     }
 
-    // ── Feed ──────────────────────────────────────────────────────────────
-    let currentSentenceEl = null;
-    let textTimeout = null;
+    // ── Feed (Continuous Scrolling Transcript) ─────────────────────────────
+    let currentSegment = null;
+    let segmentTimeout = null;
+    let isUserScrolling = false;
+    let scrollLockTimeout = null;
 
-    function resetSentenceTimer() {
-      clearTimeout(textTimeout);
-      textTimeout = setTimeout(() => {
-        currentSentenceEl = null;
-      }, 3000);
-    }
+    // Detect if user manually scrolls up (to pause auto-scroll)
+    feed.addEventListener('scroll', () => {
+      const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60;
+      if (!atBottom) {
+        isUserScrolling = true;
+        clearTimeout(scrollLockTimeout);
+        scrollLockTimeout = setTimeout(() => { isUserScrolling = false; }, 5000);
+      } else {
+        isUserScrolling = false;
+      }
+    });
 
     function scrollToBottom() {
-      // Use requestAnimationFrame and a slightly longer timeout to ensure 
-      // the DOM has reflowed and animations haven't messed up scrollHeight
+      if (isUserScrolling) return;
       requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (feed) feed.scrollTop = feed.scrollHeight;
-        }, 100);
+        feed.scrollTo({ top: feed.scrollHeight, behavior: 'smooth' });
       });
     }
 
-    function ensureCurrentSentenceEl() {
+    function resetSegmentTimer() {
+      clearTimeout(segmentTimeout);
+      segmentTimeout = setTimeout(() => {
+        // Mark current segment as finalized
+        if (currentSegment) currentSegment.classList.remove('active');
+        currentSegment = null;
+      }, 2500);
+    }
+
+    function ensureCurrentSegment() {
       const w = document.getElementById('wait-msg'); if (w) w.remove();
-      if (!currentSentenceEl) {
-        currentSentenceEl = document.createElement('div');
-        currentSentenceEl.className = 'msg';
+      if (!currentSegment) {
+        currentSegment = document.createElement('div');
+        currentSegment.className = 'segment active';
         const isRTL = currentLang === 'ar' || currentLang === 'ur';
-        currentSentenceEl.innerHTML = `
-          <div class="src" translate="no"></div>
-          <div class="tgt ${isRTL ? 'rtl' : ''}"></div>
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        currentSegment.innerHTML = `
+          <div class="seg-time">${timeStr}</div>
+          <div class="seg-translated ${isRTL ? 'rtl' : ''}"></div>
+          <div class="seg-original"></div>
         `;
-        feed.appendChild(currentSentenceEl);
+        feed.appendChild(currentSegment);
         
+        // Reset TV mode subtitle
         document.getElementById('tv-subtitle-translated').classList.remove('interim');
-        document.getElementById('tv-subtitle-translated').innerText = "";
-        document.getElementById('tv-subtitle-original').innerText = "";
+        document.getElementById('tv-subtitle-translated').innerText = '';
+        document.getElementById('tv-subtitle-original').innerText = '';
       }
     }
 
     function appendOriginalText(delta) {
-      ensureCurrentSentenceEl();
-      const srcEl = currentSentenceEl.querySelector('.src');
-      srcEl.innerText += delta;
+      ensureCurrentSegment();
+      const el = currentSegment.querySelector('.seg-original');
+      el.innerText += delta;
       
       document.getElementById('tv-subtitle-original').innerText += delta;
-      resetSentenceTimer();
+      resetSegmentTimer();
       scrollToBottom();
     }
 
     function appendTranslatedText(delta) {
-      ensureCurrentSentenceEl();
-      const tgtEl = currentSentenceEl.querySelector('.tgt');
-      tgtEl.innerText += delta;
+      ensureCurrentSegment();
+      const el = currentSegment.querySelector('.seg-translated');
+      el.innerText += delta;
       
       document.getElementById('tv-subtitle-translated').innerText += delta;
-      resetSentenceTimer();
+      resetSegmentTimer();
       scrollToBottom();
     }
     
