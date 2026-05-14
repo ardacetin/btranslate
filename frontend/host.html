@@ -345,13 +345,6 @@
         <div class="form-group" style="margin-bottom:1rem;">
           <input type="text" id="event-name" placeholder="E.g., Q3 Global Townhall" data-i18n-placeholder="lbl_event_name_placeholder" style="text-align:center;">
         </div>
-        <div class="form-group" style="margin-bottom:1.5rem;">
-          <select id="source-lang" style="width:100%; padding:0.85rem; border-radius:10px; border:1px solid var(--border-color); font-family:'Inter',sans-serif; text-align:center; background:var(--bg-color); color:var(--text-primary); cursor:pointer;">
-            <option value="tr" selected>Speaker Language: Turkish</option>
-            <option value="en">Speaker Language: English</option>
-          </select>
-        </div>
-
         <button class="btn-primary" style="width:100%;" onclick="createSession()" data-i18n="btn_gen_code">Generate Event Code</button>
       </div>
 
@@ -370,8 +363,7 @@
           <div class="mic-controls">
             <!-- Services Status -->
             <div id="services-status" style="display:flex; justify-content:center; gap:1rem; font-size:0.75rem; margin-bottom:1rem; font-weight:600;">
-              <span id="dg-status" style="color:var(--text-muted);">Deepgram: Bekleniyor...</span>
-              <span id="gpt-status" style="color:var(--text-muted);">GPT: Bekleniyor...</span>
+              <span id="gpt-status" style="color:var(--text-muted);">Realtime API: Bekleniyor...</span>
             </div>
             
             <!-- Mic Level Visualizer -->
@@ -499,12 +491,10 @@
         localStorage.removeItem('bt_token'); 
         localStorage.removeItem('bt_role'); 
         localStorage.removeItem('bt_event_code'); 
-        localStorage.removeItem('bt_host_lang'); 
         location.reload(); 
     }
     function endSession() {
         localStorage.removeItem('bt_event_code');
-        localStorage.removeItem('bt_host_lang');
         location.reload();
     }
 
@@ -578,14 +568,12 @@
 
     async function createSession() {
       const eName = document.getElementById('event-name').value.trim() || 'Live Event';
-      const sLang = document.getElementById('source-lang').value;
       
       try {
-        const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ source_language: sLang, event_name:eName }) });
+        const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ source_language: "auto", event_name:eName }) });
         if (res.status === 401) { logout(); return; }
         const d = await res.json();
         currentEventCode = 'LIVE';
-        localStorage.setItem('bt_host_lang', sLang);
         localStorage.setItem('bt_event_code', 'LIVE');
         
         document.getElementById('setup-section').style.display = 'none';
@@ -608,14 +596,13 @@
         });
 
         // Get the actual sample rate to tell the server exactly what we're sending
-        const nativeCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const nativeCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
         const nativeRate = nativeCtx.sampleRate;
         if (nativeCtx.state === 'suspended') await nativeCtx.resume();
         window._audioCtx = nativeCtx;
 
-        const sLang = localStorage.getItem('bt_host_lang') || 'tr';
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?rate=${nativeRate}&lang=${sLang}`);
+        socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?rate=${nativeRate}`);
 
         socket.onopen = () => {
           const dict = translations[localStorage.getItem('bt_lang') || 'en'];
@@ -636,19 +623,17 @@
                 return;
             }
             if (msg.status) {
-              const dg = document.getElementById('dg-status');
               const gpt = document.getElementById('gpt-status');
-              dg.innerText = msg.status.deepgram ? '🟢 Deepgram Bağlı' : '🔴 Deepgram Hatalı';
-              dg.style.color = msg.status.deepgram ? 'var(--success-color)' : 'var(--danger-color)';
-              gpt.innerText = msg.status.gpt ? '🟢 GPT Bağlı' : '🔴 GPT Hatalı';
-              gpt.style.color = msg.status.gpt ? 'var(--success-color)' : 'var(--danger-color)';
+              if (msg.status.gpt) {
+                gpt.innerText = "Realtime API: Aktif";
+                gpt.style.color = "var(--success-color)";
+              } else {
+                gpt.innerText = "Realtime API: Pasif";
+                gpt.style.color = "var(--danger-color)";
+              }
             }
             if (msg.mode && !window._streamingStarted) {
-              if (msg.mode === 'deepgram') {
-                startPCMStreaming(stream, nativeCtx, nativeRate);
-              } else {
-                startChunkStreaming(stream);
-              }
+              startPCMStreaming(stream, nativeCtx, nativeRate);
               window._streamingStarted = true;
             }
           } catch(ex) { console.error('Mode parse error', ex); }
@@ -659,7 +644,7 @@
       } catch(e) { alert('Microphone access denied.'); console.error(e); }
     }
 
-    // ── V2: Raw PCM streaming for Deepgram ─────
+    // ── V2: Raw PCM streaming for OpenAI Realtime ─────
     function startPCMStreaming(stream, nativeCtx, nativeRate) {
       window._stream = stream;
       const source = nativeCtx.createMediaStreamSource(stream);

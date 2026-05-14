@@ -650,19 +650,12 @@
       };
       socket.onmessage = (e) => {
         const d = JSON.parse(e.data);
-        if (d.is_interim) {
-          updateInterimMsg(d.original);
-        } else {
-          addFinalMsg(d.original, d.translated);
-          if (audioOn) {
-            if (d.audio) {
-              // V2: Play server-generated Deepgram Aura audio (base64 mp3)
-              playServerAudio(d.audio);
-            } else {
-              // Fallback: browser TTS
-              speak(d.translated, currentLang);
-            }
-          }
+        if (d.type === 'session.input_transcript.delta') {
+          appendOriginalText(d.delta);
+        } else if (d.type === 'session.output_transcript.delta') {
+          appendTranslatedText(d.delta);
+        } else if (d.type === 'session.output_audio.delta') {
+          playPCM16Audio(d.audio);
         }
       };
       socket.onclose = () => {
@@ -675,7 +668,15 @@
     }
 
     // ── Feed ──────────────────────────────────────────────────────────────
-    let currentInterimEl = null;
+    let currentSentenceEl = null;
+    let textTimeout = null;
+
+    function resetSentenceTimer() {
+      clearTimeout(textTimeout);
+      textTimeout = setTimeout(() => {
+        currentSentenceEl = null;
+      }, 3000);
+    }
 
     function scrollToBottom() {
       // Use requestAnimationFrame and a slightly longer timeout to ensure 
@@ -687,47 +688,44 @@
       });
     }
 
-    function updateInterimMsg(orig) {
+    function ensureCurrentSentenceEl() {
       const w = document.getElementById('wait-msg'); if (w) w.remove();
-      if (!currentInterimEl) {
-        currentInterimEl = document.createElement('div');
-        currentInterimEl.className = 'msg interim';
-        currentInterimEl.style.opacity = '0.6';
-        currentInterimEl.style.fontStyle = 'italic';
-        feed.appendChild(currentInterimEl);
+      if (!currentSentenceEl) {
+        currentSentenceEl = document.createElement('div');
+        currentSentenceEl.className = 'msg';
+        const isRTL = currentLang === 'ar' || currentLang === 'ur';
+        currentSentenceEl.innerHTML = `
+          <div class="src" translate="no"></div>
+          <div class="tgt ${isRTL ? 'rtl' : ''}"></div>
+        `;
+        feed.appendChild(currentSentenceEl);
+        
+        document.getElementById('tv-subtitle-translated').classList.remove('interim');
+        document.getElementById('tv-subtitle-translated').innerText = "";
+        document.getElementById('tv-subtitle-original').innerText = "";
       }
-      currentInterimEl.innerHTML = `<div class="src" translate="no">${esc(orig)}...</div>`;
-      scrollToBottom();
-      
-      // Update TV Mode
-      const tvTrans = document.getElementById('tv-subtitle-translated');
-      if (tvTrans.innerText === "Waiting for transmission..." || tvTrans.innerText === "Yayın bekleniyor...") {
-         tvTrans.innerText = "...";
-      }
-      document.getElementById('tv-subtitle-original').innerText = orig;
     }
 
-    function addFinalMsg(orig, translated) {
-      const w = document.getElementById('wait-msg'); if (w) w.remove();
-      if (currentInterimEl) {
-        currentInterimEl.remove();
-        currentInterimEl = null;
-      }
-      const el = document.createElement('div');
-      el.className = 'msg';
-      const isRTL = currentLang === 'ar' || currentLang === 'ur';
-      el.innerHTML = `
-        <div class="src" translate="no">${esc(orig)}</div>
-        <div class="tgt ${isRTL ? 'rtl' : ''}">${esc(translated)}</div>
-      `;
-      feed.appendChild(el);
-      scrollToBottom();
+    function appendOriginalText(delta) {
+      ensureCurrentSentenceEl();
+      const srcEl = currentSentenceEl.querySelector('.src');
+      srcEl.innerText += delta;
       
-      // Update TV Mode
-      document.getElementById('tv-subtitle-translated').classList.remove('interim');
-      document.getElementById('tv-subtitle-translated').innerText = translated;
-      document.getElementById('tv-subtitle-original').innerText = orig;
+      document.getElementById('tv-subtitle-original').innerText += delta;
+      resetSentenceTimer();
+      scrollToBottom();
     }
+
+    function appendTranslatedText(delta) {
+      ensureCurrentSentenceEl();
+      const tgtEl = currentSentenceEl.querySelector('.tgt');
+      tgtEl.innerText += delta;
+      
+      document.getElementById('tv-subtitle-translated').innerText += delta;
+      resetSentenceTimer();
+      scrollToBottom();
+    }
+    
     function esc(s) { const d = document.createElement('div'); d.innerText = s; return d.innerHTML; }
 
     function changeLanguage() {
@@ -738,27 +736,29 @@
     }
 
     // ── Audio toggle (single button) ──────────────────────────────────────
-    const globalAudioPlayer = new Audio();
-    globalAudioPlayer.onended = () => { processAudioQueue(); };
-    globalAudioPlayer.onerror = () => { processAudioQueue(); };
+    let audioCtx = null;
+    let nextStartTime = 0;
+
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
 
     function toggleAudio() {
       if (!audioOn) {
-        // Turning ON — need user gesture to unlock TTS
-        const primer = new SpeechSynthesisUtterance('');
-        window.__activeUtterance = primer;
-        speechSynthesis.speak(primer);
-
-        // Unlock HTML5 Audio for Mobile Safari
-        globalAudioPlayer.src = 'data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
-        globalAudioPlayer.play().catch(()=>{});
-
+        initAudioContext();
         audioOn = true;
         updateAudioBtn();
       } else {
         audioOn = false;
-        speechSynthesis.cancel();
-        globalAudioPlayer.pause();
+        if (audioCtx) {
+          audioCtx.suspend();
+        }
         updateAudioBtn();
       }
     }
@@ -778,14 +778,7 @@
 
     // ── Toast ─────────────────────────────────────────────────────────────
     function enableAudio() {
-      const primer = new SpeechSynthesisUtterance('');
-      window.__activeUtterance = primer;
-      speechSynthesis.speak(primer);
-
-      // Unlock HTML5 Audio for Mobile Safari
-      globalAudioPlayer.src = 'data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq';
-      globalAudioPlayer.play().catch(()=>{});
-
+      initAudioContext();
       audioOn = true;
       updateAudioBtn();
       closeToast();
@@ -794,96 +787,35 @@
       document.getElementById('toast-overlay').classList.remove('visible');
     }
 
-    // ── TTS engine ────────────────────────────────────────────────────────
-    // Chrome bug workaround: speechSynthesis silently pauses after ~15s.
-    // Calling resume() periodically keeps it alive.
-    setInterval(() => {
-      if (audioOn && speechSynthesis.speaking) {
-        speechSynthesis.pause();
-        speechSynthesis.resume();
-      }
-    }, 5000);
-
-    let ttsQueue = [];
-    let ttsBusy = false;
-
-    function speak(text, lang) {
-      if (!('speechSynthesis' in window)) return;
-
-      // Queue management: keep max 2 items in queue to prevent lag buildup
-      ttsQueue.push({ text, lang });
-      if (ttsQueue.length > 3) {
-        // Drop oldest, keep latest 2
-        // DO NOT call cancel() on iOS as it breaks TTS permanently
-        ttsQueue = ttsQueue.slice(-2);
-      }
-
-      if (!ttsBusy) processQueue();
-    }
-
-    function processQueue() {
-      if (ttsQueue.length === 0) { ttsBusy = false; return; }
-      ttsBusy = true;
-
-      const { text, lang } = ttsQueue.shift();
-      const msg = new SpeechSynthesisUtterance(text);
-      window.__activeUtterance = msg; // Safari GC bug fix
-
-      const map = { en:'en-US', tr:'tr-TR' };
-      const locale = map[lang] || lang;
-      msg.lang = locale;
-      msg.rate = 1.0;
-
-      const voices = speechSynthesis.getVoices();
-      const prefix = locale.substring(0, 2);
-      let pool = voices.filter(v => v.lang.startsWith(prefix));
-
-      const preferred = ['Natural','Female','Google','Yelda','Emel','Zira','Samantha','Tessa','Victoria'];
-      let voice = null;
-      for (const kw of preferred) {
-        voice = pool.find(v => v.name.includes(kw));
-        if (voice) break;
-      }
-      if (!voice && pool.length) voice = pool[0];
-      if (voice) msg.voice = voice;
-
-      msg.onend = () => { window.__activeUtterance = null; processQueue(); };
-      msg.onerror = () => { window.__activeUtterance = null; processQueue(); };
-
-      speechSynthesis.speak(msg);
-    }
-
-    // ── Server Audio Playback (Deepgram Aura) ────────────────────────────
-    let audioQueue = [];
-    let audioPlaying = false;
-
-    function playServerAudio(base64Audio) {
-      audioQueue.push(base64Audio);
-      // Keep queue manageable
-      if (audioQueue.length > 3) {
-        audioQueue = audioQueue.slice(-2);
-      }
-      if (!audioPlaying) processAudioQueue();
-    }
-
-    function processAudioQueue() {
-      if (audioQueue.length === 0) { audioPlaying = false; return; }
-      audioPlaying = true;
-
-      const b64 = audioQueue.shift();
-      const byteChars = atob(b64);
-      const byteArray = new Uint8Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) {
-        byteArray[i] = byteChars.charCodeAt(i);
-      }
-      const blob = new Blob([byteArray], { type: 'audio/mp3' });
-      const url = URL.createObjectURL(blob);
+    // ── Server Audio Playback (OpenAI Realtime) ───────────────────────────
+    function playPCM16Audio(base64Audio) {
+      if (!audioOn) return;
+      const ctx = initAudioContext();
       
-      globalAudioPlayer.src = url;
-      globalAudioPlayer.play().catch(err => {
-        console.warn("Audio play blocked", err);
-        processAudioQueue();
-      });
+      const byteString = atob(base64Audio);
+      const numSamples = byteString.length / 2;
+      const audioBuffer = ctx.createBuffer(1, numSamples, 24000);
+      const channelData = audioBuffer.getChannelData(0);
+      
+      for (let i = 0; i < numSamples; i++) {
+        const offset = i * 2;
+        let int16 = byteString.charCodeAt(offset) + (byteString.charCodeAt(offset + 1) << 8);
+        if (int16 >= 0x8000) int16 -= 0x10000;
+        channelData[i] = int16 / 0x8000;
+      }
+      
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      
+      const currentTime = ctx.currentTime;
+      if (currentTime < nextStartTime) {
+        source.start(nextStartTime);
+        nextStartTime += audioBuffer.duration;
+      } else {
+        source.start(currentTime);
+        nextStartTime = currentTime + audioBuffer.duration;
+      }
     }
 
     // ── Boot ──────────────────────────────────────────────────────────────

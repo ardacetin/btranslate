@@ -13,7 +13,7 @@ import datetime
 from database import get_db, init_db, EventSession, User, Transcript, Translation
 from sockets import manager, log_activity
 from auth import verify_password, create_access_token, get_current_user, check_admin, get_password_hash
-from ai_engine import DEEPGRAM_API_KEY, OPENAI_API_KEY
+from ai_engine import OPENAI_API_KEY
 
 app = FastAPI(title="btranslate API")
 
@@ -28,10 +28,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
-    if DEEPGRAM_API_KEY:
-        print("[BOOT] Deepgram API key found — using Nova-3 streaming STT + Aura TTS")
-    else:
-        print("[BOOT] No Deepgram key — falling back to Whisper chunk-based STT + browser TTS")
+    print("[BOOT] Using OpenAI GPT-Realtime-Translate model")
 
 # Mount frontend static files
 import os
@@ -198,41 +195,25 @@ def export_session_history(event_code: str, db: DBSession = Depends(get_db)):
     )
 
 @app.websocket("/ws/host/{event_code}")
-async def websocket_host(websocket: WebSocket, event_code: str, rate: int = 16000, lang: str = "tr"):
+async def websocket_host(websocket: WebSocket, event_code: str, rate: int = 24000):
     await manager.connect_host(websocket, event_code)
     try:
-        if DEEPGRAM_API_KEY:
-            # Tell client to use PCM streaming mode and status
-            status_json = json.dumps({
-                "mode": "deepgram",
-                "status": {
-                    "deepgram": bool(DEEPGRAM_API_KEY),
-                    "gpt": bool(OPENAI_API_KEY)
-                }
-            })
-            await websocket.send_text(status_json)
-            # Start Deepgram streaming connection with exact language and sample rate
-            await manager.start_deepgram_stream(event_code, rate, lang)
-            while True:
-                audio_bytes = await websocket.receive_bytes()
-                if len(audio_bytes) < 10:
-                    continue
-                await manager.send_audio_to_deepgram(event_code, audio_bytes)
-        else:
-            # Tell client to use MediaRecorder chunk mode
-            status_json = json.dumps({
-                "mode": "whisper",
-                "status": {
-                    "deepgram": False,
-                    "gpt": bool(OPENAI_API_KEY)
-                }
-            })
-            await websocket.send_text(status_json)
-            while True:
-                audio_bytes = await websocket.receive_bytes()
-                if len(audio_bytes) < 10:
-                    continue
-                await manager.broadcast_translations_whisper(event_code, audio_bytes, source_lang="auto")
+        # Tell client to use OpenAI Realtime streaming mode
+        status_json = json.dumps({
+            "mode": "openai-realtime",
+            "status": {
+                "deepgram": False,
+                "gpt": bool(OPENAI_API_KEY)
+            }
+        })
+        await websocket.send_text(status_json)
+        
+        while True:
+            audio_bytes = await websocket.receive_bytes()
+            if len(audio_bytes) < 10:
+                continue
+            await manager.send_audio_from_host(event_code, audio_bytes)
+            
     except WebSocketDisconnect:
         manager.disconnect_host(event_code, websocket)
     except Exception as e:

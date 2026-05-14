@@ -1,16 +1,9 @@
-from fastapi import WebSocket, WebSocketDisconnect
-from typing import Dict, List
 import json
 import asyncio
 import datetime
-import base64
-from ai_engine import (
-    DeepgramStreamingSTT,
-    translate_text,
-    synthesize_speech,
-    transcribe_audio_whisper,
-    DEEPGRAM_API_KEY,
-)
+from fastapi import WebSocket, WebSocketDisconnect
+from typing import Dict, List
+from ai_engine import RealtimeTranslationSession
 from database import SessionLocal, EventSession, Transcript, Translation
 
 def log_activity(msg: str):
@@ -27,7 +20,7 @@ def log_activity(msg: str):
 class ConnectionManager:
     """
     Manages host ↔ participant WebSocket connections and orchestrates
-    the STT → Translation → TTS pipeline.
+    the OpenAI GPT-Realtime-Translate pipeline.
     """
 
     def __init__(self):
@@ -37,8 +30,11 @@ class ConnectionManager:
         if event_code not in self.active_sessions:
             self.active_sessions[event_code] = {
                 "host": None,
-                "participants": {},
-                "dg_stt": None,         # DeepgramStreamingSTT instance
+                "participants": {},  # { "tr": [ws1, ws2], "en": [ws3] }
+                "rt_sessions": {},   # { "tr": RealtimeTranslationSession, "en": RealtimeTranslationSession }
+                "accumulated_original": "",
+                "accumulated_translations": {},
+                "db_transcript_id": None
             }
         return self.active_sessions[event_code]
 
@@ -50,16 +46,30 @@ class ConnectionManager:
         session["host"] = websocket
         log_activity(f"HOST connected to Broadcast {event_code}")
 
+        # Ensure DB session exists and get a transcript ID for tracking
+        db = SessionLocal()
+        try:
+            db_session = db.query(EventSession).filter(EventSession.event_code == event_code).first()
+            if db_session:
+                transcript_obj = Transcript(session_id=db_session.id, original_text="")
+                db.add(transcript_obj)
+                db.commit()
+                db.refresh(transcript_obj)
+                session["db_transcript_id"] = transcript_obj.id
+        except Exception as e:
+            print(f"[DB] Failed to init transcript: {e}")
+        finally:
+            db.close()
+
     def disconnect_host(self, event_code: str, websocket: WebSocket):
         if event_code in self.active_sessions:
             session = self.active_sessions[event_code]
             if session.get("host") == websocket:
                 session["host"] = None
-                # Stop Deepgram STT connection if active
-                dg_stt = session.get("dg_stt")
-                if dg_stt:
-                    asyncio.create_task(dg_stt.stop())
-                    session["dg_stt"] = None
+                # Stop all active realtime sessions
+                for lang, rt_session in session.get("rt_sessions", {}).items():
+                    asyncio.create_task(rt_session.stop())
+                session["rt_sessions"] = {}
 
     # ── Participants ──────────────────────────────────────────────────────
 
@@ -83,189 +93,139 @@ class ConnectionManager:
         log_activity(f"PARTICIPANT joined {event_code} (Lang: {target_lang}). Total in room: {total}")
         await self._update_host_participant_count(event_code)
 
+        # Start a Realtime Session for this language if it doesn't exist
+        if target_lang not in session.get("rt_sessions", {}):
+            async def on_rt_event(lang: str, data: dict):
+                await self._handle_realtime_event(event_code, lang, data)
+                
+            rt_session = RealtimeTranslationSession(target_lang, on_rt_event)
+            session["rt_sessions"][target_lang] = rt_session
+            await rt_session.start()
+
     def disconnect_participant(self, websocket: WebSocket, event_code: str, target_lang: str):
         if event_code in self.active_sessions:
             try:
                 self.active_sessions[event_code]["participants"][target_lang].remove(websocket)
                 asyncio.create_task(self._update_host_participant_count(event_code))
+                
+                # If no more participants for this language, we COULD stop the rt_session, 
+                # but we'll leave it running for now in case they reconnect quickly.
             except (ValueError, KeyError):
                 pass
 
-    # ── Deepgram Streaming Pipeline ───────────────────────────────────────
+    # ── Audio Forwarding ──────────────────────────────────────────────────
 
-    async def start_deepgram_stream(self, event_code: str, rate: int = 16000, lang: str = "tr"):
-        """
-        Initialize a Deepgram Nova-3 streaming connection for this event.
-        When Deepgram returns a finalized transcript, it triggers
-        translation + TTS and broadcasts to all participants.
-        """
-        session = self.get_or_create_session(event_code)
-
-        async def on_transcript(text: str, is_final: bool):
-            """Called by DeepgramStreamingSTT when a transcript arrives."""
-            if not is_final:
-                await self._broadcast_interim(event_code, text)
-            else:
-                await self._broadcast_to_participants(event_code, text, source_lang=lang)
-
-        stt = DeepgramStreamingSTT(
-            on_transcript_callback=on_transcript,
-            language=lang,
-            sample_rate=rate,
-        )
-        await stt.start()
+    async def send_audio_from_host(self, event_code: str, audio_bytes: bytes):
+        """Forward raw audio from host to all active OpenAI Realtime sessions."""
+        session = self.active_sessions.get(event_code)
+        if not session:
+            return
         
-        old_stt = session.get("dg_stt")
-        if old_stt:
-            asyncio.create_task(old_stt.stop())
+        # Fan out the audio to all active languages
+        for lang, rt_session in session.get("rt_sessions", {}).items():
+            await rt_session.send_audio(audio_bytes)
+
+    # ── Event Handling ────────────────────────────────────────────────────
+
+    async def _handle_realtime_event(self, event_code: str, lang: str, data: dict):
+        """Handle incoming deltas from OpenAI and broadcast to participants."""
+        session = self.active_sessions.get(event_code)
+        if not session:
+            return
             
-        session["dg_stt"] = stt
-        return stt
-
-    async def send_audio_to_deepgram(self, event_code: str, audio_bytes: bytes):
-        """Forward raw audio from host to the Deepgram STT stream."""
-        session = self.active_sessions.get(event_code)
-        if not session:
+        participants = session.get("participants", {}).get(lang, [])
+        if not participants:
             return
-        dg_stt = session.get("dg_stt")
-        if dg_stt:
-            await dg_stt.send_audio(audio_bytes)
+            
+        event_type = data.get("type")
+        
+        msg = {
+            "type": event_type,
+            "target_lang": lang
+        }
+        
+        should_broadcast = False
 
-    # ── Legacy Whisper Pipeline (fallback) ────────────────────────────────
+        if event_type == "session.output_transcript.delta":
+            delta = data.get("delta", "")
+            if delta:
+                msg["delta"] = delta
+                should_broadcast = True
+                # Accumulate history
+                if lang not in session["accumulated_translations"]:
+                    session["accumulated_translations"][lang] = ""
+                session["accumulated_translations"][lang] += delta
+                asyncio.create_task(self._update_db_history(session, lang))
 
-    async def broadcast_translations_whisper(self, event_code: str, audio_bytes: bytes, source_lang: str = "auto"):
-        """
-        Fallback: chunk-based Whisper transcription → translation → broadcast.
-        Used when DEEPGRAM_API_KEY is not configured.
-        """
-        original_text = await transcribe_audio_whisper(audio_bytes)
-        if not original_text.strip():
-            return
-        await self._broadcast_to_participants(event_code, original_text, source_lang)
+        elif event_type == "session.input_transcript.delta":
+            delta = data.get("delta", "")
+            if delta:
+                msg["delta"] = delta
+                should_broadcast = True
+                session["accumulated_original"] += delta
+                asyncio.create_task(self._update_db_history(session, None))
 
-    # ── Core broadcast logic (shared by both pipelines) ───────────────────
-
-    async def _broadcast_interim(self, event_code: str, interim_text: str):
-        """Send interim (live-typing) text to participants without translating."""
-        session = self.active_sessions.get(event_code)
-        if not session:
-            return
-
-        participants_dict = session["participants"]
-        if not participants_dict:
-            return
-
-        message = json.dumps({
-            "is_interim": True,
-            "original": interim_text
-        })
-
-        # Broadcast to everyone immediately
-        for target_lang, ws_list in participants_dict.items():
-            dead = []
-            for ws in ws_list:
-                try:
-                    await ws.send_text(message)
-                except Exception:
-                    dead.append(ws)
-            for ws in dead:
-                try:
-                    ws_list.remove(ws)
-                except ValueError:
-                    pass
-
-    async def _broadcast_to_participants(self, event_code: str, original_text: str, source_lang: str = "auto"):
-        """Translate final text, generate TTS audio, and send to all participants."""
-        session = self.active_sessions.get(event_code)
-        if not session:
-            print(f"[BROADCAST] ✗ No session for {event_code}")
+        elif event_type == "session.output_audio.delta":
+            delta = data.get("delta", "")
+            if delta:
+                msg["audio"] = delta
+                should_broadcast = True
+                
+        if not should_broadcast:
             return
 
-        participants_dict = session["participants"]
-        if not participants_dict:
-            print(f"[BROADCAST] ✗ No participants in {event_code}")
+        message = json.dumps(msg)
+        
+        dead = []
+        for ws in participants:
+            try:
+                await ws.send_text(message)
+            except Exception:
+                dead.append(ws)
+                
+        for ws in dead:
+            try:
+                participants.remove(ws)
+            except ValueError:
+                pass
+
+    async def _update_db_history(self, session: dict, target_lang: str = None):
+        """Debounced or periodic DB update for accumulated history."""
+        # For simplicity, we update the existing row directly
+        # In a high-scale production app, we'd debounce this.
+        t_id = session.get("db_transcript_id")
+        if not t_id:
             return
-
-        langs = list(participants_dict.keys())
-        counts = {l: len(ws) for l, ws in participants_dict.items() if ws}
-        print(f"[BROADCAST] '{original_text[:50]}' → {counts}")
-
-        # Save Transcript to DB
-        transcript_id = None
+            
         db = SessionLocal()
         try:
-            db_session = db.query(EventSession).filter(EventSession.event_code == event_code).first()
-            if db_session:
-                transcript_obj = Transcript(session_id=db_session.id, original_text=original_text)
-                db.add(transcript_obj)
-                db.commit()
-                db.refresh(transcript_obj)
-                transcript_id = transcript_obj.id
+            if target_lang is None:
+                # Update original text
+                t = db.query(Transcript).filter(Transcript.id == t_id).first()
+                if t:
+                    t.original_text = session["accumulated_original"]
+                    db.commit()
+            else:
+                # Update translation text
+                trans = db.query(Translation).filter(
+                    Translation.transcript_id == t_id,
+                    Translation.target_language == target_lang
+                ).first()
+                
+                if trans:
+                    trans.translated_text = session["accumulated_translations"][target_lang]
+                    db.commit()
+                else:
+                    new_trans = Translation(
+                        transcript_id=t_id,
+                        target_language=target_lang,
+                        translated_text=session["accumulated_translations"][target_lang]
+                    )
+                    db.add(new_trans)
+                    db.commit()
         except Exception as e:
-            print(f"[DB] Failed to save transcript: {e}")
+            print(f"[DB] Error updating history: {e}")
         finally:
             db.close()
-
-        async def translate_and_send(target_lang: str, websockets: List[WebSocket]):
-            if not websockets:
-                return
-
-            # 1. Translate
-            translated_text = await translate_text(original_text, source_lang, target_lang)
-
-            # 2. Generate TTS audio (Deepgram Aura)
-            audio_b64 = None
-            tts_bytes = await synthesize_speech(translated_text, target_lang)
-            if tts_bytes:
-                audio_b64 = base64.b64encode(tts_bytes).decode("utf-8")
-
-            # 3. Build message
-            message = json.dumps({
-                "is_interim": False,
-                "original": original_text,
-                "translated": translated_text,
-                "target_lang": target_lang,
-                "audio": audio_b64,  # base64 mp3 or null
-            })
-
-            # Save Translation to DB
-            if transcript_id:
-                db2 = SessionLocal()
-                try:
-                    translation_obj = Translation(
-                        transcript_id=transcript_id,
-                        target_language=target_lang,
-                        translated_text=translated_text
-                    )
-                    db2.add(translation_obj)
-                    db2.commit()
-                except Exception as e:
-                    print(f"[DB] Failed to save translation: {e}")
-                finally:
-                    db2.close()
-
-            # 4. Send to all participants of this language
-            dead = []
-            for ws in websockets:
-                try:
-                    await ws.send_text(message)
-                except Exception:
-                    dead.append(ws)
-
-            # Clean up disconnected
-            for ws in dead:
-                try:
-                    websockets.remove(ws)
-                except ValueError:
-                    pass
-
-        tasks = []
-        for target_lang, ws_list in participants_dict.items():
-            if ws_list:
-                tasks.append(translate_and_send(target_lang, list(ws_list)))
-
-        if tasks:
-            await asyncio.gather(*tasks)
-
 
 manager = ConnectionManager()
