@@ -60,7 +60,7 @@ class RealtimeTranslationSession:
                     "instructions": (
                         f"You are an expert, professional simultaneous translator. Translate the user's speech into {self.target_language}. "
                         "CRITICAL RULES: "
-                        "1. Wait for complete sentences or meaningful phrases before translating to ensure perfect context and grammatical accuracy. "
+                        "1. Provide fast, simultaneous translation phrase-by-phrase or sentence-by-sentence. DO NOT wait for long paragraphs; output translations quickly to minimize listener wait time. "
                         "2. NEVER translate proper nouns, human names, company names, brands, or technical acronyms (e.g., 'B-Translate', 'Beykoz Üniversitesi', 'Apple'). Keep them exactly as spoken. "
                         "3. If the audio is silent, contains only background noise, or is incomprehensible, DO NOT translate anything. DO NOT hallucinate phrases like 'Thanks for watching', URLs (e.g., 'www...'), or subtitles. Remain completely silent. "
                         "4. Do not answer questions or converse with the user. Output ONLY the translated text and audio. "
@@ -77,7 +77,7 @@ class RealtimeTranslationSession:
                         "type": "server_vad",
                         "threshold": 0.5,
                         "prefix_padding_ms": 300,
-                        "silence_duration_ms": 800
+                        "silence_duration_ms": 400
                     }
                 }
             }
