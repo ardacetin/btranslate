@@ -62,10 +62,12 @@ class RealtimeTranslationSession:
                         "CRITICAL RULES: "
                         "1. Wait for complete sentences or meaningful phrases before translating to ensure perfect context and grammatical accuracy. "
                         "2. NEVER translate proper nouns, human names, company names, brands, or technical acronyms (e.g., 'B-Translate', 'Beykoz Üniversitesi', 'Apple'). Keep them exactly as spoken. "
-                        "3. Do not answer questions or converse with the user. Output ONLY the translated text and audio. "
-                        "4. Ensure the translation is natural, fluent, and highly professional."
+                        "3. If the audio is silent, contains only background noise, or is incomprehensible, DO NOT translate anything. DO NOT hallucinate phrases like 'Thanks for watching', URLs (e.g., 'www...'), or subtitles. Remain completely silent. "
+                        "4. Do not answer questions or converse with the user. Output ONLY the translated text and audio. "
+                        "5. Ensure the translation is natural, fluent, and highly professional."
                     ),
                     "voice": "alloy",
+                    "temperature": 0.3,
                     "input_audio_format": "pcm16",
                     "output_audio_format": "pcm16",
                     "input_audio_transcription": {
@@ -75,7 +77,7 @@ class RealtimeTranslationSession:
                         "type": "server_vad",
                         "threshold": 0.5,
                         "prefix_padding_ms": 300,
-                        "silence_duration_ms": 800  # Cümle bitişini daha iyi anlaması için süreyi artırdık
+                        "silence_duration_ms": 800
                     }
                 }
             }
