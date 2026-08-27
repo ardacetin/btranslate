@@ -507,6 +507,7 @@
       <div class="feed-topbar-left">
         <h2 data-i18n="part_feed_title">Live Feed</h2>
         <span class="event-name" id="display-event-name"></span>
+        <span class="event-name" id="direction-badge" style="display:none; background:rgba(5,150,105,0.1); color:#059669;"></span>
       </div>
       <div class="feed-topbar-right">
         <span class="conn-pill">
@@ -520,6 +521,10 @@
         <button class="audio-toggle off" id="audio-btn" onclick="toggleAudio()">
           🔇 <span id="audio-btn-label" data-i18n="btn_audio_off">Audio Off</span>
         </button>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.05"
+          oninput="setVolume(this.value)" title="Ses seviyesi"
+          style="display:none; width:90px; accent-color:#059669;">
+
         <button class="audio-toggle off" onclick="toggleTVMode()" style="background:#1f2937; color:#fff; border-color:#1f2937;">
           📺 <span data-i18n="btn_tv_mode">TV Mode</span>
         </button>
@@ -606,23 +611,13 @@
         }
       } catch(e) { console.error(e); }
 
-      const saved = localStorage.getItem('bt_target_lang');
-      if (saved) { 
-        currentLang = saved; 
-        document.getElementById('lang-select').value = saved; 
-        if (localStorage.getItem('bt_lang') !== saved) {
-          localStorage.setItem('bt_lang', saved);
-          changeSiteLanguage(saved);
-        }
-      } else {
-        // If no target lang is saved, set it to the current UI lang
-        const uiLang = localStorage.getItem('bt_lang') || 'en';
-        currentLang = uiLang;
-        document.getElementById('lang-select').value = uiLang;
-        localStorage.setItem('bt_target_lang', uiLang);
-      }
+      // The lang-select only controls the interface language now — the
+      // translation direction is set by the host and pushed over the socket.
+      const uiLang = localStorage.getItem('bt_lang') || 'en';
+      currentLang = uiLang;
+      document.getElementById('lang-select').value = uiLang;
 
-      connectWS(currentLang);
+      connectWS();
       // Show audio toast after page settles
       setTimeout(() => { document.getElementById('toast-overlay').classList.add('visible'); }, 2000);
     }
@@ -647,10 +642,14 @@
     }
 
     // ── WebSocket ─────────────────────────────────────────────────────────
-    function connectWS(lang) {
-      if (socket) socket.close();
+    let manualClose = false;
+    let reconnectTimer = null;
+
+    function connectWS() {
+      manualClose = false;
+      if (socket) { try { socket.close(); } catch(e){} }
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      socket = new WebSocket(`${proto}//${location.host}/ws/participant/${eventCode}/${lang}`);
+      socket = new WebSocket(`${proto}//${location.host}/ws/participant/${eventCode}`);
       const dot = document.getElementById('conn-dot');
       const st  = document.getElementById('status-text');
 
@@ -661,27 +660,47 @@
         window._ping = setInterval(() => { if (socket.readyState === 1) socket.send('PING'); }, 25000);
       };
       socket.onmessage = (e) => {
-        const d = JSON.parse(e.data);
-        if (d.type === 'session.input_transcript.delta') {
-          appendOriginalText(d.delta);
-        } else if (d.type === 'session.output_transcript.delta') {
-          appendTranslatedText(d.delta);
-        } else if (d.type === 'session.output_audio.delta') {
-          playPCM16Audio(d.audio);
+        let d; try { d = JSON.parse(e.data); } catch(err) { return; }
+        switch (d.type) {
+          case 'tentative': renderTentative(d.original, d.translated); break;
+          case 'final':     renderFinal(d.original, d.translated, d.rtl); break;
+          case 'audio':     enqueueAudio(d.chunk); break;
+          case 'direction': applyDirection(d); break;
+          case 'reconnecting': showReconnecting(); break;
+          case 'status':    if (d.target) applyDirection(d); break;
+          case 'service':   break;
+          default: break;
         }
       };
       socket.onclose = () => {
         dot.classList.remove('live');
-        const dict = translations[localStorage.getItem('bt_lang') || 'en'];
-        st.innerText = dict.status_disconnected;
         clearInterval(window._ping);
+        if (manualClose) return;
+        showReconnecting();
+        // Auto-reconnect so a brief outage doesn't end the session for the audience.
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(connectWS, 2000);
       };
-      socket.onerror = (err) => console.error('WS:', err);
+      socket.onerror = () => {};
+    }
+
+    function showReconnecting() {
+      const dict = translations[localStorage.getItem('bt_lang') || 'en'];
+      document.getElementById('conn-dot').classList.remove('live');
+      document.getElementById('status-text').innerText = dict.status_reconnecting || 'Bağlantı yeniden kuruluyor…';
+    }
+
+    function applyDirection(d) {
+      currentDir = { source: d.source, target: d.target, rtl: !!d.rtl, label: d.label || '' };
+      const el = document.getElementById('direction-badge');
+      if (el && d.label) { el.innerText = d.label; el.style.display = ''; }
+      const tvLang = document.getElementById('tv-lang-label');
+      if (tvLang && d.targetLabel) tvLang.innerText = d.targetLabel;
     }
 
     // ── Feed (Continuous Scrolling Transcript) ─────────────────────────────
-    let currentSegment = null;
-    let segmentTimeout = null;
+    let tentativeSegment = null;   // the live, not-yet-finalized segment element
+    let currentDir = { source: 'tr', target: 'en', rtl: false, label: '' };
     let isUserScrolling = false;
     let scrollLockTimeout = null;
 
@@ -704,78 +723,91 @@
       });
     }
 
-    function resetSegmentTimer() {
-      clearTimeout(segmentTimeout);
-      segmentTimeout = setTimeout(() => {
-        // Mark current segment as finalized
-        if (currentSegment) currentSegment.classList.remove('active');
-        currentSegment = null;
-      }, 2500);
+    function nowStr() {
+      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     }
 
-    function ensureCurrentSegment() {
+    function ensureTentativeSegment() {
       const w = document.getElementById('wait-msg'); if (w) w.remove();
-      if (!currentSegment) {
-        currentSegment = document.createElement('div');
-        currentSegment.className = 'segment active';
-        const isRTL = currentLang === 'ar' || currentLang === 'ur';
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        currentSegment.innerHTML = `
-          <div class="seg-time">${timeStr}</div>
-          <div class="seg-translated ${isRTL ? 'rtl' : ''}"></div>
-          <div class="seg-original"></div>
-        `;
-        feed.appendChild(currentSegment);
-        
-        // Reset TV mode subtitle
-        document.getElementById('tv-subtitle-translated').classList.remove('interim');
-        document.getElementById('tv-subtitle-translated').innerText = '';
-        document.getElementById('tv-subtitle-original').innerText = '';
+      if (!tentativeSegment) {
+        tentativeSegment = document.createElement('div');
+        tentativeSegment.className = 'segment active';
+        tentativeSegment.style.opacity = '0.55'; // faded => tentative
+        tentativeSegment.innerHTML =
+          `<div class="seg-time">${nowStr()}</div>` +
+          `<div class="seg-translated ${currentDir.rtl ? 'rtl' : ''}"></div>` +
+          `<div class="seg-original"></div>`;
+        feed.appendChild(tentativeSegment);
       }
+      return tentativeSegment;
     }
 
-    function appendOriginalText(delta) {
-      ensureCurrentSegment();
-      const el = currentSegment.querySelector('.seg-original');
-      el.innerText += delta;
-      
-      document.getElementById('tv-subtitle-original').innerText += delta;
-      resetSegmentTimer();
+    // Tentative: continuously changing text shown faded; NOT stored on the server.
+    function renderTentative(original, translated) {
+      if (!original && !translated) {
+        if (tentativeSegment) { tentativeSegment.remove(); tentativeSegment = null; }
+        return;
+      }
+      const seg = ensureTentativeSegment();
+      seg.querySelector('.seg-translated').innerText = translated || '';
+      seg.querySelector('.seg-original').innerText = original || '';
+      const tvT = document.getElementById('tv-subtitle-translated');
+      tvT.classList.add('interim');
+      tvT.innerText = translated || '';
+      document.getElementById('tv-subtitle-original').innerText = original || '';
       scrollToBottom();
     }
 
-    function appendTranslatedText(delta) {
-      ensureCurrentSegment();
-      const el = currentSegment.querySelector('.seg-translated');
-      el.innerText += delta;
-      
-      document.getElementById('tv-subtitle-translated').innerText += delta;
-      resetSegmentTimer();
+    // Final: solidify the tentative segment into a permanent one.
+    function renderFinal(original, translated, rtl) {
+      const w = document.getElementById('wait-msg'); if (w) w.remove();
+      const seg = ensureTentativeSegment();
+      seg.classList.remove('active');
+      seg.style.opacity = '1';
+      seg.querySelector('.seg-time').innerText = nowStr();
+      const t = seg.querySelector('.seg-translated');
+      t.innerText = translated || '';
+      t.classList.toggle('rtl', !!(rtl ?? currentDir.rtl));
+      seg.querySelector('.seg-original').innerText = original || '';
+      tentativeSegment = null; // next tentative starts a fresh segment
+
+      const tvT = document.getElementById('tv-subtitle-translated');
+      tvT.classList.remove('interim');
+      tvT.innerText = translated || '';
+      document.getElementById('tv-subtitle-original').innerText = original || '';
       scrollToBottom();
     }
-    
-    function esc(s) { const d = document.createElement('div'); d.innerText = s; return d.innerHTML; }
 
     function changeLanguage() {
+      // Interface language only; does not change the translation direction.
       currentLang = document.getElementById('lang-select').value;
-      localStorage.setItem('bt_target_lang', currentLang);
-      localStorage.setItem('bt_lang', currentLang); // Sync UI language with translation target
-      location.reload();
+      localStorage.setItem('bt_lang', currentLang);
+      changeSiteLanguage(currentLang);
     }
 
-    // ── Audio toggle (single button) ──────────────────────────────────────
+    // ── Audio toggle + volume + queue ─────────────────────────────────────
     let audioCtx = null;
+    let masterGain = null;
     let nextStartTime = 0;
+    let audioVolume = parseFloat(localStorage.getItem('bt_volume') || '1');
 
     function initAudioContext() {
       if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = audioVolume;
+        masterGain.connect(audioCtx.destination);
       }
       if (audioCtx.state === 'suspended') {
         audioCtx.resume();
       }
       return audioCtx;
+    }
+
+    function setVolume(v) {
+      audioVolume = Math.max(0, Math.min(1, parseFloat(v)));
+      localStorage.setItem('bt_volume', String(audioVolume));
+      if (masterGain) masterGain.gain.value = audioVolume;
     }
 
     function toggleAudio() {
@@ -794,15 +826,20 @@
 
     function updateAudioBtn() {
       const btn = document.getElementById('audio-btn');
-      const lbl = document.getElementById('audio-btn-label');
+      const slider = document.getElementById('volume-slider');
       const dict = translations[localStorage.getItem('bt_lang') || 'en'];
       if (audioOn) {
         btn.className = 'audio-toggle on';
         btn.innerHTML = '🔊 <span id="audio-btn-label">' + (dict.btn_audio_on || 'Audio On') + '</span>';
+        slider.style.display = '';
+        slider.value = audioVolume;
       } else {
         btn.className = 'audio-toggle off';
         btn.innerHTML = '🔇 <span id="audio-btn-label">' + (dict.btn_audio_off || 'Audio Off') + '</span>';
+        slider.style.display = 'none';
       }
+      const tvAudio = document.getElementById('tv-audio-indicator');
+      if (tvAudio) tvAudio.innerText = audioOn ? '🔊' : '🔇';
     }
 
     // ── Toast ─────────────────────────────────────────────────────────────
@@ -816,35 +853,34 @@
       document.getElementById('toast-overlay').classList.remove('visible');
     }
 
-    // ── Server Audio Playback (OpenAI Realtime) ───────────────────────────
-    function playPCM16Audio(base64Audio) {
-      if (!audioOn) return;
+    // ── Translated Audio Playback (queued, gap-free) ──────────────────────
+    // Each translated-speech chunk is scheduled back-to-back using an
+    // ever-advancing `nextStartTime` cursor so segments never overlap. If the
+    // stream falls behind, the cursor snaps to `currentTime` to avoid drift.
+    function enqueueAudio(base64Audio) {
+      if (!audioOn || !base64Audio) return;
       const ctx = initAudioContext();
-      
+
       const byteString = atob(base64Audio);
       const numSamples = byteString.length / 2;
+      if (numSamples <= 0) return;
       const audioBuffer = ctx.createBuffer(1, numSamples, 24000);
       const channelData = audioBuffer.getChannelData(0);
-      
+
       for (let i = 0; i < numSamples; i++) {
         const offset = i * 2;
         let int16 = byteString.charCodeAt(offset) + (byteString.charCodeAt(offset + 1) << 8);
         if (int16 >= 0x8000) int16 -= 0x10000;
         channelData[i] = int16 / 0x8000;
       }
-      
+
       const source = ctx.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      
-      const currentTime = ctx.currentTime;
-      if (currentTime < nextStartTime) {
-        source.start(nextStartTime);
-        nextStartTime += audioBuffer.duration;
-      } else {
-        source.start(currentTime);
-        nextStartTime = currentTime + audioBuffer.duration;
-      }
+      source.connect(masterGain || ctx.destination);
+
+      const startAt = Math.max(ctx.currentTime, nextStartTime);
+      source.start(startAt);
+      nextStartTime = startAt + audioBuffer.duration;
     }
 
     // ── Boot ──────────────────────────────────────────────────────────────
