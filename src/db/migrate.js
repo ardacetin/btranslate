@@ -64,7 +64,14 @@ async function run() {
   });
 
   try {
-    await ensureDatabase(rootConn);
+    // On managed panels (CloudPanel/Plesk) the DB is created for you and the
+    // app user usually lacks the global CREATE privilege — so a failure here
+    // is expected and safe to ignore as long as the database already exists.
+    try {
+      await ensureDatabase(rootConn);
+    } catch (e) {
+      logger.warn(`Could not CREATE DATABASE (likely already exists / limited privileges): ${e.message}`);
+    }
     await rootConn.changeUser({ database: config.db.name });
     await ensureMigrationsTable(rootConn);
 
