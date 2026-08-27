@@ -3,233 +3,172 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>btranslate - Dinamik AI Çeviri Stüdyosu</title>
+  <title>btranslate — Canlı Yapay Zeka Çeviri</title>
   <link rel="stylesheet" href="/static/styles.css">
-  <meta name="description" content="Yapay zeka destekli eşzamanlı ses referanslı çeviri stüdyosu.">
+  <meta name="description" content="Beykoz Üniversitesi etkinlikleri için gerçek zamanlı Türkçe–İngilizce yapay zeka çeviri sistemi.">
   <style>
-    /* ── Layout & Animations ───────────────────────── */
-    @keyframes slideUpFade {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .animate-up {
-      animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      opacity: 0;
-    }
-    .delay-1 { animation-delay: 0.1s; }
-    .delay-2 { animation-delay: 0.2s; }
-    .delay-3 { animation-delay: 0.3s; }
+    @keyframes floatUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    .rise { animation: floatUp 0.7s var(--ease) both; }
+    .d1 { animation-delay: 0.08s; } .d2 { animation-delay: 0.16s; }
+    .d3 { animation-delay: 0.24s; } .d4 { animation-delay: 0.32s; }
 
-    /* ── Hero ──────────────────────────────────────── */
-    .home-hero {
-      text-align: center;
-      padding: 6rem 1.5rem 3rem;
-      max-width: 800px;
+    /* ── Hero ─────────────────────────────────────────── */
+    .hero {
+      max-width: 1120px;
       margin: 0 auto;
+      padding: 7rem 1.5rem 3rem;
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 3.5rem;
+      align-items: center;
     }
-    .home-hero h1 {
-      font-size: 3.6rem;
+    .hero-copy h1 {
+      font-size: clamp(2.6rem, 5vw, 4.1rem);
       font-weight: 800;
-      letter-spacing: -0.035em;
-      line-height: 1.05;
-      color: var(--text-primary);
-      margin-bottom: 1.2rem;
+      letter-spacing: -0.04em;
+      line-height: 1.02;
+      margin: 1.1rem 0 1.2rem;
     }
-    .home-hero h1 span { color: var(--accent-color); }
-    .home-hero .tagline {
+    .hero-copy p.lede {
       font-size: 1.15rem;
       color: var(--text-secondary);
-      max-width: 580px;
-      margin: 0 auto 2.5rem;
       line-height: 1.6;
-      font-weight: 400;
+      max-width: 34rem;
+      margin-bottom: 2rem;
     }
+    .hero-ctas { display: flex; gap: 0.85rem; flex-wrap: wrap; align-items: center; }
+    .btn-lg { padding: 0.9rem 1.6rem; font-size: 1.02rem; border-radius: var(--r-md); }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.9rem 1.1rem; font-weight: 600; font-size: 1.02rem;
+      color: var(--text-primary); text-decoration: none; border-radius: var(--r-md);
+      transition: background var(--dur), transform var(--dur);
+    }
+    .btn-ghost:hover { background: var(--surface-2); transform: translateY(-1px); }
+    .hero-note { margin-top: 1.4rem; font-size: 0.82rem; color: var(--text-muted); display: flex; gap: 1.2rem; flex-wrap: wrap; }
+    .hero-note span { display: inline-flex; align-items: center; gap: 0.4rem; }
 
-    /* Join card (SaaS style) */
-    .join-card {
-      background: #ffffff;
+    /* ── Live preview mockup ──────────────────────────── */
+    .preview {
+      position: relative;
+      background: var(--surface-color);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 2.5rem;
-      max-width: 440px;
-      margin: 0 auto;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-      text-align: left;
-      transition: box-shadow 0.3s ease;
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
     }
-    .join-card:hover {
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+    .preview::before {
+      content: ''; position: absolute; inset: 0 0 auto 0; height: 4px;
+      background: var(--accent-grad);
     }
-    .join-card h3 {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
+    .pv-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-color);
+      background: linear-gradient(180deg, rgba(122,32,33,0.03), transparent);
     }
-    .join-card .desc {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      margin-bottom: 1.5rem;
-      line-height: 1.5;
+    .pv-title { display: flex; align-items: center; gap: 0.55rem; font-weight: 700; font-size: 0.95rem; }
+    .pv-live { width: 9px; height: 9px; border-radius: 50%; background: var(--success-color); box-shadow: 0 0 0 3px var(--success-soft); animation: pulseDot 1.8s infinite; }
+    .pv-dir {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+      color: var(--accent-color); background: var(--accent-soft);
+      padding: 0.28rem 0.6rem; border-radius: 999px;
     }
-    .join-row button {
-      width: 100%;
-      padding: 1rem;
-      font-size: 1.1rem;
+    .pv-body { padding: 1.2rem; display: flex; flex-direction: column; gap: 1rem; min-height: 220px; }
+    .pv-seg { animation: floatUp 0.5s var(--ease) both; }
+    .pv-seg .t { font-size: 1.15rem; font-weight: 650; color: var(--text-primary); line-height: 1.4; }
+    .pv-seg .o { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
+    .pv-seg.tentative { opacity: 0.55; }
+    .pv-caret { display: inline-block; width: 2px; height: 1.05em; background: var(--accent-color); margin-left: 2px; vertical-align: text-bottom; animation: blink 1s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .pv-foot {
+      display: flex; gap: 0.5rem; flex-wrap: wrap;
+      padding: 0.9rem 1.2rem; border-top: 1px solid var(--border-color); background: var(--surface-2);
     }
-
-    /* ── Features ──────────────────────────────────── */
-    .feat-section {
-      max-width: 1000px;
-      margin: 4rem auto 3rem;
-      padding: 0 1.5rem;
-    }
-    .feat-section h2 {
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 2.5rem;
-      color: var(--text-primary);
-    }
-    .feat-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5rem;
-    }
-    .feat-box {
-      background: #ffffff;
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 2rem 1.5rem;
-      text-align: left;
-      transition: box-shadow 0.3s ease, transform 0.3s ease;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-    }
-    .feat-box:hover { 
-      transform: translateY(-2px); 
-      box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05);
-    }
-    .feat-box .icon-wrap {
-      width: 48px; height: 48px;
-      border-radius: 14px;
-      background: var(--accent-soft);
-      color: var(--accent-color);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1.25rem;
-      transition: transform 0.3s var(--ease), background 0.3s;
-    }
-    .feat-box:hover .icon-wrap {
-      transform: translateY(-2px) rotate(-3deg);
-    }
-    .feat-box h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary); }
-    .feat-box p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
-
-    /* ── How It Works ──────────────────────────────── */
-    .hiw-section {
-      max-width: 700px;
-      margin: 5rem auto 3rem;
-      padding: 0 1.5rem;
-    }
-    .hiw-section h2 {
-      text-align: center;
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 3rem;
-      color: var(--text-primary);
-    }
-    .hiw-steps {
-      position: relative;
-    }
-    /* Vertical connecting line */
-    .hiw-steps::before {
-      content: '';
-      position: absolute;
-      left: 17px; /* center of 34px circle */
-      top: 0;
-      bottom: 0;
-      width: 1px;
-      background: var(--border-color);
-    }
-    .hiw-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 1.5rem;
-      margin-bottom: 2.5rem;
-      position: relative;
-    }
-    .hiw-step:last-child { margin-bottom: 0; }
-    .hiw-num {
-      flex-shrink: 0;
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      background: var(--accent-color);
-      color: #ffffff;
-      font-weight: 600;
-      font-size: 0.9rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      z-index: 1;
-      border: 4px solid var(--bg-color); /* fake gap */
-      box-sizing: content-box;
-      margin-left: -4px;
-    }
-    .hiw-content {
-      padding-top: 0.3rem;
-    }
-    .hiw-content h4 {
-      font-size: 1.05rem;
-      font-weight: 600;
-      margin: 0 0 0.4rem;
-      color: var(--text-primary);
-    }
-    .hiw-content p {
-      font-size: 0.95rem;
-      color: var(--text-secondary);
-      line-height: 1.6;
-      margin: 0;
+    .chip {
+      font-size: 0.74rem; font-weight: 600; color: var(--text-secondary);
+      background: var(--surface-color); border: 1px solid var(--border-color);
+      padding: 0.32rem 0.65rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.35rem;
     }
 
-    /* ── Host link — subtle bottom section ─────────── */
-    .host-section {
-      max-width: 500px;
-      margin: 4rem auto 4rem;
-      padding: 0 1.5rem;
-      text-align: center;
+    /* ── Stat strip ───────────────────────────────────── */
+    .stats {
+      max-width: 1120px; margin: 1rem auto 0; padding: 0 1.5rem;
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
     }
-    .host-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.6rem 1rem;
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      font-weight: 500;
-      font-family: 'Inter', sans-serif;
-      cursor: pointer;
-      transition: color 0.2s;
-      text-decoration: none;
+    .stat {
+      background: var(--surface-color); border: 1px solid var(--border-color);
+      border-radius: var(--r-md); padding: 1.3rem 1.4rem; box-shadow: var(--shadow-sm);
     }
-    .host-link:hover {
-      color: var(--text-primary);
-    }
+    .stat .n { font-family: 'Outfit', sans-serif; font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; color: var(--accent-color); }
+    .stat .l { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem; }
 
-    /* Mobile */
-    @media (max-width: 768px) {
-      .home-hero h1 { font-size: 2.5rem; }
-      .feat-grid { grid-template-columns: 1fr; }
-      .join-card { margin: 0; }
+    /* ── Bento features ───────────────────────────────── */
+    .section { max-width: 1120px; margin: 5.5rem auto 0; padding: 0 1.5rem; }
+    .section-head { text-align: center; max-width: 40rem; margin: 0 auto 2.5rem; }
+    .section-head h2 { font-size: clamp(1.8rem, 3.5vw, 2.4rem); letter-spacing: -0.03em; }
+    .section-head p { color: var(--text-secondary); margin-top: 0.7rem; font-size: 1.02rem; line-height: 1.6; }
+
+    .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1.1rem; }
+    .card {
+      background: var(--surface-color); border: 1px solid var(--border-color);
+      border-radius: var(--r-lg); padding: 1.7rem; box-shadow: var(--shadow-sm);
+      transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), border-color var(--dur);
+      display: flex; flex-direction: column; gap: 0.6rem;
+    }
+    .card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--border-strong); }
+    .card.span3 { grid-column: span 3; }
+    .card.span2 { grid-column: span 2; }
+    .card.feature { background: var(--accent-grad); border: none; color: #fff; }
+    .card.feature h3, .card.feature p { color: #fff; }
+    .card .ic {
+      width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center;
+      background: var(--accent-soft); color: var(--accent-color); margin-bottom: 0.4rem;
+    }
+    .card.feature .ic { background: rgba(255,255,255,0.16); color: #fff; }
+    .card h3 { font-size: 1.12rem; letter-spacing: -0.01em; }
+    .card p { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+
+    /* ── Steps ────────────────────────────────────────── */
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; counter-reset: s; }
+    .step { position: relative; padding-top: 0.5rem; }
+    .step .num {
+      width: 38px; height: 38px; border-radius: 12px; background: var(--ink-grad); color: #fff;
+      font-family: 'Outfit', sans-serif; font-weight: 700; display: flex; align-items: center; justify-content: center;
+      margin-bottom: 0.9rem; font-size: 1rem;
+    }
+    .step h4 { font-size: 1.05rem; margin-bottom: 0.35rem; }
+    .step p { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.55; }
+
+    /* ── CTA band ─────────────────────────────────────── */
+    .cta-band { max-width: 1120px; margin: 5.5rem auto 4rem; padding: 0 1.5rem; }
+    .cta-inner {
+      position: relative; overflow: hidden;
+      background: var(--ink-grad); border-radius: var(--r-xl);
+      padding: 3.5rem 2rem; text-align: center; color: #fff;
+      box-shadow: var(--shadow-lg);
+    }
+    .cta-inner::after {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(30rem 20rem at 80% -20%, rgba(255,255,255,0.10), transparent 60%);
+    }
+    .cta-inner h2 { color: #fff; font-size: clamp(1.8rem, 3.5vw, 2.5rem); letter-spacing: -0.03em; position: relative; }
+    .cta-inner p { color: rgba(255,255,255,0.82); max-width: 34rem; margin: 0.8rem auto 1.8rem; line-height: 1.6; position: relative; }
+    .btn-on-dark {
+      position: relative; display: inline-flex; align-items: center; gap: 0.5rem;
+      background: #fff; color: var(--accent-color); font-weight: 700; font-size: 1.02rem;
+      padding: 0.9rem 1.7rem; border-radius: var(--r-md); text-decoration: none;
+      transition: transform var(--dur), box-shadow var(--dur);
+    }
+    .btn-on-dark:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+
+    /* ── Responsive ───────────────────────────────────── */
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 2.5rem; padding-top: 6rem; }
+      .preview { order: 2; }
+      .stats { grid-template-columns: 1fr; }
+      .bento { grid-template-columns: 1fr; }
+      .card.span3, .card.span2 { grid-column: auto; }
+      .steps { grid-template-columns: 1fr; }
     }
   </style>
   <!-- Google tag (gtag.js) -->
@@ -253,122 +192,162 @@
   </nav>
 
   <!-- ── Hero ── -->
-  <div class="home-hero animate-up">
-    <h1 data-i18n="hero_title">Communication <br><span>Without Borders.</span></h1>
-    <p class="tagline" data-i18n="hero_subtitle">Instantly transcribe and translate your events and meetings using AI to multiple languages in real-time.</p>
-
-    <!-- Join Card -->
-    <div class="join-card animate-up delay-1">
-      <h3>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        <span data-i18n="card_part_title">Join Live Event</span>
-      </h3>
-      <p class="desc" data-i18n="card_part_desc">Click below to join the live session and start reading real-time translations.</p>
-      <div class="join-row">
-        <button class="btn-primary" onclick="joinEvent()" data-i18n="card_part_btn">Join Event</button>
+  <section class="hero">
+    <div class="hero-copy rise">
+      <span class="eyebrow"><span class="pulse"></span> <span data-i18n="hero_eyebrow">Beykoz University · Live Translation</span></span>
+      <h1 data-i18n="hero_title">Communication <span class="grad-text">Without Borders.</span></h1>
+      <p class="lede" data-i18n="hero_subtitle">Instantly transcribe and translate your events using AI — in real-time, with the lowest possible latency.</p>
+      <div class="hero-ctas">
+        <button class="btn-primary btn-lg join-cta" onclick="joinEvent()" data-i18n="card_part_btn" style="display:none;">Join Event</button>
+        <a class="btn-ghost" href="/host">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+          <span data-i18n="card_host_btn">Log In as Host</span>
+        </a>
+      </div>
+      <div id="no-live" style="display:none; margin-top:0.9rem; font-size:0.9rem; color:var(--text-secondary); display:none; align-items:center; gap:0.5rem;">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--text-muted);display:inline-block;"></span>
+        <span data-i18n="no_live_note">No live broadcast right now. A host can start one from the host login.</span>
+      </div>
+      <div class="hero-note">
+        <span>🔒 <span data-i18n="hero_note_secure">API key stays on the server</span></span>
+        <span>⚡ <span data-i18n="hero_note_latency">Sub-second delivery</span></span>
+        <span>🎯 <span data-i18n="hero_note_vad">Silence &amp; noise filtered</span></span>
       </div>
     </div>
-  </div>
 
-  <!-- ── Features ── -->
-  <div class="feat-section animate-up delay-2">
-    <h2 data-i18n="feats_title">Core System Features</h2>
-    <div class="feat-grid">
-      <div class="feat-box">
-        <div class="icon-wrap">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        </div>
-        <h3 data-i18n="feat_1_title">Ultra Low Latency (Real-Time)</h3>
-        <p data-i18n="feat_1_desc">Flawless text streaming via WebSockets with less than 3 seconds delay.</p>
+    <!-- Live product preview -->
+    <div class="preview rise d2" aria-hidden="true">
+      <div class="pv-head">
+        <div class="pv-title"><span class="pv-live"></span> <span data-i18n="pv_live">Live Feed</span></div>
+        <div class="pv-dir">TR → EN</div>
       </div>
-      <div class="feat-box">
-        <div class="icon-wrap">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      <div class="pv-body">
+        <div class="pv-seg">
+          <div class="t">Welcome to Beykoz University.</div>
+          <div class="o">Beykoz Üniversitesi'ne hoş geldiniz.</div>
         </div>
-        <h3 data-i18n="feat_2_title">Turkish & English Support</h3>
-        <p data-i18n="feat_2_desc">Participants can seamlessly switch between Turkish and English translations instantly.</p>
+        <div class="pv-seg">
+          <div class="t">Today we open the new academic year.</div>
+          <div class="o">Bugün yeni akademik yılı açıyoruz.</div>
+        </div>
+        <div class="pv-seg tentative">
+          <div class="t">Our rector will now take the floor<span class="pv-caret"></span></div>
+          <div class="o">Rektörümüz şimdi söz alacak…</div>
+        </div>
       </div>
-      <div class="feat-box">
-        <div class="icon-wrap">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20.94c1.5 0 2.75 1.06 4 1.06 3 0 6-8 6-12.22A4.91 4.91 0 0 0 17 5c-2.22 0-4 1.44-5 2-1-.56-2.78-2-5-2a4.9 4.9 0 0 0-5 4.78C2 14 5 22 8 22c1.25 0 2.5-1.06 4-1.06Z"/></svg>
-        </div>
-        <h3 data-i18n="feat_3_title">AI Powered (Whisper & GPT-4)</h3>
-        <p data-i18n="feat_3_desc">High-accuracy speech recognition paired with context-aware semantic translations.</p>
-      </div>
-      <div class="feat-box">
-        <div class="icon-wrap">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-        </div>
-        <h3 data-i18n="feat_4_title">Immersive Audio (TTS)</h3>
-        <p data-i18n="feat_4_desc">Listen to translations read aloud dynamically with high-quality regional voices.</p>
+      <div class="pv-foot">
+        <span class="chip">🎙️ <span data-i18n="pv_listening">Listening</span></span>
+        <span class="chip">🟢 <span data-i18n="pv_connected">DeepL connected</span></span>
+        <span class="chip">🔊 <span data-i18n="pv_audio">Translated audio</span></span>
       </div>
     </div>
+  </section>
+
+  <!-- ── Stats ── -->
+  <div class="stats rise d3">
+    <div class="stat"><div class="n">&lt; 1 sn</div><div class="l" data-i18n="stat_latency">End-to-end latency</div></div>
+    <div class="stat"><div class="n">TR ⇄ EN</div><div class="l" data-i18n="stat_langs">Two-way, one-tap switch</div></div>
+    <div class="stat"><div class="n">100%</div><div class="l" data-i18n="stat_secure">Server-side API key</div></div>
   </div>
 
-  <!-- ── How It Works ── -->
-  <div class="hiw-section animate-up delay-3">
-    <h2 data-i18n="hiw_title">How It Works</h2>
-    <div class="hiw-steps">
-      <div class="hiw-step">
-        <div class="hiw-num">1</div>
-        <div class="hiw-content">
-          <h4 data-i18n="hiw_s1_title">Create a Session</h4>
-          <p data-i18n="hiw_s1_desc">The host logs in and creates a broadcast session. A unique QR code and event code are generated instantly.</p>
-        </div>
+  <!-- ── Features (bento) ── -->
+  <section class="section">
+    <div class="section-head">
+      <h2 data-i18n="feats_title">Built for live events</h2>
+      <p data-i18n="feats_sub">Everything the stage needs — accurate, fast, and quiet when the room is quiet.</p>
+    </div>
+    <div class="bento">
+      <div class="card feature span3">
+        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg></div>
+        <h3 data-i18n="feat_1_title">Voice Activity Detection</h3>
+        <p data-i18n="feat_1_desc">Only real speech is streamed. Silence, music, applause and mic noise are filtered out before they can cause hallucinations.</p>
       </div>
-      <div class="hiw-step">
-        <div class="hiw-num">2</div>
-        <div class="hiw-content">
-          <h4 data-i18n="hiw_s2_title">Start Broadcasting</h4>
-          <p data-i18n="hiw_s2_desc">Audio is captured as a raw PCM stream (16kHz mono) and streamed continuously to the server via WebSocket.</p>
-        </div>
+      <div class="card span3">
+        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <h3 data-i18n="feat_2_title">Ultra-low latency</h3>
+        <p data-i18n="feat_2_desc">A lean WebSocket pipeline streams transcript and translation the moment words are spoken.</p>
       </div>
-      <div class="hiw-step">
-        <div class="hiw-num">3</div>
-        <div class="hiw-content">
-          <h4 data-i18n="hiw_s3_title">AI Transcription</h4>
-          <p data-i18n="hiw_s3_desc">OpenAI's Realtime model listens, detects language, and translates speech automatically — zero hallucination, extremely low latency.</p>
-        </div>
+      <div class="card span2">
+        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+        <h3 data-i18n="feat_3_title">TR ⇄ EN, one tap</h3>
+        <p data-i18n="feat_3_desc">Switch direction instantly. The language layer is central, so more languages drop in easily.</p>
       </div>
-      <div class="hiw-step">
-        <div class="hiw-num">4</div>
-        <div class="hiw-content">
-          <h4 data-i18n="hiw_s4_title">Smart Translation</h4>
-          <p data-i18n="hiw_s4_desc">GPT-4o-mini translates each finalized transcript to every requested language with full context awareness.</p>
-        </div>
+      <div class="card span2">
+        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></div>
+        <h3 data-i18n="feat_4_title">Translated audio</h3>
+        <p data-i18n="feat_4_desc">Optional spoken translation with its own volume &amp; mute — a gap-free playback queue.</p>
       </div>
-      <div class="hiw-step">
-        <div class="hiw-num">5</div>
-        <div class="hiw-content">
-          <h4 data-i18n="hiw_s5_title">Voice Synthesis</h4>
-          <p data-i18n="hiw_s5_desc">OpenAI streams translated text and studio-quality audio directly to participants in real-time.</p>
-        </div>
-      </div>
-      <div class="hiw-step">
-        <div class="hiw-num">6</div>
-        <div class="hiw-content">
-          <h4 data-i18n="hiw_s6_title">Live Delivery</h4>
-          <p data-i18n="hiw_s6_desc">Participants receive both text and audio via WebSocket. They see and hear the translation the moment the speaker finishes a sentence.</p>
-        </div>
+      <div class="card span2">
+        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <h3 data-i18n="feat_5_title">Session transcripts</h3>
+        <p data-i18n="feat_5_desc">Every finalized segment is saved and exportable as TXT, CSV or JSON after the event.</p>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ── Host link — subtle ── -->
-  <div class="host-section animate-up delay-3">
-    <a class="host-link" href="/host">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-      <span data-i18n="card_host_btn">Log In as Host</span>
-    </a>
+  <!-- ── How it works ── -->
+  <section class="section">
+    <div class="section-head">
+      <h2 data-i18n="hiw_title">How It Works</h2>
+      <p data-i18n="hiw_sub">From the speaker's mic to the audience's screen in three steps.</p>
+    </div>
+    <div class="steps">
+      <div class="step rise">
+        <div class="num">1</div>
+        <h4 data-i18n="hiw_s1_title">Start a session</h4>
+        <p data-i18n="hiw_s1_desc">The host logs in, picks a direction, and shares a QR code. Participants join in one tap.</p>
+      </div>
+      <div class="step rise d1">
+        <div class="num">2</div>
+        <h4 data-i18n="hiw_s2_title">Speak naturally</h4>
+        <p data-i18n="hiw_s2_desc">Browser VAD streams only speech to the server, which manages the DeepL Voice connection.</p>
+      </div>
+      <div class="step rise d2">
+        <div class="num">3</div>
+        <h4 data-i18n="hiw_s3_title">Read &amp; hear</h4>
+        <p data-i18n="hiw_s3_desc">Participants see live transcript and translation — and, when enabled, hear it aloud.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA band ── -->
+  <div class="cta-band">
+    <div class="cta-inner rise">
+      <h2 data-i18n="cta_title">Ready for your next event?</h2>
+      <p data-i18n="cta_desc">Join a live session as a participant, or log in as a host to start broadcasting.</p>
+      <a class="btn-on-dark join-cta" href="/participant?code=LIVE" onclick="joinEvent(); return false;" style="display:none;">
+        <span data-i18n="cta_btn">Join Live Event</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <a class="btn-on-dark join-off" href="/host" style="display:none; background:rgba(255,255,255,0.14); color:#fff;">
+        <span data-i18n="cta_host">Log In as Host</span>
+      </a>
+    </div>
   </div>
 
   <footer class="site-footer" data-i18n="footer_copy">B-Translate | Licensed under CC BY-NC-SA 4.0 — Beykoz University IT Directorate</footer>
 
-  <script src="/static/lang.js?v=2"></script>
+  <script src="/static/lang.js?v=3"></script>
   <script>
     function joinEvent() {
       window.location.href = `/participant?code=LIVE`;
     }
+
+    // Only show the "Join" CTAs when a host is actually broadcasting.
+    async function refreshLiveState() {
+      let live = false;
+      try {
+        const res = await fetch('/api/sessions/LIVE/live', { cache: 'no-store' });
+        if (res.ok) live = (await res.json()).live === true;
+      } catch (e) { /* treat as not live */ }
+      document.querySelectorAll('.join-cta').forEach(el => el.style.display = live ? '' : 'none');
+      document.querySelectorAll('.join-off').forEach(el => el.style.display = live ? 'none' : '');
+      const note = document.getElementById('no-live');
+      if (note) note.style.display = live ? 'none' : 'flex';
+    }
+    refreshLiveState();
+    // Re-check periodically so the button appears when a broadcast starts.
+    setInterval(refreshLiveState, 15000);
   </script>
 </body>
 </html>

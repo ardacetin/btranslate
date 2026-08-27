@@ -4,6 +4,7 @@ const express = require('express');
 const transcriptSvc = require('../services/transcript');
 const { requireAuth } = require('../middleware/auth');
 const { getDirection, resolveDirection, DIRECTIONS } = require('../config/languages');
+const sessionManager = require('../services/sessionManager');
 const config = require('../config');
 const logger = require('../utils/logger');
 
@@ -61,6 +62,13 @@ router.post('/', requireAuth, async (req, res) => {
     logger.error('Create session error', e);
     res.status(500).json({ error: 'Failed to create session' });
   }
+});
+
+/** Public: is a broadcast currently live for this event? (homepage gating) */
+router.get('/:code/live', (req, res) => {
+  const eventCode = String(req.params.code || '').toUpperCase();
+  if (!EVENT_CODE_RE.test(eventCode)) return res.status(400).json({ error: 'Invalid code' });
+  res.json({ live: sessionManager.isLive(eventCode) });
 });
 
 /** Public: fetch session info (used by participant page). */

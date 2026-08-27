@@ -141,6 +141,12 @@ class SessionManager {
     this._broadcast(room, { type: 'status', live: false });
   }
 
+  /** Is a host actively broadcasting on this event right now? */
+  isLive(eventCode) {
+    const room = this.rooms.get(eventCode);
+    return Boolean(room && room.host);
+  }
+
   // ── Participant lifecycle ─────────────────────────────────────────────
   addParticipant(eventCode, ws) {
     const room = this._room(eventCode);

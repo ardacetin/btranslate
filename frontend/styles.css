@@ -22,8 +22,11 @@
   --accent-color: #7A2021;
   --accent-hover: #611a1b;
   --accent-press: #4d1516;
+  --accent-2: #b0432f;          /* warm terracotta — used only in gradients */
   --accent-soft: #f6ebeb;
   --accent-ring: rgba(122, 32, 33, 0.16);
+  --accent-grad: linear-gradient(135deg, #7A2021 0%, #a8392c 55%, #b0432f 100%);
+  --ink-grad: linear-gradient(135deg, #2a201e 0%, #7A2021 120%);
 
   /* Status */
   --success-color: #047857;
@@ -442,6 +445,41 @@ select:focus-visible {
 @keyframes fadeInDown {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Shared SaaS utilities ──────────────────────────────── */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.8rem 0.35rem 0.6rem;
+  border-radius: 999px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+}
+.eyebrow .pulse {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent-color);
+  box-shadow: 0 0 0 0 var(--accent-ring);
+  animation: pulseDot 1.8s infinite;
+}
+@keyframes pulseDot {
+  0%   { box-shadow: 0 0 0 0 rgba(122,32,33,0.35); }
+  70%  { box-shadow: 0 0 0 7px rgba(122,32,33,0); }
+  100% { box-shadow: 0 0 0 0 rgba(122,32,33,0); }
+}
+
+.grad-text {
+  background: var(--accent-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 /* ── Reduced motion ─────────────────────────────────────── */
