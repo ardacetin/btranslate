@@ -120,14 +120,29 @@ class DeeplVoiceSession {
       }
     });
 
+    // Handshake rejected with an HTTP response (404/401/403/...) — this is the
+    // single most useful diagnostic when the endpoint/auth is wrong.
+    ws.on('unexpected-response', (req, res) => {
+      let body = '';
+      res.on('data', (c) => { if (body.length < 500) body += c.toString(); });
+      res.on('end', () => {
+        logger.error(
+          `DeepL handshake rejected: HTTP ${res.statusCode} from ${config.deepl.voiceWsUrl}` +
+          (body ? ` — ${body.slice(0, 300)}` : '')
+        );
+      });
+    });
+
     ws.on('error', (err) => {
-      logger.error('DeepL error', err);
+      // e.g. ENOTFOUND (wrong host), ECONNREFUSED, TLS errors, 4xx handshakes
+      logger.error(`DeepL error (${config.deepl.voiceWsUrl})`, err);
       this.onEvent({ kind: 'error', message: 'deepl_ws_error' });
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code, reason) => {
       this.connected = false;
-      logger.info(`DeepL disconnected (${this.source}->${this.target})`);
+      const why = reason && reason.length ? ` — ${reason.toString().slice(0, 200)}` : '';
+      logger.info(`DeepL disconnected (${this.source}->${this.target}) code=${code}${why}`);
       this.onEvent({ kind: 'status', connected: false });
       if (!this.closedByUs) this._scheduleReconnect();
     });
