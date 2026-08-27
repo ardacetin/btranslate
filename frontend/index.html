@@ -29,10 +29,10 @@
       margin: 0 auto;
     }
     .home-hero h1 {
-      font-size: 3.5rem;
+      font-size: 3.6rem;
       font-weight: 800;
-      letter-spacing: -0.02em;
-      line-height: 1.1;
+      letter-spacing: -0.035em;
+      line-height: 1.05;
       color: var(--text-primary);
       margin-bottom: 1.2rem;
     }
@@ -117,17 +117,17 @@
     }
     .feat-box .icon-wrap {
       width: 48px; height: 48px;
-      border-radius: 50%;
-      background: #f3f4f6; /* light gray */
-      color: var(--text-primary);
+      border-radius: 14px;
+      background: var(--accent-soft);
+      color: var(--accent-color);
       display: flex;
       align-items: center;
       justify-content: center;
       margin-bottom: 1.25rem;
-      transition: color 0.3s;
+      transition: transform 0.3s var(--ease), background 0.3s;
     }
     .feat-box:hover .icon-wrap {
-      color: var(--accent-color);
+      transform: translateY(-2px) rotate(-3deg);
     }
     .feat-box h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-primary); }
     .feat-box p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin: 0; }
