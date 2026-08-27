@@ -1,0 +1,36 @@
+# BTranslate — systemd service (background + auto-restart + start on boot)
+#
+# Install (run as root / with sudo on the server):
+#   1) Find your node binary:   which node
+#      (CloudPanel often uses a versioned path, e.g. /usr/bin/node or
+#       /home/<user>/.nvm/versions/node/vXX/bin/node)
+#   2) Edit ExecStart below to that absolute path if it is not /usr/bin/node.
+#   3) sudo cp deploy/btranslate.service /etc/systemd/system/btranslate.service
+#   4) sudo systemctl daemon-reload
+#   5) sudo systemctl enable --now btranslate
+#   6) sudo systemctl status btranslate      # verify it is running
+#      journalctl -u btranslate -f           # live logs
+#
+# After a code update:  git pull && sudo systemctl restart btranslate
+
+[Unit]
+Description=BTranslate real-time translation server
+After=network.target mysql.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=beykoz-btranslate
+Group=beykoz-btranslate
+WorkingDirectory=/home/beykoz-btranslate/htdocs/btranslate.beykoz.edu.tr
+# Absolute path to node — replace with the output of `which node` if different.
+ExecStart=/usr/bin/node src/server.js
+# Reads PORT, DB_*, DEEPL_API_KEY, JWT_SECRET, etc. from the app's .env
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=3
+# Restart if it crash-loops but don't give up permanently
+StartLimitIntervalSec=0
+
+[Install]
+WantedBy=multi-user.target

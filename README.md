@@ -191,6 +191,25 @@ Nginx. It must **not** bind 80/443 directly.
    `wss://` then works automatically (the frontend picks `wss:` on HTTPS pages),
    which is required for microphone access on the host page.
 
+### Keeping the app running (process management)
+
+If CloudPanel's Node.js site does not supervise the process for you (you have
+to run `npm start` by hand), install the provided **systemd** unit so the app
+runs in the background, restarts on crash, and starts on boot:
+
+```bash
+which node                        # note the absolute path
+# edit deploy/btranslate.service if node is not at /usr/bin/node
+sudo cp deploy/btranslate.service /etc/systemd/system/btranslate.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now btranslate
+sudo systemctl status btranslate  # verify
+```
+
+After updates: `git pull && sudo systemctl restart btranslate`.
+No sudo/root? Use PM2 instead: `pm2 start src/server.js --name btranslate`,
+`pm2 save`, and a `@reboot pm2 resurrect` crontab entry.
+
 ## Test scenarios
 
 Validate against: (1) normal Turkish speech → English flows; (2) normal English
