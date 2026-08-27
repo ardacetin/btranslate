@@ -361,11 +361,17 @@
 
           <!-- Mic controls -->
           <div class="mic-controls">
+            <!-- Direction toggle -->
+            <button id="direction-toggle" onclick="toggleDirection()" class="mic-btn"
+              style="max-width:320px; background:#fff; color:var(--accent-color); border:1px solid var(--border-color); box-shadow:none; margin-bottom:0.5rem;">
+              🔁 <span id="direction-label">Türkçe → İngilizce</span>
+            </button>
+
             <!-- Services Status -->
             <div id="services-status" style="display:flex; justify-content:center; gap:1rem; font-size:0.75rem; margin-bottom:1rem; font-weight:600;">
-              <span id="gpt-status" style="color:var(--text-muted);">Realtime API: Bekleniyor...</span>
+              <span id="deepl-status" style="color:var(--text-secondary);">DeepL: Bekleniyor…</span>
             </div>
-            
+
             <!-- Mic Level Visualizer -->
             <div id="mic-level-container" style="display:none; width:100%; height:6px; background:rgba(0,0,0,0.05); border-radius:3px; margin-bottom:1rem; overflow:hidden;">
               <div id="mic-level-bar" style="height:100%; width:0%; background:var(--accent-color); transition: width 0.05s ease;"></div>
@@ -566,206 +572,247 @@
       alert('Password updated'); loadUsers();
     }
 
+    // ── Runtime config + translation direction ───────
+    let btConfig = { vad: { threshold: 0.015, minSpeechMs: 250, silenceMs: 800, sampleRate: 16000 } };
+    let directions = [
+      { id: 'tr-en', source: 'tr', target: 'en', label: 'Türkçe → İngilizce' },
+      { id: 'en-tr', source: 'en', target: 'tr', label: 'İngilizce → Türkçe' }
+    ];
+    let directionIndex = 0;
+
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/sessions/config');
+        if (res.ok) {
+          const d = await res.json();
+          if (d.vad) btConfig.vad = d.vad;
+          if (Array.isArray(d.directions) && d.directions.length) directions = d.directions;
+        }
+      } catch (e) { console.warn('Config load failed, using defaults', e); }
+      const saved = localStorage.getItem('bt_direction');
+      const idx = directions.findIndex(x => x.id === saved);
+      if (idx >= 0) directionIndex = idx;
+      updateDirectionLabel();
+    }
+    function currentDirection() { return directions[directionIndex]; }
+    function updateDirectionLabel() {
+      document.getElementById('direction-label').innerText = currentDirection().label;
+    }
+    function toggleDirection() {
+      directionIndex = (directionIndex + 1) % directions.length;
+      localStorage.setItem('bt_direction', currentDirection().id);
+      updateDirectionLabel();
+      // If broadcasting, tell the server to switch live.
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        const d = currentDirection();
+        socket.send(JSON.stringify({ type: 'direction', source: d.source, target: d.target }));
+      }
+    }
+
+    function setStatus(text, opts = {}) {
+      document.getElementById('status-indicator').innerText = text;
+      const dot = document.getElementById('status-dot');
+      dot.classList.toggle('live', !!opts.live);
+    }
+    function setDeeplStatus(connected, reconnecting) {
+      const el = document.getElementById('deepl-status');
+      if (reconnecting) { el.innerText = 'DeepL: Yeniden bağlanıyor…'; el.style.color = 'var(--danger-color)'; return; }
+      el.innerText = connected ? 'DeepL: Aktif' : 'DeepL: Pasif';
+      el.style.color = connected ? 'var(--success-color)' : 'var(--text-secondary)';
+    }
+
     async function createSession() {
       const eName = document.getElementById('event-name').value.trim() || 'Live Event';
-      
+      const d = currentDirection();
       try {
-        const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ source_language: "auto", event_name:eName }) });
+        const res = await fetch('/api/sessions', { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':`Bearer ${localStorage.getItem('bt_token')}` }, body: JSON.stringify({ event_name:eName, source: d.source, target: d.target }) });
         if (res.status === 401) { logout(); return; }
-        const d = await res.json();
+        await res.json();
         currentEventCode = 'LIVE';
         localStorage.setItem('bt_event_code', 'LIVE');
-        
+
         document.getElementById('setup-section').style.display = 'none';
         document.getElementById('broadcast-section').style.display = 'block';
 
-        // Generate QR after container is visible
         const joinUrl = `${location.origin}/participant?code=LIVE`;
         document.getElementById('qrcode').innerHTML = '';
         new QRCode(document.getElementById('qrcode'), { text: joinUrl, width: 200, height: 200, colorDark:'#1f2937', colorLight:'#ffffff', correctLevel: QRCode.CorrectLevel.H });
       } catch(e) { alert('Failed to create session.'); }
     }
 
-    // ── Broadcast ─────────────────────────────────────
+    // ── Broadcast (VAD-gated PCM streaming) ───────────
+    let manualStop = false;
+
     async function startBroadcast() {
       if (!currentEventCode) return;
+      manualStop = false;
       try {
+        // Noise suppression at the browser layer (AC/hum/hall reverb reduction).
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
           video: false
         });
-
-        // Get the actual sample rate to tell the server exactly what we're sending
-        const nativeCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-        const nativeRate = nativeCtx.sampleRate;
-        if (nativeCtx.state === 'suspended') await nativeCtx.resume();
-        window._audioCtx = nativeCtx;
-
-        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?rate=${nativeRate}`);
-
-        socket.onopen = () => {
-          const dict = translations[localStorage.getItem('bt_lang') || 'en'];
-          document.getElementById('status-indicator').innerText = dict.status_broadcasting;
-          document.getElementById('status-dot').classList.add('live');
-          document.getElementById('btn-start').style.display = 'none';
-          document.getElementById('btn-stop').style.display = 'inline-flex';
-          document.querySelector('.qr-hero').classList.add('recording');
-        };
-
-        window._streamingStarted = false;
-        // Server sends status, mode, and real-time participant counts
-        socket.onmessage = (e) => {
-          try {
-            const msg = JSON.parse(e.data);
-            if (msg.type === 'participant_count') {
-                document.getElementById('participant-count-val').innerText = msg.count;
-                return;
-            }
-            if (msg.status) {
-              const gpt = document.getElementById('gpt-status');
-              if (msg.status.gpt) {
-                gpt.innerText = "Realtime API: Aktif";
-                gpt.style.color = "var(--success-color)";
-              } else {
-                gpt.innerText = "Realtime API: Pasif";
-                gpt.style.color = "var(--danger-color)";
-              }
-            }
-            if (msg.mode && !window._streamingStarted) {
-              startPCMStreaming(stream, nativeCtx, nativeRate);
-              window._streamingStarted = true;
-            }
-          } catch(ex) { console.error('Mode parse error', ex); }
-        };
-
-        socket.onerror = () => stopBroadcast();
-        socket.onclose = () => stopBroadcast();
+        window._stream = stream;
+        openHostSocket(stream);
       } catch(e) { alert('Microphone access denied.'); console.error(e); }
     }
 
-    // ── V2: Raw PCM streaming for OpenAI Realtime ─────
-    function startPCMStreaming(stream, nativeCtx, nativeRate) {
-      window._stream = stream;
-      const source = nativeCtx.createMediaStreamSource(stream);
-      window._source = source; // CRITICAL: Prevent Safari/Chrome garbage collection
+    function openHostSocket(stream) {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const token = localStorage.getItem('bt_token');
+      socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?token=${encodeURIComponent(token)}`);
 
-      const processor = nativeCtx.createScriptProcessor(4096, 1, 1);
-      // Connect to a near-silent gain node (NOT absolute 0) to keep processor alive
-      // without causing audio feedback, preventing browser from pruning the audio graph
-      const silentGain = nativeCtx.createGain();
+      socket.onopen = () => {
+        const d = currentDirection();
+        socket.send(JSON.stringify({ type: 'start', title: document.getElementById('event-name').value.trim() || 'Live Event', source: d.source, target: d.target }));
+        document.getElementById('btn-start').style.display = 'none';
+        document.getElementById('btn-stop').style.display = 'inline-flex';
+        document.querySelector('.qr-hero').classList.add('recording');
+        setStatus('Dinleniyor…', { live: true });
+        if (!window._vadStarted) { startVadStreaming(stream); window._vadStarted = true; }
+      };
+
+      socket.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'participants') { document.getElementById('participant-count-val').innerText = msg.count; }
+          else if (msg.type === 'status') { if (typeof msg.deepl === 'boolean') setDeeplStatus(msg.deepl); }
+          else if (msg.type === 'reconnecting') { setDeeplStatus(false, true); }
+        } catch(ex) {}
+      };
+
+      socket.onerror = () => {};
+      socket.onclose = () => {
+        if (manualStop) return;
+        // Auto-reconnect the host control channel; keep the mic stream alive.
+        setStatus('Bağlantı yeniden kuruluyor…');
+        document.querySelector('.qr-hero').classList.remove('recording');
+        setTimeout(() => { if (!manualStop && window._stream) openHostSocket(window._stream); }, 2000);
+      };
+    }
+
+    // Downsample a Float32 buffer from srcRate to dstRate (simple linear).
+    function downsample(buffer, srcRate, dstRate) {
+      if (dstRate >= srcRate) return buffer;
+      const ratio = srcRate / dstRate;
+      const outLen = Math.floor(buffer.length / ratio);
+      const out = new Float32Array(outLen);
+      for (let i = 0; i < outLen; i++) out[i] = buffer[Math.floor(i * ratio)];
+      return out;
+    }
+    function floatToPCM16(float32) {
+      const int16 = new Int16Array(float32.length);
+      for (let i = 0; i < float32.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return int16;
+    }
+
+    function startVadStreaming(stream) {
+      const targetRate = btConfig.vad.sampleRate || 16000;
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      window._audioCtx = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      window._source = source;
+      const processor = ctx.createScriptProcessor(2048, 1, 1);
+      const silentGain = ctx.createGain();
       silentGain.gain.value = 0.00001;
+      source.connect(processor);
       processor.connect(silentGain);
-      silentGain.connect(nativeCtx.destination);
+      silentGain.connect(ctx.destination);
       window._processor = processor;
       window._silentGain = silentGain;
 
-      let chunkCount = 0;
-
-      const analyser = nativeCtx.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      source.connect(processor); // Parallel connection
-      window._analyser = analyser;
-      
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
-      
-      function drawMicLevel() {
-          if (!window._processor) return; // stopped
-          analyser.getByteFrequencyData(dataArray);
-          let sum = 0;
-          for(let i=0; i<dataArray.length; i++) { sum += dataArray[i]; }
-          let avg = sum / dataArray.length;
-          let percent = Math.min(100, Math.max(0, (avg / 128) * 100));
-          document.getElementById('mic-level-bar').style.width = percent + '%';
-          requestAnimationFrame(drawMicLevel);
-      }
       document.getElementById('mic-level-container').style.display = 'block';
-      drawMicLevel();
 
+      // VAD state (thresholds are server-configurable via .env).
+      const { threshold, minSpeechMs, silenceMs } = btConfig.vad;
+      let speaking = false;
+      let voicedMs = 0;      // accumulated voiced time before a segment starts
+      let silenceMsAcc = 0;  // accumulated silence time within a segment
+      // Small pre-roll so we don't clip the very start of speech.
+      const preRoll = [];
+      const PREROLL_FRAMES = 6;
 
       processor.onaudioprocess = (e) => {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        const float32 = e.inputBuffer.getChannelData(0);
+        const input = e.inputBuffer.getChannelData(0);
+        const frameMs = (input.length / ctx.sampleRate) * 1000;
 
-        // Convert directly without manual resampling distortion
-        // gpt-realtime-translate expects continuous PCM16 audio
-        // including silence between phrases (no client-side noise gate needed)
-        const int16 = new Int16Array(float32.length);
-        for (let i = 0; i < float32.length; i++) {
-          const s = Math.max(-1, Math.min(1, float32[i]));
-          int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
-        socket.send(int16.buffer);
-        chunkCount++;
+        // RMS energy
+        let sum = 0;
+        for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+        const rms = Math.sqrt(sum / input.length);
 
-        // Log every ~5 seconds for debugging
-        if (chunkCount % 60 === 1) {
-          console.log(`[PCM] chunk #${chunkCount}, ${int16.length} samples, native=${nativeRate}Hz`);
+        // Level bar
+        document.getElementById('mic-level-bar').style.width = Math.min(100, (rms / 0.3) * 100) + '%';
+
+        const down = downsample(input, ctx.sampleRate, targetRate);
+        const pcm = floatToPCM16(down);
+        const isVoiced = rms >= threshold;
+
+        if (!speaking) {
+          preRoll.push(pcm);
+          if (preRoll.length > PREROLL_FRAMES) preRoll.shift();
+          if (isVoiced) {
+            voicedMs += frameMs;
+            if (voicedMs >= minSpeechMs) {
+              // Segment starts.
+              speaking = true;
+              silenceMsAcc = 0;
+              setStatus('Konuşma algılandı', { live: true });
+              socket.send(JSON.stringify({ type: 'speech_start' }));
+              for (const f of preRoll) socket.send(f.buffer);
+              preRoll.length = 0;
+            }
+          } else {
+            voicedMs = 0;
+          }
+        } else {
+          socket.send(pcm.buffer);
+          if (isVoiced) {
+            silenceMsAcc = 0;
+          } else {
+            silenceMsAcc += frameMs;
+            if (silenceMsAcc >= silenceMs) {
+              // Segment ends.
+              speaking = false;
+              voicedMs = 0;
+              socket.send(JSON.stringify({ type: 'speech_end' }));
+              setStatus('Dinleniyor…', { live: true });
+            }
+          }
         }
       };
 
-      // Heartbeat
+      // Heartbeat control ping.
       window.pingInterval = setInterval(() => {
-        if (socket && socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);
+        if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'ping' }));
       }, 25000);
-
-      console.log(`[B-Translate] PCM streaming started: ${nativeRate}Hz`);
-    }
-
-    // ── V1: MediaRecorder chunks for Whisper ─────────
-    function startChunkStreaming(stream) {
-      let mime = 'audio/webm;codecs=opus';
-      if (!MediaRecorder.isTypeSupported(mime)) mime = 'audio/mp4';
-      const mr = new MediaRecorder(stream, { mimeType: mime });
-      window._mediaRecorder = mr;
-
-      mr.ondataavailable = async (e) => {
-        if (e.data.size > 500 && socket && socket.readyState === WebSocket.OPEN) {
-          socket.send(await e.data.arrayBuffer());
-        }
-      };
-
-      mr.start();
-      window.recordInterval = setInterval(() => {
-        if (mr.state === 'recording') { mr.stop(); mr.start(); }
-      }, 5000);
-
-      // Heartbeat
-      window.pingInterval = setInterval(() => {
-        if (socket && socket.readyState === WebSocket.OPEN) socket.send(new Uint8Array([0]).buffer);
-      }, 25000);
-
-      console.log('[B-Translate] Whisper chunk mode (5s intervals)');
     }
 
     function stopBroadcast() {
+      manualStop = true;
       clearInterval(window.pingInterval);
-      clearInterval(window.recordInterval);
-      // V2 cleanup
+      window._vadStarted = false;
+      try { if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'stop' })); } catch(e){}
       if (window._processor) { window._processor.disconnect(); window._processor = null; }
       if (window._silentGain) { window._silentGain.disconnect(); window._silentGain = null; }
-      if (window._analyser) { window._analyser.disconnect(); window._analyser = null; }
       if (window._source) { window._source.disconnect(); window._source = null; }
       if (window._stream) { window._stream.getTracks().forEach(t => t.stop()); window._stream = null; }
       if (window._audioCtx) { window._audioCtx.close(); window._audioCtx = null; }
-      // V1 cleanup
-      if (window._mediaRecorder && window._mediaRecorder.state !== 'inactive') {
-        window._mediaRecorder.stop();
-        window._mediaRecorder.stream.getTracks().forEach(t => t.stop());
-        window._mediaRecorder = null;
-      }
       if (socket) { socket.close(); socket = null; }
-      const dict = translations[localStorage.getItem('bt_lang') || 'en'];
-      document.getElementById('status-indicator').innerText = dict.status_stopped;
-      document.getElementById('status-dot').classList.remove('live');
+      setStatus(document.getElementById('status-indicator').getAttribute('data-idle') || 'Yayın durduruldu');
       document.getElementById('btn-start').style.display = 'inline-flex';
       document.getElementById('btn-stop').style.display = 'none';
       document.querySelector('.qr-hero').classList.remove('recording');
-      
       document.getElementById('mic-level-container').style.display = 'none';
       document.getElementById('mic-level-bar').style.width = '0%';
+      setDeeplStatus(false);
     }
+
+    loadConfig();
   </script>
 </body>
 </html>
