@@ -8,8 +8,8 @@ const config = require('../config');
 const logger = require('../utils/logger');
 
 // How often (ms) an in-progress (interim) phrase may be re-translated for the
-// live "tentative" preview. Keeps DeepL request volume sane during speech.
-const INTERIM_TRANSLATE_MS = 700;
+// live "tentative" preview. Lower = snappier live translation, more requests.
+const INTERIM_TRANSLATE_MS = 350;
 
 /**
  * In-memory orchestration of live events.

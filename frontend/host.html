@@ -645,6 +645,10 @@
     let manualStop = false;
     let recognition = null;
     let recognizing = false;
+    let silenceTimer = null;
+    // Force the recognizer to finalize a phrase after this much silence, so
+    // translations arrive sentence-by-sentence instead of lagging behind.
+    const SILENCE_FINALIZE_MS = 700;
 
     function speechSupported() {
       return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
@@ -723,8 +727,11 @@
         if (interim.trim()) {
           setStatus('Konuşma algılandı', { live: true });
           socket.send(JSON.stringify({ type: 'transcript', final: false, text: interim }));
+          // Restart the pause timer — if speech stops for a moment, finalize.
+          armSilenceTimer();
         }
         if (finalChunk.trim()) {
+          clearSilenceTimer();
           socket.send(JSON.stringify({ type: 'transcript', final: true, text: finalChunk }));
           setStatus('Dinleniyor…', { live: true });
         }
@@ -749,7 +756,22 @@
       try { recognition.start(); recognizing = true; } catch (e) { /* already started */ }
     }
 
+    // After a brief pause, ask the recognizer to finalize the current phrase.
+    // stop() makes the engine emit its final result, then onend restarts it.
+    function armSilenceTimer() {
+      clearSilenceTimer();
+      silenceTimer = setTimeout(() => {
+        if (recognizing && recognition) {
+          try { recognition.stop(); } catch (e) { /* ignore */ }
+        }
+      }, SILENCE_FINALIZE_MS);
+    }
+    function clearSilenceTimer() {
+      if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+    }
+
     function stopRecognition() {
+      clearSilenceTimer();
       if (recognition) {
         try { recognition.onend = null; recognition.stop(); } catch (e) { /* ignore */ }
         recognition = null;
