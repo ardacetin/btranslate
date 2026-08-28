@@ -11,7 +11,7 @@ router.use(requireAuth, requireAdmin);
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,64}$/;
 
 router.get('/', async (req, res) => {
-  const rows = await db.query('SELECT id, username, role FROM users ORDER BY id ASC');
+  const rows = await db.query('SELECT id, username, role, created_at FROM users ORDER BY id ASC');
   res.json(rows);
 });
 

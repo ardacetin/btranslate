@@ -15,6 +15,9 @@ const userRoutes = require('./routes/users');
 const sessionRoutes = require('./routes/sessions');
 const exportRoutes = require('./routes/exports');
 const adminRoutes = require('./routes/admin');
+const historyRoutes = require('./routes/history');
+const logsRoutes = require('./routes/logs');
+const logStore = require('./services/logStore');
 
 const app = express();
 
@@ -54,6 +57,8 @@ app.use('/api/auth/login', authLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/history', historyRoutes); // date-based transcript history
+app.use('/api/logs', logsRoutes); // date-based system logs (admin)
 app.use('/api/sessions', exportRoutes); // /api/sessions/:code/export
 app.use('/api/sessions', sessionRoutes); // create, get, /config
 
@@ -75,6 +80,10 @@ async function start() {
   try {
     await db.ping();
     logger.info(`MySQL connected (${config.db.host}:${config.db.port}/${config.db.name})`);
+    // Persist lifecycle logs to the DB and prune anything older than 30 days.
+    logger.setSink((level, message) => logStore.record(level, message));
+    await logStore.cleanup();
+    setInterval(() => { logStore.cleanup(); }, 24 * 60 * 60 * 1000).unref();
   } catch (e) {
     logger.error('MySQL connection failed — did you run `npm run migrate`?', e);
   }

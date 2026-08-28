@@ -28,21 +28,39 @@ function line(level, msg) {
   return `[${stamp()}] [${level}] ${msg}`;
 }
 
+// Optional persistent sink (set at boot). Called as sink(level, message).
+// Kept decoupled so logger has no DB dependency / import cycle.
+let sink = null;
+function toSink(level, msg) {
+  if (!sink) return;
+  try {
+    sink(level, msg);
+  } catch (e) {
+    /* never let logging break the caller */
+  }
+}
+
 const logger = {
+  setSink(fn) {
+    sink = typeof fn === 'function' ? fn : null;
+  },
   info(msg) {
     const l = line('INFO', msg);
     record(l);
+    toSink('INFO', msg);
     console.log(l);
   },
   warn(msg) {
     const l = line('WARN', msg);
     record(l);
+    toSink('WARN', msg);
     console.warn(l);
   },
   error(msg, err) {
     const detail = err ? ` — ${err && err.message ? err.message : err}` : '';
     const l = line('ERROR', msg + detail);
     record(l);
+    toSink('ERROR', msg + detail);
     console.error(l);
   },
   debug(msg) {
