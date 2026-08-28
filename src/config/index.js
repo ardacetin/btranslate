@@ -36,7 +36,10 @@ const config = {
 
   deepl: {
     apiKey: process.env.DEEPL_API_KEY || '',
-    voiceWsUrl: process.env.DEEPL_VOICE_WS_URL || 'wss://api.deepl.com/v1/voice/realtime',
+    // Text translation REST API base. Auto-detected from the key (free/pro)
+    // when left empty; override only if you use a custom/self-hosted proxy.
+    apiUrl: process.env.DEEPL_API_URL || '',
+    // Optional translated speech (browser text-to-speech on the participant).
     enableTranslatedAudio: bool(process.env.ENABLE_TRANSLATED_AUDIO, true),
   },
 

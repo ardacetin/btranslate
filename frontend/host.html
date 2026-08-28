@@ -602,10 +602,11 @@
       directionIndex = (directionIndex + 1) % directions.length;
       localStorage.setItem('bt_direction', currentDirection().id);
       updateDirectionLabel();
-      // If broadcasting, tell the server to switch live.
+      // If broadcasting, tell the server to switch live and re-language STT.
       if (socket && socket.readyState === WebSocket.OPEN) {
         const d = currentDirection();
         socket.send(JSON.stringify({ type: 'direction', source: d.source, target: d.target }));
+        if (typeof restartRecognition === 'function') restartRecognition();
       }
     }
 
@@ -640,24 +641,32 @@
       } catch(e) { alert('Failed to create session.'); }
     }
 
-    // ── Broadcast (VAD-gated PCM streaming) ───────────
+    // ── Broadcast (browser Speech Recognition → server → DeepL) ───────────
     let manualStop = false;
+    let recognition = null;
+    let recognizing = false;
 
-    async function startBroadcast() {
-      if (!currentEventCode) return;
-      manualStop = false;
-      try {
-        // Noise suppression at the browser layer (AC/hum/hall reverb reduction).
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 },
-          video: false
-        });
-        window._stream = stream;
-        openHostSocket(stream);
-      } catch(e) { alert('Microphone access denied.'); console.error(e); }
+    function speechSupported() {
+      return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    }
+    function recognitionLang() {
+      return currentDirection().source === 'tr' ? 'tr-TR' : 'en-US';
+    }
+    function socketOpen() {
+      return socket && socket.readyState === WebSocket.OPEN;
     }
 
-    function openHostSocket(stream) {
+    function startBroadcast() {
+      if (!currentEventCode) return;
+      if (!speechSupported()) {
+        alert('Bu tarayıcı canlı konuşma tanımayı desteklemiyor. Lütfen Google Chrome veya Microsoft Edge kullanın.');
+        return;
+      }
+      manualStop = false;
+      openHostSocket();
+    }
+
+    function openHostSocket() {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       const token = localStorage.getItem('bt_token');
       socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?token=${encodeURIComponent(token)}`);
@@ -669,7 +678,11 @@
         document.getElementById('btn-stop').style.display = 'inline-flex';
         document.querySelector('.qr-hero').classList.add('recording');
         setStatus('Dinleniyor…', { live: true });
-        if (!window._vadStarted) { startVadStreaming(stream); window._vadStarted = true; }
+        startRecognition();
+        clearInterval(window.pingInterval);
+        window.pingInterval = setInterval(() => {
+          if (socketOpen()) socket.send(JSON.stringify({ type: 'ping' }));
+        }, 25000);
       };
 
       socket.onmessage = (e) => {
@@ -677,6 +690,7 @@
           const msg = JSON.parse(e.data);
           if (msg.type === 'participants') { document.getElementById('participant-count-val').innerText = msg.count; }
           else if (msg.type === 'status') { if (typeof msg.deepl === 'boolean') setDeeplStatus(msg.deepl); }
+          else if (msg.type === 'service') { if (typeof msg.deepl === 'boolean') setDeeplStatus(msg.deepl); }
           else if (msg.type === 'reconnecting') { setDeeplStatus(false, true); }
         } catch(ex) {}
       };
@@ -684,131 +698,83 @@
       socket.onerror = () => {};
       socket.onclose = () => {
         if (manualStop) return;
-        // Auto-reconnect the host control channel; keep the mic stream alive.
         setStatus('Bağlantı yeniden kuruluyor…');
         document.querySelector('.qr-hero').classList.remove('recording');
-        setTimeout(() => { if (!manualStop && window._stream) openHostSocket(window._stream); }, 2000);
+        setTimeout(() => { if (!manualStop) openHostSocket(); }, 2000);
       };
     }
 
-    // Downsample a Float32 buffer from srcRate to dstRate (simple linear).
-    function downsample(buffer, srcRate, dstRate) {
-      if (dstRate >= srcRate) return buffer;
-      const ratio = srcRate / dstRate;
-      const outLen = Math.floor(buffer.length / ratio);
-      const out = new Float32Array(outLen);
-      for (let i = 0; i < outLen; i++) out[i] = buffer[Math.floor(i * ratio)];
-      return out;
-    }
-    function floatToPCM16(float32) {
-      const int16 = new Int16Array(float32.length);
-      for (let i = 0; i < float32.length; i++) {
-        const s = Math.max(-1, Math.min(1, float32[i]));
-        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-      }
-      return int16;
-    }
+    function startRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SR();
+      recognition.lang = recognitionLang();
+      recognition.continuous = true;
+      recognition.interimResults = true;
 
-    function startVadStreaming(stream) {
-      const targetRate = btConfig.vad.sampleRate || 16000;
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      window._audioCtx = ctx;
-      const source = ctx.createMediaStreamSource(stream);
-      window._source = source;
-      const processor = ctx.createScriptProcessor(2048, 1, 1);
-      const silentGain = ctx.createGain();
-      silentGain.gain.value = 0.00001;
-      source.connect(processor);
-      processor.connect(silentGain);
-      silentGain.connect(ctx.destination);
-      window._processor = processor;
-      window._silentGain = silentGain;
-
-      document.getElementById('mic-level-container').style.display = 'block';
-
-      // VAD state (thresholds are server-configurable via .env).
-      const { threshold, minSpeechMs, silenceMs } = btConfig.vad;
-      let speaking = false;
-      let voicedMs = 0;      // accumulated voiced time before a segment starts
-      let silenceMsAcc = 0;  // accumulated silence time within a segment
-      // Small pre-roll so we don't clip the very start of speech.
-      const preRoll = [];
-      const PREROLL_FRAMES = 6;
-
-      processor.onaudioprocess = (e) => {
-        if (!socket || socket.readyState !== WebSocket.OPEN) return;
-        const input = e.inputBuffer.getChannelData(0);
-        const frameMs = (input.length / ctx.sampleRate) * 1000;
-
-        // RMS energy
-        let sum = 0;
-        for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
-        const rms = Math.sqrt(sum / input.length);
-
-        // Level bar
-        document.getElementById('mic-level-bar').style.width = Math.min(100, (rms / 0.3) * 100) + '%';
-
-        const down = downsample(input, ctx.sampleRate, targetRate);
-        const pcm = floatToPCM16(down);
-        const isVoiced = rms >= threshold;
-
-        if (!speaking) {
-          preRoll.push(pcm);
-          if (preRoll.length > PREROLL_FRAMES) preRoll.shift();
-          if (isVoiced) {
-            voicedMs += frameMs;
-            if (voicedMs >= minSpeechMs) {
-              // Segment starts.
-              speaking = true;
-              silenceMsAcc = 0;
-              setStatus('Konuşma algılandı', { live: true });
-              socket.send(JSON.stringify({ type: 'speech_start' }));
-              for (const f of preRoll) socket.send(f.buffer);
-              preRoll.length = 0;
-            }
-          } else {
-            voicedMs = 0;
-          }
-        } else {
-          socket.send(pcm.buffer);
-          if (isVoiced) {
-            silenceMsAcc = 0;
-          } else {
-            silenceMsAcc += frameMs;
-            if (silenceMsAcc >= silenceMs) {
-              // Segment ends.
-              speaking = false;
-              voicedMs = 0;
-              socket.send(JSON.stringify({ type: 'speech_end' }));
-              setStatus('Dinleniyor…', { live: true });
-            }
-          }
+      recognition.onresult = (event) => {
+        let interim = '';
+        let finalChunk = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const r = event.results[i];
+          if (r.isFinal) finalChunk += r[0].transcript;
+          else interim += r[0].transcript;
+        }
+        if (!socketOpen()) return;
+        if (interim.trim()) {
+          setStatus('Konuşma algılandı', { live: true });
+          socket.send(JSON.stringify({ type: 'transcript', final: false, text: interim }));
+        }
+        if (finalChunk.trim()) {
+          socket.send(JSON.stringify({ type: 'transcript', final: true, text: finalChunk }));
+          setStatus('Dinleniyor…', { live: true });
         }
       };
 
-      // Heartbeat control ping.
-      window.pingInterval = setInterval(() => {
-        if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'ping' }));
-      }, 25000);
+      recognition.onerror = (e) => {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          alert('Mikrofon izni reddedildi. Tarayıcı ayarlarından mikrofona izin verin.');
+          stopBroadcast();
+        }
+        // 'no-speech' / 'aborted' / 'network' → onend will restart.
+      };
+
+      recognition.onend = () => {
+        recognizing = false;
+        // The engine stops itself periodically; restart while broadcasting.
+        if (!manualStop) {
+          try { recognition.start(); recognizing = true; } catch (e) { /* starting too soon */ }
+        }
+      };
+
+      try { recognition.start(); recognizing = true; } catch (e) { /* already started */ }
+    }
+
+    function stopRecognition() {
+      if (recognition) {
+        try { recognition.onend = null; recognition.stop(); } catch (e) { /* ignore */ }
+        recognition = null;
+      }
+      recognizing = false;
+    }
+
+    // Called by toggleDirection() when the direction changes mid-broadcast.
+    function restartRecognition() {
+      if (!recognizing) return;
+      stopRecognition();
+      startRecognition();
     }
 
     function stopBroadcast() {
       manualStop = true;
       clearInterval(window.pingInterval);
-      window._vadStarted = false;
-      try { if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: 'stop' })); } catch(e){}
-      if (window._processor) { window._processor.disconnect(); window._processor = null; }
-      if (window._silentGain) { window._silentGain.disconnect(); window._silentGain = null; }
-      if (window._source) { window._source.disconnect(); window._source = null; }
-      if (window._stream) { window._stream.getTracks().forEach(t => t.stop()); window._stream = null; }
-      if (window._audioCtx) { window._audioCtx.close(); window._audioCtx = null; }
+      stopRecognition();
+      try { if (socketOpen()) socket.send(JSON.stringify({ type: 'stop' })); } catch(e){}
       if (socket) { socket.close(); socket = null; }
-      setStatus(document.getElementById('status-indicator').getAttribute('data-idle') || 'Yayın durduruldu');
+      setStatus('Yayın durduruldu');
       document.getElementById('btn-start').style.display = 'inline-flex';
       document.getElementById('btn-stop').style.display = 'none';
       document.querySelector('.qr-hero').classList.remove('recording');
       document.getElementById('mic-level-container').style.display = 'none';
-      document.getElementById('mic-level-bar').style.width = '0%';
       setDeeplStatus(false);
     }
 

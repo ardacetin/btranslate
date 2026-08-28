@@ -776,6 +776,9 @@
       tvT.innerText = translated || '';
       document.getElementById('tv-subtitle-original').innerText = original || '';
       scrollToBottom();
+
+      // Speak the finalized translation (translated audio), if enabled.
+      speakTranslation(translated);
     }
 
     function changeLanguage() {
@@ -810,6 +813,24 @@
       if (masterGain) masterGain.gain.value = audioVolume;
     }
 
+    // ── Translated audio via browser text-to-speech ───────────────────────
+    function pickVoice(lang) {
+      const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
+      return voices.find(v => v.lang === lang) ||
+             voices.find(v => v.lang && v.lang.slice(0,2) === lang.slice(0,2)) || null;
+    }
+    function speakTranslation(text) {
+      if (!audioOn || !text || !('speechSynthesis' in window)) return;
+      try {
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = currentDir.target === 'tr' ? 'tr-TR' : (currentDir.target === 'en' ? 'en-US' : currentDir.target);
+        u.volume = audioVolume;
+        const v = pickVoice(u.lang);
+        if (v) u.voice = v;
+        window.speechSynthesis.speak(u);
+      } catch (e) { /* ignore */ }
+    }
+
     function toggleAudio() {
       if (!audioOn) {
         initAudioContext();
@@ -820,6 +841,7 @@
         if (audioCtx) {
           audioCtx.suspend();
         }
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         updateAudioBtn();
       }
     }

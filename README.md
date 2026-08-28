@@ -6,38 +6,43 @@ the **live transcript**, the **translated text**, and — when enabled — hear 
 **translated speech**, with the lowest latency practical.
 
 - Türkçe → İngilizce and İngilizce → Türkçe, switchable with one button.
-- Browser **Voice Activity Detection (VAD)** so silence, music, applause and mic
-  noise do not reach the translator (hallucination prevention).
+- Speech recognition runs in the host's browser and only emits on real speech;
+  finalized phrases are additionally run through junk/hallucination filters.
 - The DeepL API key lives **only on the server**; the browser talks only to our
   Node.js backend.
 
 ## Architecture
 
 ```
-Browser microphone
-      │  getUserMedia (echoCancellation, noiseSuppression, autoGainControl)
-      ▼
-Voice Activity Detection (browser)  ── only real speech is streamed
-      │  PCM16 16 kHz mono over WebSocket
+Host browser (Web Speech API)  ── live speech-to-text of the source language
+      │  transcript phrases (interim + final) over WebSocket
       ▼
 BTranslate Node.js backend (Express + ws)
-      │  manages the DeepL connection, applies filters, persists FINAL only
+      │  translates each phrase via the DeepL text API, filters, persists FINAL
       ▼
-DeepL Voice API (WebSocket)  ── transcript + translation (+ optional audio)
+DeepL /v2/translate (REST, server-side)  ── key never leaves the server
       │
       ▼
-Participants  ── live tentative text → final text → optional translated audio
+Participants  ── live tentative text → final text → optional translated audio (browser TTS)
 ```
+
+> **Why this design:** DeepL's real-time *voice* streaming is not a
+> generally-available developer WebSocket API, so speech-to-text is done in the
+> browser (Web Speech API) and DeepL is used for what it does provide — fast,
+> high-quality **text** translation. The interface, sessions, export and
+> security are unchanged.
 
 ### Tech stack
 
-| Layer        | Technology                          |
-|--------------|-------------------------------------|
-| Backend      | Node.js, Express, `ws`              |
-| Database     | MySQL (`mysql2`), simple migrations |
-| Translation  | DeepL Voice API (server-managed)    |
-| Frontend     | Vanilla HTML/CSS/JS (preserved)     |
-| Auth         | JWT (`jsonwebtoken`) + `bcryptjs`   |
+| Layer        | Technology                                   |
+|--------------|----------------------------------------------|
+| Backend      | Node.js, Express, `ws`                       |
+| Database     | MySQL (`mysql2`), simple migrations          |
+| STT          | Browser Web Speech API (Chrome/Edge)         |
+| Translation  | DeepL text API `/v2/translate` (server-side) |
+| TTS (opt.)   | Browser SpeechSynthesis on participants      |
+| Frontend     | Vanilla HTML/CSS/JS (preserved)              |
+| Auth         | JWT (`jsonwebtoken`) + `bcryptjs`            |
 
 ### Project structure
 
@@ -53,7 +58,7 @@ src/
   routes/
     auth.js  users.js  admin.js  sessions.js  exports.js
   services/
-    deeplVoice.js           # the single DeepL Voice adapter (integration seam)
+    deeplText.js            # DeepL /v2/translate REST client (server-side only)
     sessionManager.js       # in-memory rooms, tentative/final assembly, broadcast
     transcript.js           # persistence of FINAL segments only
     filters.js              # hallucination / junk post-processing
@@ -109,29 +114,18 @@ See [`.env.example`](.env.example). Key variables:
 | `PORT` | App port (behind Nginx). Never bind 80/443 directly. |
 | `DB_HOST/PORT/NAME/USER/PASSWORD` | MySQL connection. |
 | `JWT_SECRET` | Long random string for host tokens. |
-| `DEEPL_API_KEY` | **Server-only.** Never sent to the browser. |
-| `DEEPL_VOICE_WS_URL` | DeepL realtime voice WebSocket endpoint. |
-| `ENABLE_TRANSLATED_AUDIO` | `true`/`false` — speech output feature flag. |
-| `VAD_THRESHOLD` | RMS energy threshold (0–1). Higher = less sensitive. |
-| `VAD_MIN_SPEECH_MS` | Sustained speech before a segment starts (≈250). |
-| `VAD_SILENCE_MS` | Silence before a segment ends (≈800). |
+| `DEEPL_API_KEY` | **Server-only.** Never sent to the browser. Free keys (`…:fx`) auto-use api-free.deepl.com. |
+| `DEEPL_API_URL` | Optional REST base override (proxy). Auto-detected when empty. |
+| `ENABLE_TRANSLATED_AUDIO` | `true`/`false` — offer spoken translation (browser TTS). |
 | `FILTER_MIN_CHARS` / `FILTER_MIN_WORDS` | Reject too-short final segments. |
 
-VAD thresholds are delivered to the browser at runtime via `GET
-/api/sessions/config`, so they can be tuned in `.env` without editing frontend
-code.
+### DeepL note
 
-### DeepL Voice integration note
-
-DeepL's real-time voice streaming protocol is not yet a broadly published,
-stable developer WebSocket spec. All DeepL-specific logic is isolated in
-**`src/services/deeplVoice.js`** in three clearly marked methods:
-`buildConfigMessage()`, `sendAudio()`, and `handleMessage()`. When connecting a
-real DeepL Voice account, adjust **only** those to match the account's actual
-frame schema and auth. Everything else (VAD, sessions, export, UI) is
-provider-agnostic. If `DEEPL_API_KEY` is unset or the audio feature is
-unsupported, the app still runs — live transcript and text translation continue
-to work, and translated audio is simply skipped (feature detection).
+DeepL is used through its generally-available **text** API (`/v2/translate`),
+isolated in **`src/services/deeplText.js`**. The key never leaves the server.
+Speech-to-text runs in the host's browser (Web Speech API), so the host page is
+best used in **Chrome or Edge**. If `DEEPL_API_KEY` is unset the app still runs —
+the live transcript is shown and translation is simply skipped.
 
 ## Transcript export
 

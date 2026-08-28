@@ -1,24 +1,26 @@
 'use strict';
 
-const { DeeplVoiceSession } = require('./deeplVoice');
+const deeplText = require('./deeplText');
 const transcriptSvc = require('./transcript');
 const { acceptFinalSegment, normalize } = require('./filters');
 const { resolveDirection, LANGUAGES } = require('../config/languages');
 const config = require('../config');
 const logger = require('../utils/logger');
 
+// How often (ms) an in-progress (interim) phrase may be re-translated for the
+// live "tentative" preview. Keeps DeepL request volume sane during speech.
+const INTERIM_TRANSLATE_MS = 700;
+
 /**
- * In-memory orchestration of live events. One entry per event_code holds the
- * host socket, participant sockets, the DeepL Voice session, the DB session
- * row, and the accumulators used to assemble FINAL segments from streamed
- * tentative deltas.
+ * In-memory orchestration of live events.
  *
- * Segment assembly model:
- *   - Every transcript/translation delta is appended to a per-segment buffer
- *     and broadcast to participants as TENTATIVE (faded) text.
- *   - When a FINAL translation arrives, the buffered source+translation are
- *     run through hallucination filters; if accepted, the segment is persisted
- *     (final only) and broadcast as FINAL. Buffers then reset.
+ * Pipeline (browser STT → DeepL text API → participants):
+ *   - The host page runs speech recognition and sends transcript messages
+ *     ({ final, text }) over its WebSocket.
+ *   - Interim (not final) text is shown to participants as TENTATIVE (faded)
+ *     and translated at most once per INTERIM_TRANSLATE_MS.
+ *   - On a FINAL phrase, the text is translated, run through hallucination
+ *     filters, persisted (final only), and broadcast as FINAL.
  */
 class SessionManager {
   constructor() {
@@ -33,16 +35,24 @@ class SessionManager {
         eventCode,
         host: null,
         participants: new Set(),
-        deepl: null,
         deeplConnected: false,
         dbSession: null,
         source: 'tr',
         target: 'en',
-        buf: { source: '', translation: '', startedAt: null },
+        interim: '',
+        interimTranslated: '',
+        startedAt: null,
+        interimTimer: null,
+        interimInFlight: false,
       };
       this.rooms.set(eventCode, room);
     }
     return room;
+  }
+
+  isLive(eventCode) {
+    const room = this.rooms.get(eventCode);
+    return Boolean(room && room.host);
   }
 
   // ── Host lifecycle ────────────────────────────────────────────────────
@@ -54,6 +64,7 @@ class SessionManager {
     room.host = ws;
     room.source = source;
     room.target = target;
+    this._resetBuffer(room);
 
     room.dbSession = await transcriptSvc.createOrGetSession(eventCode, {
       title: title || 'Live Event',
@@ -61,12 +72,9 @@ class SessionManager {
       targetLanguage: target,
     });
 
-    this._ensureDeepl(room);
     logger.info(`Session started: ${eventCode} (${source}->${target})`);
-
     this._sendHost(room, {
       type: 'config',
-      vad: config.vad,
       source,
       target,
       audio: config.deepl.enableTranslatedAudio,
@@ -74,6 +82,13 @@ class SessionManager {
     });
     this._broadcastDirection(room);
     this._broadcastParticipantCount(room);
+
+    // Verify DeepL text API in the background and report status.
+    deeplText.verify().then((ok) => {
+      room.deeplConnected = ok;
+      this._sendHost(room, { type: 'status', deepl: ok, live: true });
+      this._broadcast(room, { type: 'service', deepl: ok });
+    });
     return room;
   }
 
@@ -84,45 +99,105 @@ class SessionManager {
     if (!dir) return;
     room.source = source;
     room.target = target;
-    room.buf = { source: '', translation: '', startedAt: null };
-    if (room.dbSession) {
-      await transcriptSvc.updateDirection(room.dbSession.id, source, target);
-    }
-    // Restart DeepL with the new direction.
-    if (room.deepl) room.deepl.stop();
-    room.deepl = null;
-    this._ensureDeepl(room);
+    this._resetBuffer(room);
+    if (room.dbSession) await transcriptSvc.updateDirection(room.dbSession.id, source, target);
     this._broadcastDirection(room);
     logger.info(`Direction changed: ${eventCode} -> ${source}->${target}`);
   }
 
-  _ensureDeepl(room) {
-    if (room.deepl) return;
-    room.deepl = new DeeplVoiceSession({
+  /** Host sent a transcript chunk from browser speech recognition. */
+  handleHostTranscript(eventCode, { final, text }) {
+    const room = this.rooms.get(eventCode);
+    if (!room) return;
+    const clean = normalize(text);
+    if (!clean && !final) return;
+
+    if (final) {
+      this._finalize(room, clean);
+    } else {
+      room.interim = clean;
+      if (!room.startedAt) room.startedAt = new Date();
+      this._broadcast(room, { type: 'tentative', original: clean, translated: room.interimTranslated });
+      this._scheduleInterimTranslate(room);
+    }
+  }
+
+  _scheduleInterimTranslate(room) {
+    if (room.interimTimer || room.interimInFlight) return;
+    room.interimTimer = setTimeout(async () => {
+      room.interimTimer = null;
+      const text = room.interim;
+      if (!text) return;
+      room.interimInFlight = true;
+      try {
+        const translated = await deeplText.translate(text, room.source, room.target);
+        // Only apply if this phrase is still the one being spoken.
+        if (room.interim === text) {
+          room.interimTranslated = translated;
+          this._broadcast(room, { type: 'tentative', original: text, translated });
+        }
+      } catch (e) {
+        logger.debug('Interim translate failed (non-fatal)');
+      } finally {
+        room.interimInFlight = false;
+      }
+    }, INTERIM_TRANSLATE_MS);
+  }
+
+  async _finalize(room, sourceText) {
+    if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
+    const startedAt = room.startedAt || new Date();
+    const source = normalize(sourceText || room.interim);
+    this._resetBuffer(room);
+
+    if (!source) return;
+
+    let translated = '';
+    try {
+      translated = await deeplText.translate(source, room.source, room.target);
+    } catch (e) {
+      logger.error('Final translate failed', e);
+      // Clear the tentative line; nothing to finalize without a translation.
+      this._broadcast(room, { type: 'tentative', original: '', translated: '' });
+      return;
+    }
+
+    const verdict = acceptFinalSegment(translated);
+    if (!verdict.ok) {
+      logger.debug(`Segment rejected (${verdict.reason})`);
+      this._broadcast(room, { type: 'tentative', original: '', translated: '' });
+      return;
+    }
+
+    const endedAt = new Date();
+    let id = null;
+    if (room.dbSession) {
+      id = await transcriptSvc.saveSegment(room.dbSession.id, {
+        sourceText: source,
+        translatedText: verdict.text,
+        sourceLanguage: room.source,
+        targetLanguage: room.target,
+        startedAt,
+        endedAt,
+      });
+    }
+
+    this._broadcast(room, {
+      type: 'final',
+      id,
+      original: source,
+      translated: verdict.text,
       source: room.source,
       target: room.target,
-      onEvent: (evt) => this._onDeeplEvent(room, evt),
+      rtl: Boolean(LANGUAGES[room.target]?.rtl),
+      ts: endedAt.toISOString(),
     });
-    room.deepl.start();
-  }
-
-  handleHostAudio(eventCode, buffer) {
-    const room = this.rooms.get(eventCode);
-    if (!room || !room.deepl) return;
-    room.deepl.sendAudio(buffer);
-  }
-
-  handleSpeechEnd(eventCode) {
-    const room = this.rooms.get(eventCode);
-    if (!room || !room.deepl) return;
-    room.deepl.markSpeechEnd();
   }
 
   async stopBroadcast(eventCode) {
     const room = this.rooms.get(eventCode);
     if (!room) return;
-    if (room.deepl) room.deepl.stop();
-    room.deepl = null;
+    if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
     room.host = null;
     if (room.dbSession) await transcriptSvc.endSession(room.dbSession.id);
     logger.info(`Session ended: ${eventCode}`);
@@ -132,19 +207,16 @@ class SessionManager {
   disconnectHost(eventCode, ws) {
     const room = this.rooms.get(eventCode);
     if (!room || room.host !== ws) return;
+    if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
     room.host = null;
-    if (room.deepl) {
-      room.deepl.stop();
-      room.deepl = null;
-    }
     logger.info(`Host disconnected: ${eventCode}`);
     this._broadcast(room, { type: 'status', live: false });
   }
 
-  /** Is a host actively broadcasting on this event right now? */
-  isLive(eventCode) {
-    const room = this.rooms.get(eventCode);
-    return Boolean(room && room.host);
+  _resetBuffer(room) {
+    room.interim = '';
+    room.interimTranslated = '';
+    room.startedAt = null;
   }
 
   // ── Participant lifecycle ─────────────────────────────────────────────
@@ -170,101 +242,6 @@ class SessionManager {
     room.participants.delete(ws);
     logger.info(`Client disconnected: participant ${eventCode} (total ${room.participants.size})`);
     this._broadcastParticipantCount(room);
-  }
-
-  // ── DeepL event handling ──────────────────────────────────────────────
-  async _onDeeplEvent(room, evt) {
-    switch (evt.kind) {
-      case 'status':
-        room.deeplConnected = evt.connected;
-        this._sendHost(room, { type: 'status', deepl: evt.connected, live: Boolean(room.host) });
-        this._broadcast(room, { type: 'service', deepl: evt.connected });
-        break;
-
-      case 'reconnecting':
-        this._broadcast(room, { type: 'reconnecting' });
-        this._sendHost(room, { type: 'reconnecting' });
-        break;
-
-      case 'transcript': {
-        room.buf.source += evt.text;
-        if (!room.buf.startedAt) room.buf.startedAt = new Date();
-        this._broadcast(room, {
-          type: 'tentative',
-          original: normalize(room.buf.source),
-          translated: normalize(room.buf.translation),
-        });
-        break;
-      }
-
-      case 'translation': {
-        room.buf.translation += evt.text;
-        if (!room.buf.startedAt) room.buf.startedAt = new Date();
-        if (evt.final) {
-          await this._finalizeSegment(room);
-        } else {
-          this._broadcast(room, {
-            type: 'tentative',
-            original: normalize(room.buf.source),
-            translated: normalize(room.buf.translation),
-          });
-        }
-        break;
-      }
-
-      case 'audio':
-        if (config.deepl.enableTranslatedAudio) {
-          this._broadcast(room, { type: 'audio', chunk: evt.base64 });
-        }
-        break;
-
-      case 'error':
-        // Errors are logged in the DeepL layer; nothing user-facing needed.
-        break;
-
-      default:
-        break;
-    }
-  }
-
-  async _finalizeSegment(room) {
-    const source = normalize(room.buf.source);
-    const translated = normalize(room.buf.translation);
-    const startedAt = room.buf.startedAt;
-    room.buf = { source: '', translation: '', startedAt: null };
-
-    // Filter on the translated text (what the audience reads). Require some
-    // source too, otherwise it is almost certainly a hallucination.
-    const verdict = acceptFinalSegment(translated);
-    if (!verdict.ok || !source) {
-      logger.debug(`Segment rejected (${verdict.reason || 'no_source'})`);
-      // Clear any lingering tentative text on the audience screens.
-      this._broadcast(room, { type: 'tentative', original: '', translated: '' });
-      return;
-    }
-
-    const endedAt = new Date();
-    let id = null;
-    if (room.dbSession) {
-      id = await transcriptSvc.saveSegment(room.dbSession.id, {
-        sourceText: source,
-        translatedText: verdict.text,
-        sourceLanguage: room.source,
-        targetLanguage: room.target,
-        startedAt,
-        endedAt,
-      });
-    }
-
-    this._broadcast(room, {
-      type: 'final',
-      id,
-      original: source,
-      translated: verdict.text,
-      source: room.source,
-      target: room.target,
-      ts: endedAt.toISOString(),
-    });
   }
 
   // ── Messaging helpers ─────────────────────────────────────────────────
@@ -310,8 +287,7 @@ class SessionManager {
   }
 
   _broadcastParticipantCount(room) {
-    const count = room.participants.size;
-    this._sendHost(room, { type: 'participants', count });
+    this._sendHost(room, { type: 'participants', count: room.participants.size });
   }
 }
 

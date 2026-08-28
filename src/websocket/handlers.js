@@ -5,19 +5,13 @@ const { resolveDirection } = require('../config/languages');
 const logger = require('../utils/logger');
 
 /**
- * Host socket. The browser sends:
- *   - JSON control frames: {type:'start'|'stop'|'direction'|'speech_end'|'ping', ...}
- *   - Binary frames: raw PCM16 (16kHz mono) audio, only during detected speech.
+ * Host socket. The browser runs speech recognition and sends JSON frames:
+ *   {type:'start'|'stop'|'direction'|'ping', ...}
+ *   {type:'transcript', final:boolean, text:string}
  */
 function registerHost(ws, eventCode, claims) {
   logger.info(`Client connected: host ${eventCode} (${claims.sub})`);
-  ws.on('message', async (data, isBinary) => {
-    if (isBinary) {
-      // Ignore tiny keepalive frames.
-      if (data.length < 4) return;
-      sessionManager.handleHostAudio(eventCode, Buffer.from(data));
-      return;
-    }
+  ws.on('message', async (data) => {
     let msg;
     try {
       msg = JSON.parse(data.toString());
@@ -40,8 +34,11 @@ function registerHost(ws, eventCode, claims) {
         case 'direction':
           await sessionManager.setDirection(eventCode, msg.source, msg.target);
           break;
-        case 'speech_end':
-          sessionManager.handleSpeechEnd(eventCode);
+        case 'transcript':
+          sessionManager.handleHostTranscript(eventCode, {
+            final: Boolean(msg.final),
+            text: typeof msg.text === 'string' ? msg.text : '',
+          });
           break;
         case 'stop':
           await sessionManager.stopBroadcast(eventCode);
