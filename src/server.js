@@ -17,6 +17,8 @@ const exportRoutes = require('./routes/exports');
 const adminRoutes = require('./routes/admin');
 const historyRoutes = require('./routes/history');
 const logsRoutes = require('./routes/logs');
+const settingsRoutes = require('./routes/settings');
+const systemRoutes = require('./routes/system');
 const logStore = require('./services/logStore');
 
 const app = express();
@@ -59,6 +61,8 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/history', historyRoutes); // date-based transcript history
 app.use('/api/logs', logsRoutes); // date-based system logs (admin)
+app.use('/api/settings', settingsRoutes); // admin-managed app settings
+app.use('/api/system', systemRoutes); // admin: restart the process
 app.use('/api/sessions', exportRoutes); // /api/sessions/:code/export
 app.use('/api/sessions', sessionRoutes); // create, get, /config
 

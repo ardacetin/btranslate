@@ -64,6 +64,14 @@ router.post('/', requireAuth, async (req, res) => {
   }
 });
 
+/** Host: force all connected participants to reload (unfreeze their screens). */
+router.post('/:code/refresh', requireAuth, (req, res) => {
+  const eventCode = String(req.params.code || '').toUpperCase();
+  if (!EVENT_CODE_RE.test(eventCode)) return res.status(400).json({ error: 'Invalid code' });
+  const count = sessionManager.refreshClients(eventCode);
+  res.json({ refreshed: count });
+});
+
 /** Public: is a broadcast currently live for this event? (homepage gating) */
 router.get('/:code/live', (req, res) => {
   const eventCode = String(req.params.code || '').toUpperCase();

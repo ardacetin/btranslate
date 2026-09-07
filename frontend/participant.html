@@ -669,6 +669,7 @@
           case 'audio':     enqueueAudio(d.chunk); break;
           case 'direction': applyDirection(d); break;
           case 'reconnecting': showReconnecting(); break;
+          case 'reload':    location.reload(); break;
           case 'status':    if (d.target) applyDirection(d); break;
           case 'service':   break;
           default: break;

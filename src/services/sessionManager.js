@@ -55,6 +55,15 @@ class SessionManager {
     return Boolean(room && room.host);
   }
 
+  /** Tell every connected participant of this event to reload their page. */
+  refreshClients(eventCode) {
+    const room = this.rooms.get(eventCode);
+    if (!room) return 0;
+    this._broadcast(room, { type: 'reload' });
+    logger.info(`Refresh sent to participants: ${eventCode} (${room.participants.size})`);
+    return room.participants.size;
+  }
+
   // ── Host lifecycle ────────────────────────────────────────────────────
   async startBroadcast(eventCode, ws, { title, source, target }) {
     const dir = resolveDirection(source, target);
