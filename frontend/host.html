@@ -434,8 +434,10 @@
     function endSession(){ localStorage.removeItem('bt_event_code'); location.reload(); }
 
     // ── Broadcast: speech recognition → server ────────────────────────────
-    let manualStop=false, recognition=null, recognizing=false, silenceTimer=null;
-    const SILENCE_FINALIZE_MS = 700;
+    let manualStop=false, recognition=null, recognizing=false, silenceTimer=null, flushing=false;
+    const SILENCE_FINALIZE_MS = 500;   // finalize after a short pause
+    const MAX_WORDS = 12;              // …or once a phrase reaches this many words
+    const SENTENCE_END = /[.!?…][""'’”)\]]?\s*$/;
     function speechSupported(){ return !!(window.SpeechRecognition||window.webkitSpeechRecognition); }
     function recognitionLang(){ return currentDirection().source==='tr' ? 'tr-TR' : 'en-US'; }
     function socketOpen(){ return socket && socket.readyState===WebSocket.OPEN; }
@@ -485,14 +487,24 @@
         let interim='', finalChunk='';
         for (let i=event.resultIndex;i<event.results.length;i++){ const r=event.results[i]; if (r.isFinal) finalChunk+=r[0].transcript; else interim+=r[0].transcript; }
         if (!socketOpen()) return;
-        if (interim.trim()) { setStatus('Konuşma algılandı',{live:true}); socket.send(JSON.stringify({type:'transcript',final:false,text:interim})); armSilenceTimer(); }
+        if (interim.trim()) {
+          setStatus('Konuşma algılandı',{live:true});
+          socket.send(JSON.stringify({type:'transcript',final:false,text:interim}));
+          // Flush sentence-by-sentence: finalize on a sentence ending, or once
+          // the phrase gets long, so the audience never waits on a paragraph.
+          const words = interim.trim().split(/\s+/).length;
+          if (SENTENCE_END.test(interim.trim()) || words >= MAX_WORDS) flushSegment();
+          else armSilenceTimer();
+        }
         if (finalChunk.trim()) { clearSilenceTimer(); socket.send(JSON.stringify({type:'transcript',final:true,text:finalChunk})); setStatus('Dinleniyor…',{live:true}); }
       };
       recognition.onerror = (e) => { if (e.error==='not-allowed'||e.error==='service-not-allowed'){ toast('Mikrofon izni reddedildi.'); stopBroadcast(); } };
-      recognition.onend = () => { recognizing=false; if (!manualStop){ try{ recognition.start(); recognizing=true; }catch(e){} } };
+      recognition.onend = () => { recognizing=false; flushing=false; if (!manualStop){ try{ recognition.start(); recognizing=true; }catch(e){} } };
       try { recognition.start(); recognizing=true; } catch(e){}
     }
-    function armSilenceTimer(){ clearSilenceTimer(); silenceTimer=setTimeout(()=>{ if (recognizing&&recognition){ try{recognition.stop();}catch(e){} } }, SILENCE_FINALIZE_MS); }
+    // Force the engine to emit its final result now (flushes the current phrase).
+    function flushSegment(){ clearSilenceTimer(); if (flushing || !recognizing || !recognition) return; flushing=true; try{ recognition.stop(); }catch(e){ flushing=false; } }
+    function armSilenceTimer(){ clearSilenceTimer(); silenceTimer=setTimeout(()=>flushSegment(), SILENCE_FINALIZE_MS); }
     function clearSilenceTimer(){ if (silenceTimer){ clearTimeout(silenceTimer); silenceTimer=null; } }
     function stopRecognition(){ clearSilenceTimer(); if (recognition){ try{ recognition.onend=null; recognition.stop(); }catch(e){} recognition=null; } recognizing=false; }
     function restartRecognition(){ if (!recognizing) return; stopRecognition(); startRecognition(); }
