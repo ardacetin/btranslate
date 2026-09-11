@@ -200,6 +200,25 @@
               </div>
 
               <div class="card" style="margin:0;">
+                <!-- Microphone picker -->
+                <div class="field" style="margin-bottom:1rem;">
+                  <label>Mikrofon</label>
+                  <div class="row-inline">
+                    <select id="mic-select" style="flex:1;min-width:180px;" onchange="onMicChange()"></select>
+                    <button id="mic-test-btn" class="btn-sm btn-ghost-sm" onclick="toggleMonitor()">🎤 Test</button>
+                  </div>
+                  <span style="font-size:.72rem;color:var(--text-muted);">Seçim OpenAI motorunda ve test ölçerinde geçerlidir; DeepL motoru işletim sistemi varsayılan mikrofonunu kullanır.</span>
+                </div>
+
+                <!-- Live input level meter -->
+                <div class="field" style="margin-bottom:1rem;">
+                  <label>Giriş Seviyesi</label>
+                  <div style="width:100%;height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden;">
+                    <div id="mic-level-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--success-color),#d97706 70%,var(--danger-color));transition:width .06s;"></div>
+                  </div>
+                </div>
+                <div id="mic-level-container" style="display:none;"></div>
+
                 <div class="field" style="margin-bottom:1rem;">
                   <label>Çeviri Yönü</label>
                   <button id="direction-toggle" onclick="toggleDirection()" class="mic-btn" style="background:#fff;color:var(--accent-color);border:1px solid var(--border-color);box-shadow:none;max-width:none;">
@@ -208,9 +227,6 @@
                 </div>
                 <div style="font-size:.78rem;font-weight:600;margin-bottom:1rem;">
                   <span id="deepl-status" style="color:var(--text-secondary);">DeepL: Bekleniyor…</span>
-                </div>
-                <div id="mic-level-container" style="display:none;width:100%;height:6px;background:var(--surface-2);border-radius:3px;margin-bottom:1rem;overflow:hidden;">
-                  <div id="mic-level-bar" style="height:100%;width:0%;background:var(--accent-color);transition:width .05s;"></div>
                 </div>
                 <button class="mic-btn start" id="btn-start" onclick="startBroadcast()">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
@@ -404,7 +420,7 @@
           currentEventCode = 'LIVE';
           document.getElementById('setup-section').style.display = 'none';
           document.getElementById('broadcast-section').style.display = 'block';
-          renderQR();
+          renderQR(); refreshMics();
         }
       } catch (e) { console.error(e); }
     }
@@ -497,7 +513,7 @@
         currentEventCode='LIVE'; localStorage.setItem('bt_event_code','LIVE');
         document.getElementById('setup-section').style.display='none';
         document.getElementById('broadcast-section').style.display='block';
-        renderQR();
+        renderQR(); refreshMics();
       } catch(e){ toast('Oturum oluşturulamadı'); }
     }
     function endSession(){ localStorage.removeItem('bt_event_code'); location.reload(); }
@@ -586,6 +602,7 @@
     function startCapture() {
       if (captureStarted) return; // don't double-start on socket reconnect
       captureStarted = true;
+      stopMonitor(); // release the test meter; capture drives the level bar now
       if (activeEngine === 'openai') {
         startAudioCapture()
           .then(()=> setStatus('Dinleniyor…',{live:true}))
@@ -604,7 +621,8 @@
     function downsample(buf, from, to){ if (to>=from) return buf; const r=from/to, n=Math.floor(buf.length/r), out=new Float32Array(n); for (let i=0;i<n;i++) out[i]=buf[Math.floor(i*r)]; return out; }
     function floatToPCM16(f32){ const i16=new Int16Array(f32.length); for (let i=0;i<f32.length;i++){ const s=Math.max(-1,Math.min(1,f32[i])); i16[i]=s<0?s*0x8000:s*0x7FFF; } return i16; }
     async function startAudioCapture(){
-      const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 }, video:false });
+      const micId = selectedMicId();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1, ...(micId?{deviceId:{exact:micId}}:{}) }, video:false });
       window._micStream = stream;
       const ctx = new (window.AudioContext||window.webkitAudioContext)({ sampleRate:24000 });
       window._audioCtx = ctx;
@@ -631,9 +649,64 @@
       document.getElementById('mic-level-container').style.display='none';
     }
 
+    // ── Microphone selection + live input level monitor ──────────────────
+    let monStream=null, monCtx=null, monRAF=null, monAnalyser=null, monitoring=false;
+    function selectedMicId(){ const s=document.getElementById('mic-select'); return s && s.value ? s.value : ''; }
+    async function refreshMics(){
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const mics = devices.filter(d=>d.kind==='audioinput');
+        const sel = document.getElementById('mic-select'); if (!sel) return;
+        const cur = sel.value || localStorage.getItem('bt_mic') || '';
+        sel.innerHTML = mics.length
+          ? mics.map((d,i)=>`<option value="${d.deviceId}">${esc(d.label || ('Mikrofon '+(i+1)))}</option>`).join('')
+          : '<option value="">Varsayılan mikrofon</option>';
+        if (cur && mics.find(m=>m.deviceId===cur)) sel.value = cur;
+      } catch(e){}
+    }
+    function onMicChange(){ localStorage.setItem('bt_mic', selectedMicId()); if (monitoring) startMonitor(); }
+    async function toggleMonitor(){ if (monitoring) stopMonitor(); else await startMonitor(); }
+    async function startMonitor(){
+      stopMonitor();
+      const micId = selectedMicId();
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, ...(micId?{deviceId:{exact:micId}}:{}) }, video:false });
+      } catch(e){ toast('Mikrofona erişilemedi'); return; }
+      monStream=stream; monitoring=true;
+      const btn=document.getElementById('mic-test-btn'); if (btn) btn.textContent='⏹ Durdur';
+      try {
+        monCtx = new (window.AudioContext||window.webkitAudioContext)();
+        const src = monCtx.createMediaStreamSource(stream);
+        monAnalyser = monCtx.createAnalyser(); monAnalyser.fftSize = 512;
+        src.connect(monAnalyser);
+        const data = new Uint8Array(monAnalyser.fftSize);
+        const loop=()=>{
+          if (!monAnalyser) return;
+          monAnalyser.getByteTimeDomainData(data);
+          let sum=0; for (let i=0;i<data.length;i++){ const v=(data[i]-128)/128; sum+=v*v; }
+          document.getElementById('mic-level-bar').style.width = Math.min(100,(Math.sqrt(sum/data.length)/0.3)*100)+'%';
+          monRAF = requestAnimationFrame(loop);
+        };
+        loop();
+      } catch(e){}
+      refreshMics(); // device labels become available once permission is granted
+    }
+    function stopMonitor(){
+      monitoring=false;
+      const btn=document.getElementById('mic-test-btn'); if (btn) btn.textContent='🎤 Test';
+      if (monRAF){ cancelAnimationFrame(monRAF); monRAF=null; }
+      monAnalyser=null;
+      if (monStream){ monStream.getTracks().forEach(t=>t.stop()); monStream=null; }
+      if (monCtx){ try{monCtx.close();}catch(e){} monCtx=null; }
+      const bar=document.getElementById('mic-level-bar'); if (bar) bar.style.width='0%';
+    }
+
     function stopBroadcast() {
       manualStop=true; captureStarted=false; clearInterval(window.pingInterval);
       stopRecognition(); stopAudioCapture();
+      const bar=document.getElementById('mic-level-bar'); if (bar) bar.style.width='0%';
       try{ if (socketOpen()) socket.send(JSON.stringify({type:'stop'})); }catch(e){}
       if (socket){ socket.close(); socket=null; }
       setStatus('Yayın durduruldu');
@@ -802,6 +875,7 @@
     }
 
     // ── Boot ──────────────────────────────────────────────────────────────
+    if (navigator.mediaDevices) { try { navigator.mediaDevices.ondevicechange = refreshMics; } catch (e) {} }
     loadConfig();
     checkAuth();
   </script>
