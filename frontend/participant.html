@@ -798,15 +798,15 @@
     let audioVolume = parseFloat(localStorage.getItem('bt_volume') || '1');
 
     function initAudioContext() {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-        masterGain = audioCtx.createGain();
-        masterGain.gain.value = audioVolume;
-        masterGain.connect(audioCtx.destination);
-      }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-      }
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+          masterGain = audioCtx.createGain();
+          masterGain.gain.value = audioVolume;
+          masterGain.connect(audioCtx.destination);
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) { /* AudioContext optional (only for server PCM audio) */ }
       return audioCtx;
     }
 
@@ -817,26 +817,58 @@
     }
 
     // ── Translated audio via browser text-to-speech ───────────────────────
+    // Mobile Chrome/Safari quirks handled here: voices load async, synthesis
+    // must be "unlocked" by a speak() inside the enabling tap, and Chrome
+    // auto-pauses idle synthesis (needs resume()).
+    let ttsVoices = [];
+    function loadVoices() { try { ttsVoices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || []; } catch (e) {} }
+    if ('speechSynthesis' in window) {
+      loadVoices();
+      try { window.speechSynthesis.onvoiceschanged = loadVoices; } catch (e) {}
+    }
+    function ttsLang() {
+      return currentDir.target === 'tr' ? 'tr-TR' : (currentDir.target === 'en' ? 'en-US' : (currentDir.target || 'en-US'));
+    }
     function pickVoice(lang) {
-      const voices = (window.speechSynthesis && window.speechSynthesis.getVoices()) || [];
-      return voices.find(v => v.lang === lang) ||
-             voices.find(v => v.lang && v.lang.slice(0,2) === lang.slice(0,2)) || null;
+      if (!ttsVoices.length) loadVoices();
+      const norm = (l) => (l || '').replace('_', '-');
+      return ttsVoices.find(v => norm(v.lang) === lang) ||
+             ttsVoices.find(v => norm(v.lang).slice(0, 2) === lang.slice(0, 2)) || null;
+    }
+    // Call from the user gesture that turns audio on — unlocks mobile TTS.
+    function primeTTS() {
+      if (!('speechSynthesis' in window)) return;
+      try {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance('​'); // zero-width, silent
+        u.volume = 0;
+        window.speechSynthesis.speak(u);
+        window.speechSynthesis.resume();
+        loadVoices();
+      } catch (e) { /* ignore */ }
     }
     function speakTranslation(text) {
       if (!audioOn || !text || !('speechSynthesis' in window)) return;
       try {
+        const synth = window.speechSynthesis;
+        synth.resume(); // undo Chrome's silent auto-pause
         const u = new SpeechSynthesisUtterance(text);
-        u.lang = currentDir.target === 'tr' ? 'tr-TR' : (currentDir.target === 'en' ? 'en-US' : currentDir.target);
+        u.lang = ttsLang();
         u.volume = audioVolume;
         const v = pickVoice(u.lang);
         if (v) u.voice = v;
-        window.speechSynthesis.speak(u);
+        synth.speak(u);
       } catch (e) { /* ignore */ }
     }
+    // Keep long-running synthesis alive (Chrome pauses after ~15s idle).
+    setInterval(() => {
+      try { if (audioOn && 'speechSynthesis' in window && window.speechSynthesis.speaking) window.speechSynthesis.resume(); } catch (e) {}
+    }, 8000);
 
     function toggleAudio() {
       if (!audioOn) {
         initAudioContext();
+        primeTTS();          // unlock mobile TTS within this tap
         audioOn = true;
         updateAudioBtn();
       } else {
@@ -870,6 +902,7 @@
     // ── Toast ─────────────────────────────────────────────────────────────
     function enableAudio() {
       initAudioContext();
+      primeTTS();            // unlock mobile TTS within this tap
       audioOn = true;
       updateAudioBtn();
       closeToast();
