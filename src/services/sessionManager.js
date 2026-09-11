@@ -2,6 +2,8 @@
 
 const deeplText = require('./deeplText');
 const transcriptSvc = require('./transcript');
+const settings = require('./settings');
+const { OpenAIRealtimeSession } = require('./openaiRealtime');
 const { acceptFinalSegment, normalize } = require('./filters');
 const { resolveDirection, LANGUAGES } = require('../config/languages');
 const config = require('../config');
@@ -10,6 +12,9 @@ const logger = require('../utils/logger');
 // How often (ms) an in-progress (interim) phrase may be re-translated for the
 // live "tentative" preview. Lower = snappier live translation, more requests.
 const INTERIM_TRANSLATE_MS = 350;
+// OpenAI engine: finalize a segment after this much silence in the streamed
+// translation deltas (the translate endpoint streams continuous deltas).
+const OPENAI_FINALIZE_MS = 1000;
 
 /**
  * In-memory orchestration of live events.
@@ -35,15 +40,24 @@ class SessionManager {
         eventCode,
         host: null,
         participants: new Set(),
-        deeplConnected: false,
+        engine: 'deepl',        // 'deepl' | 'openai'
+        translatorConnected: false,
+        serverAudio: false,     // true when OpenAI streams translated audio
         dbSession: null,
         source: 'tr',
         target: 'en',
+        // DeepL (browser STT) path
         interim: '',
         interimTranslated: '',
         startedAt: null,
         interimTimer: null,
         interimInFlight: false,
+        // OpenAI realtime path
+        openai: null,
+        oaSource: '',
+        oaTranslation: '',
+        oaStartedAt: null,
+        oaTimer: null,
       };
       this.rooms.set(eventCode, room);
     }
@@ -81,24 +95,46 @@ class SessionManager {
       targetLanguage: target,
     });
 
-    logger.info(`Session started: ${eventCode} (${source}->${target})`);
+    // Decide the voice engine from admin settings (falls back to deepl).
+    const cfg = await settings.getAll();
+    const wantOpenai = cfg.voice_engine === 'openai' && Boolean(config.openai.apiKey);
+    room.engine = wantOpenai ? 'openai' : 'deepl';
+    room.serverAudio = room.engine === 'openai';
+
+    logger.info(`Session started: ${eventCode} (${source}->${target}) engine=${room.engine}`);
     this._sendHost(room, {
       type: 'config',
       source,
       target,
+      engine: room.engine,
+      serverAudio: room.serverAudio,
       audio: config.deepl.enableTranslatedAudio,
-      deepl: room.deeplConnected,
     });
     this._broadcastDirection(room);
     this._broadcastParticipantCount(room);
 
-    // Verify DeepL text API in the background and report status.
-    deeplText.verify().then((ok) => {
-      room.deeplConnected = ok;
-      this._sendHost(room, { type: 'status', deepl: ok, live: true });
-      this._broadcast(room, { type: 'service', deepl: ok });
-    });
+    if (room.engine === 'openai') {
+      this._ensureOpenai(room);
+    } else {
+      deeplText.verify().then((ok) => {
+        room.translatorConnected = ok;
+        this._sendHost(room, { type: 'status', engine: 'deepl', connected: ok, live: true });
+        this._broadcast(room, { type: 'service', engine: 'deepl', connected: ok });
+      });
+    }
     return room;
+  }
+
+  _ensureOpenai(room) {
+    if (room.openai) room.openai.stop();
+    room.oaSource = ''; room.oaTranslation = ''; room.oaStartedAt = null;
+    if (room.oaTimer) { clearTimeout(room.oaTimer); room.oaTimer = null; }
+    room.openai = new OpenAIRealtimeSession({
+      source: room.source,
+      target: room.target,
+      onEvent: (evt) => this._onOpenaiEvent(room, evt),
+    });
+    room.openai.start();
   }
 
   async setDirection(eventCode, source, target) {
@@ -110,6 +146,7 @@ class SessionManager {
     room.target = target;
     this._resetBuffer(room);
     if (room.dbSession) await transcriptSvc.updateDirection(room.dbSession.id, source, target);
+    if (room.engine === 'openai') this._ensureOpenai(room); // reconnect with new target
     this._broadcastDirection(room);
     logger.info(`Direction changed: ${eventCode} -> ${source}->${target}`);
   }
@@ -203,10 +240,97 @@ class SessionManager {
     });
   }
 
+  // ── OpenAI realtime path ──────────────────────────────────────────────
+  /** Forward a PCM16 audio chunk from the host to the OpenAI session. */
+  handleHostAudio(eventCode, buffer) {
+    const room = this.rooms.get(eventCode);
+    if (!room || room.engine !== 'openai' || !room.openai) return;
+    room.openai.sendAudio(buffer);
+  }
+
+  _onOpenaiEvent(room, evt) {
+    switch (evt.kind) {
+      case 'status':
+        room.translatorConnected = evt.connected;
+        this._sendHost(room, { type: 'status', engine: 'openai', connected: evt.connected, live: Boolean(room.host) });
+        this._broadcast(room, { type: 'service', engine: 'openai', connected: evt.connected });
+        break;
+      case 'reconnecting':
+        this._sendHost(room, { type: 'reconnecting' });
+        this._broadcast(room, { type: 'reconnecting' });
+        break;
+      case 'transcript':
+        room.oaSource += evt.text;
+        if (!room.oaStartedAt) room.oaStartedAt = new Date();
+        this._broadcastOaTentative(room);
+        this._armOaFinalize(room);
+        break;
+      case 'translation':
+        room.oaTranslation += evt.text;
+        if (!room.oaStartedAt) room.oaStartedAt = new Date();
+        this._broadcastOaTentative(room);
+        this._armOaFinalize(room);
+        break;
+      case 'audio':
+        this._broadcast(room, { type: 'audio', chunk: evt.base64 });
+        break;
+      default:
+        break;
+    }
+  }
+
+  _broadcastOaTentative(room) {
+    this._broadcast(room, {
+      type: 'tentative',
+      original: normalize(room.oaSource),
+      translated: normalize(room.oaTranslation),
+    });
+  }
+
+  _armOaFinalize(room) {
+    if (room.oaTimer) clearTimeout(room.oaTimer);
+    room.oaTimer = setTimeout(() => this._finalizeOpenai(room), OPENAI_FINALIZE_MS);
+  }
+
+  async _finalizeOpenai(room) {
+    if (room.oaTimer) { clearTimeout(room.oaTimer); room.oaTimer = null; }
+    const source = normalize(room.oaSource);
+    const translated = normalize(room.oaTranslation);
+    const startedAt = room.oaStartedAt || new Date();
+    room.oaSource = ''; room.oaTranslation = ''; room.oaStartedAt = null;
+
+    const verdict = acceptFinalSegment(translated);
+    if (!verdict.ok || !translated) {
+      this._broadcast(room, { type: 'tentative', original: '', translated: '' });
+      return;
+    }
+    const endedAt = new Date();
+    let id = null;
+    if (room.dbSession) {
+      id = await transcriptSvc.saveSegment(room.dbSession.id, {
+        sourceText: source, translatedText: verdict.text,
+        sourceLanguage: room.source, targetLanguage: room.target,
+        startedAt, endedAt,
+      });
+    }
+    this._broadcast(room, {
+      type: 'final', id, original: source, translated: verdict.text,
+      source: room.source, target: room.target,
+      rtl: Boolean(LANGUAGES[room.target]?.rtl), ts: endedAt.toISOString(),
+    });
+  }
+
+  _stopOpenai(room) {
+    if (room.oaTimer) { clearTimeout(room.oaTimer); room.oaTimer = null; }
+    if (room.openai) { room.openai.stop(); room.openai = null; }
+    room.oaSource = ''; room.oaTranslation = ''; room.oaStartedAt = null;
+  }
+
   async stopBroadcast(eventCode) {
     const room = this.rooms.get(eventCode);
     if (!room) return;
     if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
+    this._stopOpenai(room);
     room.host = null;
     if (room.dbSession) await transcriptSvc.endSession(room.dbSession.id);
     logger.info(`Session ended: ${eventCode}`);
@@ -217,6 +341,7 @@ class SessionManager {
     const room = this.rooms.get(eventCode);
     if (!room || room.host !== ws) return;
     if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
+    this._stopOpenai(room);
     room.host = null;
     logger.info(`Host disconnected: ${eventCode}`);
     this._broadcast(room, { type: 'status', live: false });
@@ -236,7 +361,9 @@ class SessionManager {
     this._send(ws, {
       type: 'status',
       live: Boolean(room.host),
-      deepl: room.deeplConnected,
+      engine: room.engine,
+      connected: room.translatorConnected,
+      serverAudio: room.serverAudio,
       audio: config.deepl.enableTranslatedAudio,
       source: room.source,
       target: room.target,
@@ -290,6 +417,7 @@ class SessionManager {
       targetLabel: LANGUAGES[room.target]?.label || room.target,
       label: dir ? dir.label : `${room.source} → ${room.target}`,
       rtl: Boolean(LANGUAGES[room.target]?.rtl),
+      serverAudio: room.serverAudio,
     };
     if (only) this._send(only, payload);
     else this._broadcast(room, payload);

@@ -11,7 +11,12 @@ const logger = require('../utils/logger');
  */
 function registerHost(ws, eventCode, claims) {
   logger.info(`Client connected: host ${eventCode} (${claims.sub})`);
-  ws.on('message', async (data) => {
+  ws.on('message', async (data, isBinary) => {
+    // Binary frames are raw PCM16 audio (OpenAI realtime engine).
+    if (isBinary) {
+      if (data.length >= 4) sessionManager.handleHostAudio(eventCode, Buffer.from(data));
+      return;
+    }
     let msg;
     try {
       msg = JSON.parse(data.toString());

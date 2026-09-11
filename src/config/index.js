@@ -34,6 +34,13 @@ const config = {
     adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
   },
 
+  openai: {
+    apiKey: process.env.OPENAI_API_KEY || '',
+    // Dedicated real-time speech-to-speech translation endpoint + model.
+    realtimeUrl: process.env.OPENAI_REALTIME_URL || 'wss://api.openai.com/v1/realtime/translations',
+    model: process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime-translate',
+  },
+
   deepl: {
     apiKey: process.env.DEEPL_API_KEY || '',
     // Text translation REST API base. Auto-detected from the key (free/pro)

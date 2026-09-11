@@ -693,8 +693,10 @@
       document.getElementById('status-text').innerText = dict.status_reconnecting || 'Bağlantı yeniden kuruluyor…';
     }
 
+    let serverAudio = false; // true when the server streams translated audio (OpenAI engine)
     function applyDirection(d) {
       currentDir = { source: d.source, target: d.target, rtl: !!d.rtl, label: d.label || '' };
+      if (typeof d.serverAudio === 'boolean') serverAudio = d.serverAudio;
       const el = document.getElementById('direction-badge');
       if (el && d.label) { el.innerText = d.label; el.style.display = ''; }
       const tvLang = document.getElementById('tv-lang-label');
@@ -848,6 +850,9 @@
       } catch (e) { /* ignore */ }
     }
     function speakTranslation(text) {
+      // When the server streams real translated audio (OpenAI engine), don't
+      // also speak via browser TTS — that would double the audio.
+      if (serverAudio) return;
       if (!audioOn || !text || !('speechSynthesis' in window)) return;
       try {
         const synth = window.speechSynthesis;

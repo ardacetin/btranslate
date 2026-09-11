@@ -311,7 +311,25 @@
         <!-- ══ Settings ══ -->
         <section id="view-settings" class="view">
           <div class="card" style="max-width:660px;">
+            <h2>Çeviri Motoru</h2>
+            <p class="muted">Sesli konuşmanın nasıl işleneceğini seçin. Değişiklik, sonraki yayın başlatıldığında geçerli olur.</p>
+            <div class="field" style="max-width:420px;">
+              <label>Motor</label>
+              <select id="set-engine">
+                <option value="deepl">DeepL (tarayıcı tanıma + metin çeviri) — varsayılan</option>
+                <option value="openai">OpenAI realtime (sunucu ses çevirisi)</option>
+              </select>
+            </div>
+            <ul class="muted" style="font-size:.82rem;line-height:1.6;margin:.9rem 0 0 1rem;">
+              <li><b>DeepL:</b> Konuşma tanıma host tarayıcısında (Chrome/Edge). Katılımcı sesi cihazın kendi TTS'i ile.</li>
+              <li><b>OpenAI:</b> Ses sunucuda çevrilir; çevrilmiş <b>gerçek ses</b> katılımcıya akıtılır (mobilde de çalışır). Kaynak dili otomatik algılar. OPENAI_API_KEY gerekir; dakika başı ücretlidir.</li>
+            </ul>
+            <div style="margin-top:1rem;"><button class="btn-primary" onclick="saveSettings()">Kaydet</button></div>
+          </div>
+
+          <div class="card" style="max-width:660px;">
             <h2>Çeviri Segmentleme Ayarları</h2>
+            <p class="muted" style="margin-top:-.3rem;color:var(--text-muted);font-size:.8rem;">(Yalnızca DeepL motoru için geçerlidir.)</p>
             <p class="muted">Konuşmanın ne zaman bir "cümle" olarak kapatılıp çeviriye gönderileceğini belirler. Daha erken kapatma = daha hızlı ama daha kısa parçalar.</p>
 
             <label style="display:flex;align-items:center;gap:.6rem;font-size:.92rem;font-weight:500;margin-bottom:1.25rem;cursor:pointer;">
@@ -454,10 +472,13 @@
       document.getElementById('top-live-dot').classList.toggle('live', !!opts.live);
       document.getElementById('top-live-text').textContent = opts.live ? 'Yayında' : 'Yayın kapalı';
     }
+    let activeEngine = 'deepl';
+    function engineLabel(){ return activeEngine==='openai' ? 'OpenAI' : 'DeepL'; }
     function setDeeplStatus(connected, reconnecting) {
       const el = document.getElementById('deepl-status');
-      if (reconnecting) { el.textContent='DeepL: Yeniden bağlanıyor…'; el.style.color='var(--danger-color)'; return; }
-      el.textContent = connected ? 'DeepL: Aktif' : 'DeepL: Pasif';
+      const name = engineLabel();
+      if (reconnecting) { el.textContent=name+': Yeniden bağlanıyor…'; el.style.color='var(--danger-color)'; return; }
+      el.textContent = connected ? name+': Aktif' : name+': Pasif';
       el.style.color = connected ? 'var(--success-color)' : 'var(--text-secondary)';
     }
     function renderQR() {
@@ -490,10 +511,10 @@
     function recognitionLang(){ return currentDirection().source==='tr' ? 'tr-TR' : 'en-US'; }
     function socketOpen(){ return socket && socket.readyState===WebSocket.OPEN; }
 
+    let captureStarted = false;
     function startBroadcast() {
       if (!currentEventCode) return;
-      if (!speechSupported()) { toast('Bu tarayıcı konuşma tanımayı desteklemiyor. Chrome/Edge kullanın.'); return; }
-      manualStop=false; openHostSocket();
+      manualStop=false; captureStarted=false; openHostSocket();
     }
     function openHostSocket() {
       const proto = location.protocol==='https:'?'wss:':'ws:';
@@ -504,17 +525,18 @@
         document.getElementById('btn-start').style.display='none';
         document.getElementById('btn-stop').style.display='inline-flex';
         document.getElementById('qr-hero').classList.add('recording');
-        setStatus('Dinleniyor…',{live:true});
-        startRecognition();
+        setStatus('Başlatılıyor…',{live:true});
         clearInterval(window.pingInterval);
         window.pingInterval = setInterval(()=>{ if (socketOpen()) socket.send(JSON.stringify({type:'ping'})); },25000);
+        // Capture starts once the server tells us which engine is active (config).
       };
       socket.onmessage = (e) => {
         try { const m = JSON.parse(e.data);
-          if (m.type==='participants') document.getElementById('participant-count-val').textContent=m.count;
-          else if (m.type==='status' && typeof m.deepl==='boolean') setDeeplStatus(m.deepl);
-          else if (m.type==='service' && typeof m.deepl==='boolean') setDeeplStatus(m.deepl);
-          else if (m.type==='reconnecting') setDeeplStatus(false,true);
+          if (m.type==='participants') { document.getElementById('participant-count-val').textContent=m.count; }
+          else if (m.type==='config') { activeEngine = m.engine || 'deepl'; startCapture(); }
+          else if (m.type==='status') { if (typeof m.connected==='boolean') setDeeplStatus(m.connected); }
+          else if (m.type==='service') { if (typeof m.connected==='boolean') setDeeplStatus(m.connected); }
+          else if (m.type==='reconnecting') { setDeeplStatus(false,true); }
         } catch(x){}
       };
       socket.onclose = () => {
@@ -559,8 +581,59 @@
     function clearSilenceTimer(){ if (silenceTimer){ clearTimeout(silenceTimer); silenceTimer=null; } }
     function stopRecognition(){ clearSilenceTimer(); if (recognition){ try{ recognition.onend=null; recognition.stop(); }catch(e){} recognition=null; } recognizing=false; }
     function restartRecognition(){ if (!recognizing) return; stopRecognition(); startRecognition(); }
+
+    // Start the right capture path once the server reports the active engine.
+    function startCapture() {
+      if (captureStarted) return; // don't double-start on socket reconnect
+      captureStarted = true;
+      if (activeEngine === 'openai') {
+        startAudioCapture()
+          .then(()=> setStatus('Dinleniyor…',{live:true}))
+          .catch(()=>{ toast('Mikrofon erişimi reddedildi'); stopBroadcast(); });
+      } else {
+        if (!speechSupported()) {
+          toast('Bu tarayıcı konuşma tanımayı desteklemiyor. OpenAI motorunu seçin ya da Chrome/Edge kullanın.');
+          stopBroadcast(); return;
+        }
+        setStatus('Dinleniyor…',{live:true});
+        startRecognition();
+      }
+    }
+
+    // ── OpenAI engine: raw PCM16 @24kHz audio streaming ───────────────────
+    function downsample(buf, from, to){ if (to>=from) return buf; const r=from/to, n=Math.floor(buf.length/r), out=new Float32Array(n); for (let i=0;i<n;i++) out[i]=buf[Math.floor(i*r)]; return out; }
+    function floatToPCM16(f32){ const i16=new Int16Array(f32.length); for (let i=0;i<f32.length;i++){ const s=Math.max(-1,Math.min(1,f32[i])); i16[i]=s<0?s*0x8000:s*0x7FFF; } return i16; }
+    async function startAudioCapture(){
+      const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true, channelCount:1 }, video:false });
+      window._micStream = stream;
+      const ctx = new (window.AudioContext||window.webkitAudioContext)({ sampleRate:24000 });
+      window._audioCtx = ctx;
+      const src = ctx.createMediaStreamSource(stream); window._src = src;
+      const proc = ctx.createScriptProcessor(4096,1,1); window._proc = proc;
+      const silent = ctx.createGain(); silent.gain.value = 0.00001; window._silent = silent;
+      src.connect(proc); proc.connect(silent); silent.connect(ctx.destination);
+      document.getElementById('mic-level-container').style.display = 'block';
+      proc.onaudioprocess = (e) => {
+        if (!socketOpen()) return;
+        const f32 = e.inputBuffer.getChannelData(0);
+        let sum=0; for (let i=0;i<f32.length;i++) sum+=f32[i]*f32[i];
+        document.getElementById('mic-level-bar').style.width = Math.min(100,(Math.sqrt(sum/f32.length)/0.3)*100)+'%';
+        const data = ctx.sampleRate===24000 ? f32 : downsample(f32, ctx.sampleRate, 24000);
+        socket.send(floatToPCM16(data).buffer);
+      };
+    }
+    function stopAudioCapture(){
+      if (window._proc){ try{window._proc.disconnect();}catch(e){} window._proc=null; }
+      if (window._silent){ try{window._silent.disconnect();}catch(e){} window._silent=null; }
+      if (window._src){ try{window._src.disconnect();}catch(e){} window._src=null; }
+      if (window._micStream){ window._micStream.getTracks().forEach(t=>t.stop()); window._micStream=null; }
+      if (window._audioCtx){ try{window._audioCtx.close();}catch(e){} window._audioCtx=null; }
+      document.getElementById('mic-level-container').style.display='none';
+    }
+
     function stopBroadcast() {
-      manualStop=true; clearInterval(window.pingInterval); stopRecognition();
+      manualStop=true; captureStarted=false; clearInterval(window.pingInterval);
+      stopRecognition(); stopAudioCapture();
       try{ if (socketOpen()) socket.send(JSON.stringify({type:'stop'})); }catch(e){}
       if (socket){ socket.close(); socket=null; }
       setStatus('Yayın durduruldu');
@@ -671,7 +744,9 @@
     }
 
     // ── Settings ──────────────────────────────────────────────────────────
+    let voiceEngine = 'deepl';
     function applyCfg(cfg) {
+      voiceEngine = cfg.voice_engine === 'openai' ? 'openai' : 'deepl';
       flushCfg = {
         flush_on_punctuation: cfg.flush_on_punctuation !== false,
         max_words: Math.max(0, Number(cfg.max_words) || 0),
@@ -679,6 +754,7 @@
       };
     }
     function fillSettingsForm() {
+      const e = document.getElementById('set-engine'); if (e) e.value = voiceEngine;
       const p = document.getElementById('set-punct'); if (!p) return;
       p.checked = flushCfg.flush_on_punctuation;
       document.getElementById('set-maxwords').value = flushCfg.max_words;
@@ -686,13 +762,15 @@
     }
     async function loadSettings(useDefaults) {
       try {
-        const cfg = useDefaults ? { flush_on_punctuation:true, max_words:12, silence_ms:500 }
+        const cfg = useDefaults ? { voice_engine:'deepl', flush_on_punctuation:true, max_words:12, silence_ms:500 }
                                 : await (await api('/api/settings')).json();
         applyCfg(cfg); fillSettingsForm();
       } catch (e) { /* keep current cfg */ }
     }
     async function saveSettings() {
+      const engEl = document.getElementById('set-engine');
       const body = {
+        voice_engine: engEl ? engEl.value : voiceEngine,
         flush_on_punctuation: document.getElementById('set-punct').checked,
         max_words: parseInt(document.getElementById('set-maxwords').value, 10) || 0,
         silence_ms: parseInt(document.getElementById('set-silence').value, 10) || 500,
