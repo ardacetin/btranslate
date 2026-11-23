@@ -41,7 +41,8 @@ Participants  ── live tentative text → final text → optional translated 
 | STT          | Browser Web Speech API (Chrome/Edge)         |
 | Translation  | DeepL text API `/v2/translate` (server-side) |
 | TTS (opt.)   | Browser SpeechSynthesis on participants      |
-| Frontend     | Vanilla HTML/CSS/JS (preserved)              |
+| Admin panel  | React + [BoardUI](https://github.com/BoardUI/boardui) (React Aria, Tailwind v4), built with Vite |
+| Public pages | Plain HTML/CSS/JS styled with BoardUI tokens (no bundle on phones) |
 | Auth         | JWT (`jsonwebtoken`) + `bcryptjs`            |
 
 ### Project structure
@@ -70,7 +71,13 @@ src/
     migrate.js              # `npm run migrate`
     migrations/001_init.sql
   utils/                    # logger (never logs audio/transcripts), asyncHandler, csv, time (UTC ↔ APP_TIMEZONE), lifecycle (graceful shutdown)
-frontend/                   # index.html, host.html, participant.html, styles.css, lang.js, vendor/qrcode.min.js
+frontend/                   # index.html, participant.html, styles.css, lang.js, fonts/ (Inter)
+  panel/                    # BUILT admin panel (committed output of panel/ — don't edit)
+panel/                      # admin panel source (served at /host)
+  src/components/           # BoardUI components (source, MIT — see LICENSE-BoardUI)
+  src/styles/               # BoardUI tokens + type scale; src/index.css re-tints accent to maroon
+  src/lib/                  # api client, broadcast controller (WS, speech, audio), helpers
+  src/app/                  # shell, login, views (broadcast, history, users, logs, settings)
 .env.example
 ```
 
@@ -92,6 +99,27 @@ npm install --production
 npm run migrate
 npm start
 ```
+
+### Admin panel (BoardUI)
+
+The `/host` admin panel is a React app built from BoardUI components
+(`panel/`). Its **build output is committed** to `frontend/panel/`, so the
+server needs no build tools — deploys stay `git pull` + restart. After changing
+anything under `panel/`:
+
+```bash
+npm install               # dev dependencies (Vite, React, Tailwind, BoardUI deps)
+npm run build:panel       # → frontend/panel/
+npm run typecheck:panel   # optional
+```
+
+Commit the rebuilt `frontend/panel/` together with the source change. For live
+editing run `npm run dev` (API on :3000) and `npm run dev:panel`, then open
+`http://localhost:5173/static/panel/`.
+
+The landing and participant pages stay plain HTML/JS for speed on phones and use
+the same BoardUI tokens (neutral palette, Inter, radii, shadows) and the same
+maroon accent ramp (`frontend/styles.css`, `panel/src/index.css`).
 
 **First admin login:** the first `npm run migrate` creates the `admin` account.
 If `ADMIN_PASSWORD` is set (min. 8 characters, not `admin123`) it is used;
@@ -186,7 +214,7 @@ Backend-generated, from **final** segments, with `time / original / translation`
 - Parameterized SQL (`mysql2` `execute`) everywhere; input validation on all routes.
 - Text is rendered with `innerText` / escaped HTML (no XSS). A Content-Security-Policy,
   `Permissions-Policy`, HSTS (on HTTPS) and `nosniff` are sent; `X-Powered-By` is off.
-  The admin page loads no third-party scripts (the QR library is self-hosted).
+  The admin page loads nothing from third parties (all code and fonts are bundled).
 - Host JWTs (HS256, 7 days) are checked against the database on every request
   and WebSocket: deleted/disabled users and tokens issued before a password change
   are rejected immediately. The host WebSocket authenticates with its **first

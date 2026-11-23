@@ -11,7 +11,10 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "migrate": "node src/db/migrate.js",
-    "set-admin-password": "node src/db/set-admin-password.js"
+    "set-admin-password": "node src/db/set-admin-password.js",
+    "build:panel": "vite build --config panel/vite.config.ts",
+    "dev:panel": "vite --config panel/vite.config.ts",
+    "typecheck:panel": "tsc -p panel"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -22,5 +25,23 @@
     "mysql2": "^3.11.0",
     "ws": "^8.18.0"
   },
-  "license": "CC-BY-NC-SA-4.0"
+  "license": "CC-BY-NC-SA-4.0",
+  "devDependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@remixicon/react": "^4.9.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "motion": "^12.43.0",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.4",
+    "react-aria-components": "^1.22.1",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^3.7.1",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.8"
+  }
 }

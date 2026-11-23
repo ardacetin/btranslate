@@ -131,10 +131,21 @@ app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
 // ── Static frontend (preserved from the original project) ──────────────────
 const frontendDir = path.join(__dirname, '..', 'frontend');
+// Admin panel bundle (built from panel/ with `npm run build:panel`). Asset file
+// names are content-hashed, so they can be cached for a year.
+app.use('/static/panel/assets', express.static(path.join(frontendDir, 'panel', 'assets'), {
+  immutable: true,
+  maxAge: '365d',
+  fallthrough: false,
+}));
 app.use('/static', express.static(frontendDir));
 
 app.get('/', (req, res) => res.sendFile(path.join(frontendDir, 'index.html')));
-app.get('/host', (req, res) => res.sendFile(path.join(frontendDir, 'host.html')));
+app.get('/host', (req, res) => {
+  // Always revalidate the shell so a new deploy's hashed assets are picked up.
+  res.setHeader('Cache-Control', 'no-cache');
+  res.sendFile(path.join(frontendDir, 'panel', 'index.html'));
+});
 app.get('/participant', (req, res) => res.sendFile(path.join(frontendDir, 'participant.html')));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 app.get('/healthz', (req, res) => res.json({ status: 'ok' }));

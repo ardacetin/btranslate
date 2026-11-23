@@ -1,0 +1,31 @@
+@import "./styles/globals.css";
+
+/* ---------------------------------------------------------------------------
+ * BTranslate brand on top of BoardUI.
+ *
+ * BoardUI routes every interactive / selection surface (primary button,
+ * focus ring, switch, selected nav row, ghost buttons…) through the
+ * accent-50…950 ramp, so re-tinting the whole system to Beykoz maroon
+ * (#7A2021 = accent-600) is just these eleven tokens.
+ * --------------------------------------------------------------------------- */
+@theme {
+  --color-accent-50:  #fbf3f3;
+  --color-accent-100: #f6e5e5;
+  --color-accent-200: #ecc9c9;
+  --color-accent-300: #dca1a1;
+  --color-accent-400: #c46c6b;
+  --color-accent-500: #9c3133;
+  --color-accent-600: #7a2021;
+  --color-accent-700: #63191a;
+  --color-accent-800: #4f1415;
+  --color-accent-900: #3c0f10;
+  --color-accent-950: #250809;
+}
+
+/* Inter is bundled (@fontsource-variable/inter), not loaded from Google. */
+:root {
+  --font-inter: "Inter Variable";
+  --font-mono-source: ui-monospace;
+}
+
+html, body, #root { height: 100%; }
