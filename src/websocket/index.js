@@ -2,7 +2,7 @@
 
 const { WebSocketServer } = require('ws');
 const { URL } = require('url');
-const { verifyToken } = require('../middleware/auth');
+const { authenticateToken, AuthError } = require('../middleware/auth');
 const { isValidLanguage } = require('../config/languages');
 const { registerHost, registerParticipant } = require('./handlers');
 const logger = require('../utils/logger');
@@ -62,21 +62,27 @@ function attachWebSocket(server) {
     }
 
     if (role === 'host') {
+      // Same check as the REST API: the account must still exist, be active
+      // and the token must not have been revoked by a password change.
       const token = url.searchParams.get('token');
-      let claims;
-      try {
-        claims = verifyToken(token);
-      } catch (e) {
-        logger.warn('Rejected host WS: invalid token');
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        ws.isAlive = true;
-        ws.on('pong', () => { ws.isAlive = true; });
-        registerHost(ws, code, claims);
-      });
+      authenticateToken(token)
+        .then((claims) => {
+          wss.handleUpgrade(req, socket, head, (ws) => {
+            ws.isAlive = true;
+            ws.on('pong', () => { ws.isAlive = true; });
+            registerHost(ws, code, claims);
+          });
+        })
+        .catch((e) => {
+          if (e instanceof AuthError) {
+            logger.warn(`Rejected host WS: ${e.message}`);
+            socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+          } else {
+            logger.error('Host WS auth check failed', e);
+            socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n');
+          }
+          socket.destroy();
+        });
       return;
     }
 

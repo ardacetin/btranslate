@@ -60,6 +60,7 @@ src/
   services/
     deeplText.js            # DeepL /v2/translate REST client (server-side only)
     sessionManager.js       # in-memory rooms, tentative/final assembly, broadcast
+    users.js                # account queries + password/username rules
     transcript.js           # persistence of FINAL segments only
     filters.js              # hallucination / junk post-processing
   websocket/
@@ -104,6 +105,39 @@ new numbered `.sql` file in that folder and re-run `npm run migrate`.
 
 **Tables:** `sessions` (event, direction, status, timing), `transcript_segments`
 (**final segments only** — tentative text is never stored), `users`.
+
+## User management
+
+Admins manage accounts from **Panel → Kullanıcılar**:
+
+- **Create** an account with username, optional display name, password and role
+  (`admin` / `user`). Passwords must be at least 8 characters and differ from
+  the username.
+- **Edit** display name and role, or **disable** an account instead of deleting
+  it. A disabled user cannot sign in and their open sessions (including a live
+  host WebSocket attempt) are rejected immediately.
+- **Reset password** — signs the user out on every device.
+- **Delete** an account.
+- Guard rails: an admin cannot change their own role, disable or delete
+  themselves, and the last active admin can never be demoted, disabled or
+  deleted.
+- Every signed-in user can change their own password via **Parolamı Değiştir**
+  (requires the current password; other devices are signed out).
+
+Each token is checked against the database on every request, so role changes,
+disabling and password changes take effect without waiting for the 7-day token
+expiry. Locked out? `npm run set-admin-password` resets the `admin` account's
+password from `ADMIN_PASSWORD`, re-enables it and restores its admin role.
+
+| Endpoint | Who | Purpose |
+|----------|-----|---------|
+| `GET /api/users` | admin | List accounts |
+| `POST /api/users` | admin | Create `{ username, password, role, display_name }` |
+| `PATCH /api/users/:id` | admin | Update `{ display_name?, role?, is_active? }` |
+| `PUT /api/users/:id/password` | admin | Reset `{ new_password }` |
+| `DELETE /api/users/:id` | admin | Delete |
+| `GET /api/auth/me` | signed in | Current account |
+| `POST /api/auth/change-password` | signed in | `{ current_password, new_password }` → fresh token |
 
 ## Environment
 

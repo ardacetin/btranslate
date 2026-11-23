@@ -8,7 +8,8 @@
  * Why this exists: the migration seeds the admin user only once (on the first
  * `npm run migrate`). Changing ADMIN_PASSWORD in .env afterwards does NOT change
  * an already-seeded admin. Run this command to force the admin password to the
- * current ADMIN_PASSWORD value.
+ * current ADMIN_PASSWORD value. It also re-enables the account and restores
+ * its admin role, so it doubles as a lock-out recovery tool.
  *
  * Optionally pass a password directly:
  *   node src/db/set-admin-password.js "MyNewStrongPass"
@@ -37,8 +38,19 @@ async function run() {
     const hash = await bcrypt.hash(password, 10);
     const [rows] = await conn.execute('SELECT id FROM users WHERE username = ? LIMIT 1', ['admin']);
     if (rows.length) {
-      await conn.execute('UPDATE users SET password_hash = ? WHERE username = ?', [hash, 'admin']);
-      logger.info("Admin password reset from ADMIN_PASSWORD.");
+      // Recovery path: also make sure the account is an enabled admin and sign
+      // out any existing sessions. Falls back for databases that have not run
+      // migration 004 yet (no is_active / token_version columns).
+      try {
+        await conn.execute(
+          "UPDATE users SET password_hash = ?, role = 'admin', is_active = 1, token_version = token_version + 1 WHERE username = ?",
+          [hash, 'admin']
+        );
+      } catch (e) {
+        if (e.code !== 'ER_BAD_FIELD_ERROR') throw e;
+        await conn.execute("UPDATE users SET password_hash = ?, role = 'admin' WHERE username = ?", [hash, 'admin']);
+      }
+      logger.info("Admin password reset from ADMIN_PASSWORD (account enabled, role admin).");
     } else {
       await conn.execute(
         'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',

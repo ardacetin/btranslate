@@ -106,6 +106,36 @@
     .log-msg { font-family:'Courier New',monospace; font-size:.82rem; color:var(--text-primary); word-break:break-word; }
     .log-time { white-space:nowrap; color:var(--text-secondary); font-size:.8rem; }
 
+    /* Users */
+    .card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+    .card-head .muted { margin-bottom:1rem; }
+    .user-cell { display:flex; flex-direction:column; gap:.1rem; }
+    .user-cell .uname { font-weight:600; }
+    .user-cell .dname { font-size:.8rem; color:var(--text-secondary); }
+    .badge-self { font-size:.66rem; font-weight:700; padding:.1rem .45rem; border-radius:999px; background:var(--surface-2); color:var(--text-secondary); border:1px solid var(--border-color); margin-left:.35rem; vertical-align:middle; }
+    .badge-status { display:inline-flex; align-items:center; gap:.35rem; font-size:.74rem; font-weight:600; }
+    .badge-status::before { content:''; width:7px; height:7px; border-radius:50%; background:currentColor; }
+    .st-active { color:var(--success-color); }
+    .st-disabled { color:var(--text-muted); }
+    tr.is-disabled .uname, tr.is-disabled .dname { color:var(--text-muted); }
+    .pw-row { display:flex; gap:.4rem; }
+    .pw-row input { flex:1; min-width:0; }
+    .hint { font-size:.75rem; color:var(--text-muted); }
+    .form-error { color:var(--danger-color); font-size:.85rem; min-height:1.2em; margin-top:.75rem; }
+
+    /* Modal */
+    .modal-backdrop { position:fixed; inset:0; background:rgba(28,25,23,.45); display:flex; align-items:center; justify-content:center; padding:1rem; z-index:2500; }
+    .modal-backdrop[hidden] { display:none; }
+    .modal { width:100%; max-width:440px; background:var(--surface-color); border:1px solid var(--border-color); border-radius:var(--r-lg); box-shadow:var(--shadow-lg); padding:1.5rem; animation:fadeIn .15s var(--ease); max-height:calc(100vh - 2rem); overflow-y:auto; }
+    .modal h2 { font-size:1.1rem; margin-bottom:.3rem; }
+    .modal .muted { color:var(--text-secondary); font-size:.88rem; margin-bottom:1.1rem; }
+    .modal .field { margin-bottom:.9rem; }
+    .modal .field input, .modal .field select { width:100%; }
+    .modal-actions { display:flex; justify-content:flex-end; gap:.6rem; margin-top:.5rem; }
+    .modal-actions .btn-danger { color:#fff; }
+    .check-row { display:flex; align-items:center; gap:.6rem; font-size:.92rem; cursor:pointer; }
+    .check-row input { width:18px; height:18px; }
+
     .empty { text-align:center; color:var(--text-muted); padding:2.5rem 1rem; font-size:.92rem; }
     .toast { position:fixed; bottom:1.25rem; right:1.25rem; background:#221c1a; color:#fff; padding:.8rem 1.1rem; border-radius:10px; font-size:.88rem; box-shadow:var(--shadow-lg); opacity:0; transform:translateY(10px); transition:all .25s; z-index:3000; }
     .toast.show { opacity:1; transform:translateY(0); }
@@ -114,7 +144,8 @@
       .admin { grid-template-columns:1fr; }
       .sidebar { position:static; height:auto; flex-direction:row; flex-wrap:wrap; align-items:center; gap:.25rem; }
       .sidebar .brand { padding:.4rem .5rem; width:100%; }
-      .sidebar .spacer, .side-foot, .side-user { display:none; }
+      .sidebar .spacer, .side-user { display:none; }
+      .side-foot { display:flex; flex-wrap:wrap; gap:.25rem; border:none; padding:0; margin:0; }
       .nav-item { width:auto; margin:0; }
       .broadcast-grid { grid-template-columns:1fr; }
     }
@@ -162,6 +193,10 @@
       <div class="spacer"></div>
       <div class="side-foot">
         <div class="side-user">Oturum: <b id="side-username">—</b> <span id="side-role" class="badge-role role-user"></span></div>
+        <button class="nav-item" onclick="openChangeOwnPassword()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          Parolamı Değiştir
+        </button>
         <button class="nav-item" onclick="logout()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           Çıkış Yap
@@ -280,23 +315,28 @@
         <section id="view-users" class="view">
           <div class="card">
             <h2>Kullanıcı Ekle</h2>
-            <p class="muted">Yeni yönetici veya standart kullanıcı oluşturun.</p>
-            <div class="row-inline">
-              <div class="field"><label>Kullanıcı adı</label><input type="text" id="nu-user" placeholder="kullanici_adi"></div>
-              <div class="field"><label>Parola</label><input type="password" id="nu-pass" placeholder="••••••"></div>
-              <div class="field"><label>Rol</label>
+            <p class="muted">Yeni yönetici veya yayıncı hesabı oluşturun. Parola en az 8 karakter olmalı ve kullanıcı adıyla aynı olmamalı.</p>
+            <form class="row-inline" onsubmit="createUser(event)" autocomplete="off">
+              <div class="field"><label for="nu-user">Kullanıcı adı</label><input type="text" id="nu-user" placeholder="kullanici_adi" required minlength="3" maxlength="64" pattern="[A-Za-z0-9_.\-]{3,64}" title="3-64 karakter: harf, rakam, . _ -" autocomplete="off"></div>
+              <div class="field"><label for="nu-name">Ad Soyad <span style="text-transform:none;font-weight:500;">(isteğe bağlı)</span></label><input type="text" id="nu-name" placeholder="Ad Soyad" maxlength="128"></div>
+              <div class="field"><label for="nu-pass">Parola</label>
+                <div class="pw-row"><input type="password" id="nu-pass" placeholder="En az 8 karakter" required minlength="8" autocomplete="new-password" style="width:170px;"><button type="button" class="btn-sm btn-ghost-sm" onclick="generateInto('nu-pass')" title="Rastgele güçlü parola üret">Üret</button></div>
+              </div>
+              <div class="field"><label for="nu-role">Rol</label>
                 <select id="nu-role"><option value="user">Kullanıcı</option><option value="admin">Yönetici</option></select>
               </div>
-              <button class="btn-primary" style="align-self:flex-end;" onclick="createUser()">Ekle</button>
-            </div>
+              <button type="submit" class="btn-primary" style="align-self:flex-end;">Ekle</button>
+            </form>
           </div>
           <div class="card">
-            <h2>Kullanıcılar</h2>
-            <p class="muted">Parola değiştir veya kullanıcıyı sil.</p>
+            <div class="card-head">
+              <div><h2>Kullanıcılar</h2><p class="muted" id="users-sub">Düzenle, parola sıfırla, devre dışı bırak veya sil.</p></div>
+              <input type="search" id="users-search" placeholder="Ara…" oninput="renderUsers()" style="max-width:220px;" aria-label="Kullanıcı ara">
+            </div>
             <div class="tbl-wrap">
               <table class="tbl">
-                <thead><tr><th>Kullanıcı</th><th>Rol</th><th>Oluşturulma</th><th>İşlemler</th></tr></thead>
-                <tbody id="users-body"><tr><td colspan="4" class="empty">Yükleniyor…</td></tr></tbody>
+                <thead><tr><th>Kullanıcı</th><th>Rol</th><th>Durum</th><th>Son giriş</th><th>Oluşturulma</th><th>İşlemler</th></tr></thead>
+                <tbody id="users-body"><tr><td colspan="6" class="empty">Yükleniyor…</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -385,6 +425,21 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="modal" hidden onclick="if(event.target===this)closeModal()">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title"></h2>
+      <p class="muted" id="modal-desc"></p>
+      <form id="modal-form" novalidate>
+        <div id="modal-body"></div>
+        <div class="form-error" id="modal-error" role="alert"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="closeModal()">Vazgeç</button>
+          <button type="submit" class="btn-primary" id="modal-submit">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -398,8 +453,82 @@
       return res;
     }
     function esc(s){ const d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+    function escAttr(s){ return esc(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+    // Server error codes → Turkish messages (falls back to the server text).
+    const ERR_TR = {
+      invalid_username:'Geçersiz kullanıcı adı (3-64 karakter: harf, rakam, . _ -)',
+      password_too_short:'Parola en az 8 karakter olmalı',
+      password_too_long:'Parola çok uzun (en fazla 72 bayt)',
+      password_equals_username:'Parola kullanıcı adıyla aynı olamaz',
+      username_taken:'Bu kullanıcı adı zaten kayıtlı',
+      not_found:'Kullanıcı bulunamadı',
+      invalid_id:'Geçersiz kayıt', invalid_role:'Geçersiz rol', invalid_status:'Geçersiz durum',
+      self_role:'Kendi rolünüzü değiştiremezsiniz',
+      self_disable:'Kendi hesabınızı devre dışı bırakamazsınız',
+      self_delete:'Kendinizi silemezsiniz',
+      last_admin:'En az bir aktif yönetici kalmalı',
+      wrong_current_password:'Mevcut parola hatalı',
+      password_unchanged:'Yeni parola mevcut paroladan farklı olmalı',
+      account_disabled:'Bu hesap devre dışı bırakılmış. Bir yöneticiye başvurun.',
+    };
+    async function apiJson(path, opts = {}) {
+      const res = await api(path, opts);
+      let d = {}; try { d = await res.json(); } catch (e) {}
+      if (!res.ok) throw new Error(ERR_TR[d.code] || d.error || 'İşlem başarısız');
+      return d;
+    }
+    const jsonBody = (obj, method) => ({ method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(obj) });
+    function fmtDate(v) {
+      if (!v) return '';
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? '' : d.toLocaleString('tr-TR', { dateStyle:'short', timeStyle:'short' });
+    }
+    function randomPassword(len = 14) {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*?';
+      const buf = new Uint32Array(len); crypto.getRandomValues(buf);
+      return Array.from(buf, n => chars[n % chars.length]).join('');
+    }
+    function generateInto(...ids) {
+      const pw = randomPassword();
+      ids.forEach(id => { const el=document.getElementById(id); if (el) { el.value=pw; el.type='text'; } });
+      navigator.clipboard?.writeText(pw).then(()=>toast('Parola üretildi ve panoya kopyalandı'), ()=>toast('Parola üretildi'));
+    }
+
+    // ── Modal ─────────────────────────────────────────────────────────────
+    let modalSubmit = null, modalReturnFocus = null;
+    function openModal({ title, desc = '', body = '', submitLabel = 'Kaydet', danger = false, onSubmit }) {
+      modalReturnFocus = document.activeElement;
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-desc').textContent = desc;
+      document.getElementById('modal-desc').style.display = desc ? '' : 'none';
+      document.getElementById('modal-body').innerHTML = body;
+      document.getElementById('modal-error').textContent = '';
+      const btn = document.getElementById('modal-submit');
+      btn.textContent = submitLabel; btn.disabled = false;
+      btn.classList.toggle('btn-danger', danger);
+      modalSubmit = onSubmit;
+      document.getElementById('modal').hidden = false;
+      const first = document.querySelector('#modal-body input:not([disabled]), #modal-body select:not([disabled])') || btn;
+      setTimeout(() => first.focus(), 30);
+    }
+    function closeModal() {
+      document.getElementById('modal').hidden = true;
+      modalSubmit = null;
+      if (modalReturnFocus && modalReturnFocus.focus) modalReturnFocus.focus();
+    }
+    document.getElementById('modal-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!modalSubmit) return;
+      const btn = document.getElementById('modal-submit'), errEl = document.getElementById('modal-error');
+      btn.disabled = true; errEl.textContent = '';
+      try { await modalSubmit(); closeModal(); }
+      catch (err) { errEl.textContent = err.message; btn.disabled = false; }
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.getElementById('modal').hidden) closeModal(); });
 
     // ── Auth ──────────────────────────────────────────────────────────────
+    let currentUser = null; // { id, username, display_name, role }
     async function checkAuth() {
       if (!T()) return;
       try {
@@ -409,7 +538,9 @@
         localStorage.setItem('bt_role', d.role);
         document.getElementById('login-panel').style.display = 'none';
         document.getElementById('app-panel').style.display = 'grid';
-        document.getElementById('side-username').textContent = localStorage.getItem('bt_user') || 'admin';
+        currentUser = d;
+        localStorage.setItem('bt_user', d.username);
+        document.getElementById('side-username').textContent = d.display_name || d.username;
         const roleEl = document.getElementById('side-role');
         roleEl.textContent = d.role === 'admin' ? 'Yönetici' : 'Kullanıcı';
         roleEl.className = 'badge-role ' + (d.role==='admin'?'role-admin':'role-user');
@@ -430,11 +561,11 @@
       const body = new URLSearchParams(); body.append('username',u); body.append('password',p);
       try {
         const res = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body });
-        if (!res.ok) throw new Error('Hatalı kullanıcı adı veya parola');
-        const d = await res.json();
+        const d = await res.json().catch(()=>({}));
+        if (!res.ok) throw new Error(ERR_TR[d.code] || (res.status===429 ? 'Çok fazla deneme. Lütfen daha sonra tekrar deneyin.' : 'Hatalı kullanıcı adı veya parola'));
         localStorage.setItem('bt_token', d.access_token);
         localStorage.setItem('bt_role', d.role);
-        localStorage.setItem('bt_user', u);
+        localStorage.setItem('bt_user', d.username || u);
         location.reload();
       } catch(e) { document.getElementById('login-error').textContent = e.message; }
     }
@@ -747,37 +878,124 @@
     }
 
     // ── Users ─────────────────────────────────────────────────────────────
+    let usersCache = [];
     async function loadUsers() {
-      const tb=document.getElementById('users-body'); tb.innerHTML='<tr><td colspan="4" class="empty">Yükleniyor…</td></tr>';
-      try {
-        const users = await (await api('/api/users')).json();
-        tb.innerHTML = users.map(u=>{
-          const created = u.created_at ? String(u.created_at).replace('T',' ').slice(0,16) : '';
-          const actions = u.username==='admin'
-            ? `<div class="row-inline"><input type="password" id="pw-${u.id}" placeholder="Yeni parola" style="width:130px;"><button class="btn-sm btn-accent" onclick="updatePassword(${u.id})">Parola</button></div>`
-            : `<div class="row-inline"><input type="password" id="pw-${u.id}" placeholder="Yeni parola" style="width:130px;"><button class="btn-sm btn-accent" onclick="updatePassword(${u.id})">Parola</button><button class="btn-sm btn-danger" onclick="deleteUser(${u.id},'${esc(u.username)}')">Sil</button></div>`;
-          return `<tr><td style="font-weight:600;">${esc(u.username)}</td><td><span class="badge-role ${u.role==='admin'?'role-admin':'role-user'}">${u.role==='admin'?'Yönetici':'Kullanıcı'}</span></td><td class="log-time">${created}</td><td>${actions}</td></tr>`;
-        }).join('');
-      } catch(e){ tb.innerHTML='<tr><td colspan="4" class="empty">Yüklenemedi.</td></tr>'; }
+      const tb=document.getElementById('users-body'); tb.innerHTML='<tr><td colspan="6" class="empty">Yükleniyor…</td></tr>';
+      try { usersCache = await apiJson('/api/users'); renderUsers(); }
+      catch(e){ tb.innerHTML='<tr><td colspan="6" class="empty">Yüklenemedi.</td></tr>'; }
     }
-    async function createUser() {
-      const u=document.getElementById('nu-user').value.trim(), p=document.getElementById('nu-pass').value, role=document.getElementById('nu-role').value;
-      if (!u||!p) return toast('Kullanıcı adı ve parola gerekli');
+    function renderUsers() {
+      const tb = document.getElementById('users-body');
+      const q = (document.getElementById('users-search').value || '').trim().toLocaleLowerCase('tr');
+      const active = usersCache.filter(u=>u.is_active).length, admins = usersCache.filter(u=>u.role==='admin'&&u.is_active).length;
+      document.getElementById('users-sub').textContent = `${usersCache.length} kullanıcı · ${active} aktif · ${admins} aktif yönetici`;
+      const rows = usersCache.filter(u => !q || u.username.toLocaleLowerCase('tr').includes(q) || (u.display_name||'').toLocaleLowerCase('tr').includes(q));
+      if (!rows.length) { tb.innerHTML = `<tr><td colspan="6" class="empty">${q?'Eşleşen kullanıcı yok.':'Kullanıcı yok.'}</td></tr>`; return; }
+      tb.innerHTML = rows.map(u => {
+        const self = currentUser && u.id === currentUser.id;
+        const actions = `<div class="row-inline">
+            <button class="btn-sm btn-ghost-sm" onclick="openEditUser(${u.id})">Düzenle</button>
+            <button class="btn-sm btn-accent" onclick="${self?'openChangeOwnPassword()':`openResetPassword(${u.id})`}">Parola</button>
+            ${self?'':`<button class="btn-sm btn-danger" onclick="openDeleteUser(${u.id})">Sil</button>`}
+          </div>`;
+        return `<tr class="${u.is_active?'':'is-disabled'}">
+          <td><div class="user-cell"><span class="uname">${esc(u.username)}${self?'<span class="badge-self">Siz</span>':''}</span>${u.display_name?`<span class="dname">${esc(u.display_name)}</span>`:''}</div></td>
+          <td><span class="badge-role ${u.role==='admin'?'role-admin':'role-user'}">${u.role==='admin'?'Yönetici':'Kullanıcı'}</span></td>
+          <td><span class="badge-status ${u.is_active?'st-active':'st-disabled'}">${u.is_active?'Aktif':'Devre dışı'}</span></td>
+          <td class="log-time">${fmtDate(u.last_login_at) || 'Hiç'}</td>
+          <td class="log-time">${fmtDate(u.created_at)}</td>
+          <td>${actions}</td></tr>`;
+      }).join('');
+    }
+    const findUser = (id) => usersCache.find(u => u.id === id);
+
+    async function createUser(ev) {
+      ev.preventDefault();
+      const userEl=document.getElementById('nu-user'), nameEl=document.getElementById('nu-name'), passEl=document.getElementById('nu-pass');
+      const username=userEl.value.trim(), password=passEl.value, role=document.getElementById('nu-role').value;
+      if (!/^[A-Za-z0-9_.-]{3,64}$/.test(username)) return toast(ERR_TR.invalid_username);
+      if (password.length < 8) return toast(ERR_TR.password_too_short);
       try {
-        const res = await api('/api/users',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u,password:p,role}) });
-        if (!res.ok){ const err=await res.json(); throw new Error(err.error||'Hata'); }
-        document.getElementById('nu-user').value=''; document.getElementById('nu-pass').value='';
-        toast('Kullanıcı eklendi'); loadUsers();
+        await apiJson('/api/users', jsonBody({ username, password, role, display_name:nameEl.value.trim() }, 'POST'));
+        userEl.value=''; nameEl.value=''; passEl.value=''; passEl.type='password'; document.getElementById('nu-role').value='user';
+        toast(`"${username}" eklendi`); loadUsers();
       } catch(e){ toast(e.message); }
     }
-    async function deleteUser(id, name) {
-      if (!confirm(`"${name}" kullanıcısı silinsin mi?`)) return;
-      await api(`/api/users/${id}`,{ method:'DELETE' }); toast('Kullanıcı silindi'); loadUsers();
+
+    function openEditUser(id) {
+      const u = findUser(id); if (!u) return;
+      const self = currentUser && u.id === currentUser.id;
+      openModal({
+        title: `Kullanıcıyı düzenle: ${u.username}`,
+        desc: self ? 'Kendi rolünüzü değiştiremez ve hesabınızı devre dışı bırakamazsınız.' : 'Devre dışı bırakılan kullanıcı giriş yapamaz ve açık oturumları hemen kapanır.',
+        body: `
+          <div class="field"><label for="ed-name">Ad Soyad</label><input type="text" id="ed-name" maxlength="128" value="${escAttr(u.display_name)}"></div>
+          <div class="field"><label for="ed-role">Rol</label>
+            <select id="ed-role" ${self?'disabled':''}><option value="user" ${u.role==='user'?'selected':''}>Kullanıcı</option><option value="admin" ${u.role==='admin'?'selected':''}>Yönetici</option></select></div>
+          <label class="check-row"><input type="checkbox" id="ed-active" ${u.is_active?'checked':''} ${self?'disabled':''}> Hesap aktif</label>`,
+        onSubmit: async () => {
+          const patch = { display_name: document.getElementById('ed-name').value.trim() };
+          if (!self) { patch.role = document.getElementById('ed-role').value; patch.is_active = document.getElementById('ed-active').checked; }
+          await apiJson(`/api/users/${id}`, jsonBody(patch, 'PATCH'));
+          toast('Kullanıcı güncellendi');
+          if (self) checkAuth();
+          loadUsers();
+        },
+      });
     }
-    async function updatePassword(id) {
-      const pw=document.getElementById('pw-'+id).value; if (!pw) return toast('Yeni parola girin');
-      await api(`/api/users/${id}/password`,{ method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({new_password:pw}) });
-      toast('Parola güncellendi'); loadUsers();
+
+    function openResetPassword(id) {
+      const u = findUser(id); if (!u) return;
+      openModal({
+        title: `Parola sıfırla: ${u.username}`,
+        desc: 'Yeni parola belirlendiğinde kullanıcının tüm açık oturumları kapatılır.',
+        body: `
+          <div class="field"><label for="rp-new">Yeni parola</label>
+            <div class="pw-row"><input type="password" id="rp-new" minlength="8" autocomplete="new-password" placeholder="En az 8 karakter"><button type="button" class="btn-sm btn-ghost-sm" onclick="generateInto('rp-new','rp-confirm')">Üret</button></div></div>
+          <div class="field"><label for="rp-confirm">Yeni parola (tekrar)</label><input type="password" id="rp-confirm" autocomplete="new-password"></div>`,
+        submitLabel: 'Parolayı Sıfırla',
+        onSubmit: async () => {
+          const pw = document.getElementById('rp-new').value;
+          if (pw.length < 8) throw new Error(ERR_TR.password_too_short);
+          if (pw !== document.getElementById('rp-confirm').value) throw new Error('Parolalar eşleşmiyor');
+          await apiJson(`/api/users/${id}/password`, jsonBody({ new_password: pw }, 'PUT'));
+          toast('Parola sıfırlandı'); loadUsers();
+        },
+      });
+    }
+
+    function openDeleteUser(id) {
+      const u = findUser(id); if (!u) return;
+      openModal({
+        title: `"${u.username}" silinsin mi?`,
+        desc: 'Bu işlem geri alınamaz. Sadece erişimi kesmek istiyorsanız kullanıcıyı silmek yerine devre dışı bırakın.',
+        submitLabel: 'Sil', danger: true,
+        onSubmit: async () => {
+          await apiJson(`/api/users/${id}`, { method:'DELETE' });
+          toast('Kullanıcı silindi'); loadUsers();
+        },
+      });
+    }
+
+    function openChangeOwnPassword() {
+      openModal({
+        title: 'Parolamı Değiştir',
+        desc: 'Parolanız değiştiğinde diğer cihazlardaki oturumlarınız kapatılır; bu sekmede oturumunuz açık kalır.',
+        body: `
+          <div class="field"><label for="cp-current">Mevcut parola</label><input type="password" id="cp-current" autocomplete="current-password"></div>
+          <div class="field"><label for="cp-new">Yeni parola</label><input type="password" id="cp-new" minlength="8" autocomplete="new-password" placeholder="En az 8 karakter"></div>
+          <div class="field"><label for="cp-confirm">Yeni parola (tekrar)</label><input type="password" id="cp-confirm" autocomplete="new-password"></div>`,
+        submitLabel: 'Değiştir',
+        onSubmit: async () => {
+          const current = document.getElementById('cp-current').value, pw = document.getElementById('cp-new').value;
+          if (!current) throw new Error('Mevcut parolanızı girin');
+          if (pw.length < 8) throw new Error(ERR_TR.password_too_short);
+          if (pw !== document.getElementById('cp-confirm').value) throw new Error('Parolalar eşleşmiyor');
+          const d = await apiJson('/api/auth/change-password', jsonBody({ current_password: current, new_password: pw }, 'POST'));
+          if (d.access_token) localStorage.setItem('bt_token', d.access_token);
+          toast('Parolanız değiştirildi');
+        },
+      });
     }
 
     // ── Logs ──────────────────────────────────────────────────────────────
