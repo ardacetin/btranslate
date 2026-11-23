@@ -64,13 +64,13 @@ src/
     transcript.js           # persistence of FINAL segments only
     filters.js              # hallucination / junk post-processing
   websocket/
-    index.js                # upgrade routing + heartbeat
+    index.js                # upgrade routing, host auth, limits, heartbeat
     handlers.js             # host & participant socket handlers
   db/
     migrate.js              # `npm run migrate`
     migrations/001_init.sql
-  utils/logger.js           # controlled logging (never logs audio/transcripts)
-frontend/                   # index.html, host.html, participant.html, styles.css, lang.js
+  utils/                    # logger (never logs audio/transcripts), asyncHandler, csv, time (UTC ↔ APP_TIMEZONE), lifecycle (graceful shutdown)
+frontend/                   # index.html, host.html, participant.html, styles.css, lang.js, vendor/qrcode.min.js
 .env.example
 ```
 
@@ -93,8 +93,13 @@ npm run migrate
 npm start
 ```
 
-Default host login after migration: **admin / `admin123`** (override with
-`ADMIN_PASSWORD` before the first migrate, and change it from the dashboard).
+**First admin login:** the first `npm run migrate` creates the `admin` account.
+If `ADMIN_PASSWORD` is set (min. 8 characters, not `admin123`) it is used;
+otherwise a strong random password is generated and **printed once** — store it.
+`npm run set-admin-password` resets it later (reads `ADMIN_PASSWORD`, or prompts).
+
+**Production refuses to start** without a `JWT_SECRET` of at least 32 characters
+(the old placeholder value is rejected too).
 
 ## Database
 
@@ -146,12 +151,17 @@ See [`.env.example`](.env.example). Key variables:
 | Variable | Description |
 |----------|-------------|
 | `PORT` | App port (behind Nginx). Never bind 80/443 directly. |
-| `DB_HOST/PORT/NAME/USER/PASSWORD` | MySQL connection. |
-| `JWT_SECRET` | Long random string for host tokens. |
+| `HOST` | Bind address, default `127.0.0.1` (Nginx proxies locally). `0.0.0.0` only for direct LAN access. |
+| `APP_TIMEZONE` | Zone for displayed times and "days" in history/logs (default `Europe/Istanbul`). The DB stores UTC. |
+| `DB_HOST/PORT/NAME/USER/PASSWORD` | MySQL connection. `DB_USER` is required (no `root` fallback). |
+| `JWT_SECRET` | **Required in production**, ≥ 32 random chars: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
+| `ADMIN_PASSWORD` | Optional initial admin password for the first migrate (else a random one is printed). |
 | `DEEPL_API_KEY` | **Server-only.** Never sent to the browser. Free keys (`…:fx`) auto-use api-free.deepl.com. |
 | `DEEPL_API_URL` | Optional REST base override (proxy). Auto-detected when empty. |
 | `ENABLE_TRANSLATED_AUDIO` | `true`/`false` — offer spoken translation (browser TTS). |
 | `FILTER_MIN_CHARS` / `FILTER_MIN_WORDS` | Reject too-short final segments. |
+| `WS_MAX_CONNECTIONS_PER_IP` | WebSocket connections per client address (default 300 — a campus can share one NAT IP). |
+| `WS_MAX_ROOMS` | Distinct event rooms open at once (default 50). |
 
 ### DeepL note
 
@@ -163,7 +173,9 @@ the live transcript is shown and translation is simply skipped.
 
 ## Transcript export
 
-Backend-generated, from **final** segments, with `time / original / translation`:
+Backend-generated, from **final** segments, with `time / original / translation`
+(times in `APP_TIMEZONE`). **Requires a host login.** CSV cells starting with
+`= + - @` are prefixed with `'` so Excel never runs them as formulas.
 
 - `GET /api/sessions/:code/export?format=txt`
 - `GET /api/sessions/:code/export?format=csv` (UTF-8 BOM for Excel)
@@ -171,12 +183,22 @@ Backend-generated, from **final** segments, with `time / original / translation`
 
 ## Security
 
-Input validation on all routes; parameterized SQL (`mysql2` `execute`) against
-injection; text is rendered with `innerText` (no HTML injection / XSS); rate
-limiting on the API and stricter limits on login; the host WebSocket requires a
-valid JWT during the upgrade handshake; participants are receive-only; the DeepL
-key never leaves the server. Logs record lifecycle/connection events only —
-**never audio content or transcript text**.
+- Parameterized SQL (`mysql2` `execute`) everywhere; input validation on all routes.
+- Text is rendered with `innerText` / escaped HTML (no XSS). A Content-Security-Policy,
+  `Permissions-Policy`, HSTS (on HTTPS) and `nosniff` are sent; `X-Powered-By` is off.
+  The admin page loads no third-party scripts (the QR library is self-hosted).
+- Host JWTs (HS256, 7 days) are checked against the database on every request
+  and WebSocket: deleted/disabled users and tokens issued before a password change
+  are rejected immediately. The host WebSocket authenticates with its **first
+  message**, so the token never appears in a URL or proxy log.
+- Participants are receive-only (only keep-alive / audio opt-in messages are
+  accepted); frames are capped at 64 KB; connections per IP and rooms are capped;
+  slow clients get back-pressure instead of growing server memory.
+- Rate limits: strict on login and password change, loose on the cheap public
+  reads the participant/landing pages poll.
+- The DeepL and OpenAI keys never leave the server. Logs record lifecycle /
+  connection events only — **never audio content or transcript text** — and
+  control characters are escaped so log lines can't be forged.
 
 ## CloudPanel deployment (btranslate.beykoz.edu.tr)
 
@@ -234,7 +256,18 @@ sudo systemctl enable --now btranslate
 sudo systemctl status btranslate  # verify
 ```
 
-After updates: `git pull && sudo systemctl restart btranslate`.
+After updates: `git pull && npm run migrate && sudo systemctl restart btranslate`.
+
+> **Upgrading from an earlier version:**
+> - Set a real `JWT_SECRET` (≥ 32 chars) and `DB_USER` in `.env` first — the
+>   server now refuses to start in production with the placeholder secret. Changing
+>   the secret signs everyone out once.
+> - Re-install the systemd unit (`sudo cp deploy/btranslate.service /etc/systemd/system/ && sudo systemctl daemon-reload`) for the new graceful-stop timeout.
+> - Times are now stored in UTC. Rows written before this change used the MySQL
+>   server's zone; if that was not UTC, older history/log times appear shifted by
+>   that offset (a one-off `UPDATE … SET created_at = CONVERT_TZ(created_at, '+03:00', '+00:00')` fixes it).
+> - Reload open host panels once: the host WebSocket protocol changed (old pages
+>   still connect, but log a deprecation warning).
 No sudo/root? Use PM2 instead: `pm2 start src/server.js --name btranslate`,
 `pm2 save`, and a `@reboot pm2 resurrect` crontab entry.
 

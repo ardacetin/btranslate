@@ -25,10 +25,16 @@ Group=beykoz-btranslate
 WorkingDirectory=/home/beykoz-btranslate/htdocs/btranslate.beykoz.edu.tr
 # Absolute path to node — replace with the output of `which node` if different.
 ExecStart=/usr/bin/node src/server.js
-# Reads PORT, DB_*, DEEPL_API_KEY, JWT_SECRET, etc. from the app's .env
+# Reads PORT, HOST, DB_*, DEEPL_API_KEY, JWT_SECRET, etc. from the app's .env
+# (in production the app refuses to start without a strong JWT_SECRET).
 Environment=NODE_ENV=production
 Restart=always
 RestartSec=3
+# SIGTERM triggers a graceful shutdown (WebSocket clients get "going away" and
+# reconnect, DB pool closed); the app forces its own exit after ~5 s, so this
+# only matters if something is badly stuck.
+KillSignal=SIGTERM
+TimeoutStopSec=15
 # Restart if it crash-loops but don't give up permanently
 StartLimitIntervalSec=0
 

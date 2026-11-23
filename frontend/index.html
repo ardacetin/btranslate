@@ -185,9 +185,9 @@
   <nav class="navbar">
     <a href="/" class="nav-brand" data-i18n="nav_title">B-Translate</a>
     <div class="lang-switcher">
-      <span class="lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')">EN</span>
-      <span>|</span>
-      <span class="lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')">TR</span>
+      <button type="button" class="lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')" aria-label="English">EN</button>
+      <span aria-hidden="true">|</span>
+      <button type="button" class="lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')" aria-label="Türkçe">TR</button>
     </div>
   </nav>
 
@@ -204,7 +204,7 @@
           <span data-i18n="card_host_btn">Log In as Host</span>
         </a>
       </div>
-      <div id="no-live" style="display:none; margin-top:0.9rem; font-size:0.9rem; color:var(--text-secondary); display:none; align-items:center; gap:0.5rem;">
+      <div id="no-live" style="display:none; margin-top:0.9rem; font-size:0.9rem; color:var(--text-secondary); align-items:center; gap:0.5rem;">
         <span style="width:8px;height:8px;border-radius:50%;background:var(--text-muted);display:inline-block;"></span>
         <span data-i18n="no_live_note">No live broadcast right now. A host can start one from the host login.</span>
       </div>
@@ -327,19 +327,23 @@
 
   <footer class="site-footer" data-i18n="footer_copy">B-Translate | Licensed under CC BY-NC-SA 4.0 — Beykoz University IT Directorate</footer>
 
-  <script src="/static/lang.js?v=3"></script>
+  <script src="/static/lang.js?v=4"></script>
   <script>
     function joinEvent() {
       window.location.href = `/participant?code=LIVE`;
     }
 
     // Only show the "Join" CTAs when a host is actually broadcasting.
+    let lastLive = false;
     async function refreshLiveState() {
-      let live = false;
+      let live = lastLive;
       try {
         const res = await fetch('/api/sessions/LIVE/live', { cache: 'no-store' });
+        // On errors (e.g. 429 behind a busy campus NAT) keep the last known
+        // state instead of hiding the Join button.
         if (res.ok) live = (await res.json()).live === true;
-      } catch (e) { /* treat as not live */ }
+      } catch (e) { /* keep last known state */ }
+      lastLive = live;
       document.querySelectorAll('.join-cta').forEach(el => el.style.display = live ? '' : 'none');
       document.querySelectorAll('.join-off').forEach(el => el.style.display = live ? 'none' : '');
       const note = document.getElementById('no-live');

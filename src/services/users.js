@@ -73,15 +73,29 @@ async function findByIdWithHash(id) {
   return rows[0] || null;
 }
 
-/** Number of active admins, optionally excluding one user id. */
-async function countActiveAdmins(excludeId = null) {
-  const rows = excludeId == null
-    ? await db.query("SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND is_active = 1")
-    : await db.query(
-      "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND is_active = 1 AND id <> ?",
-      [excludeId]
+/**
+ * Run `fn(conn)` in a transaction that first locks every active admin row, so
+ * "is this the last active admin?" and the change that depends on it are
+ * atomic: two admins demoting/disabling each other at the same moment can't
+ * both succeed and leave zero admins. `conn.query(sql, params)` returns rows.
+ */
+async function withAdminLock(fn) {
+  const conn = await db.getPool().getConnection();
+  const q = async (sql, params = []) => (await conn.execute(sql, params))[0];
+  try {
+    await conn.beginTransaction();
+    const admins = await q(
+      "SELECT id FROM users WHERE role = 'admin' AND is_active = 1 FOR UPDATE"
     );
-  return Number(rows[0].c) || 0;
+    const result = await fn({ query: q }, admins.map((r) => r.id));
+    await conn.commit();
+    return result;
+  } catch (e) {
+    try { await conn.rollback(); } catch (ignored) { /* connection may be gone */ }
+    throw e;
+  } finally {
+    conn.release();
+  }
 }
 
 /** Set a new password hash and revoke every token issued before. */
@@ -108,7 +122,7 @@ module.exports = {
   findById,
   findByUsernameWithHash,
   findByIdWithHash,
-  countActiveAdmins,
+  withAdminLock,
   setPasswordHash,
   touchLastLogin,
 };

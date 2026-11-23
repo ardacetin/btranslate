@@ -15,6 +15,22 @@ const INTERIM_TRANSLATE_MS = 350;
 // OpenAI engine: finalize a segment after this much silence in the streamed
 // translation deltas (the translate endpoint streams continuous deltas).
 const OPENAI_FINALIZE_MS = 1000;
+// …or sooner once the translation ends a sentence.
+const OPENAI_PUNCT_FINALIZE_MS = 350;
+// …and never let one segment grow past these limits (continuous speakers).
+const OPENAI_MAX_SEGMENT_MS = 15000;
+const OPENAI_MAX_SEGMENT_CHARS = 350;
+// Coalesce tentative broadcasts of the OpenAI stream (it sends many tiny deltas).
+const OPENAI_TENTATIVE_THROTTLE_MS = 150;
+
+// Per-socket send buffer limits. Droppable frames (tentative text, audio) are
+// skipped for a client that is this far behind; past the hard limit the client
+// is cut off (it reconnects and catches up instead of growing server memory).
+const SOFT_BUFFER_LIMIT = 256 * 1024;
+const HARD_BUFFER_LIMIT = 8 * 1024 * 1024;
+
+const MAX_TITLE_LENGTH = 255;
+const SENTENCE_END = /[.!?…。？！]["'’”)\]]?\s*$/;
 
 /**
  * In-memory orchestration of live events.
@@ -22,10 +38,16 @@ const OPENAI_FINALIZE_MS = 1000;
  * Pipeline (browser STT → DeepL text API → participants):
  *   - The host page runs speech recognition and sends transcript messages
  *     ({ final, text }) over its WebSocket.
- *   - Interim (not final) text is shown to participants as TENTATIVE (faded)
- *     and translated at most once per INTERIM_TRANSLATE_MS.
- *   - On a FINAL phrase, the text is translated, run through hallucination
- *     filters, persisted (final only), and broadcast as FINAL.
+ *   - Every spoken phrase gets a sequence number (`seg`). Interim text is
+ *     shown to participants as TENTATIVE (faded) and translated at most once
+ *     per INTERIM_TRANSLATE_MS; tentative/final/drop messages carry `seg` so a
+ *     client always updates the right line.
+ *   - FINAL phrases are translated in parallel but emitted strictly in spoken
+ *     order through a per-room promise chain (a short phrase can never overtake
+ *     a long one), then filtered, persisted (final only) and broadcast.
+ *
+ * Only the socket that currently owns a room (`room.host`) may control it; a
+ * newer host connection takes over and the previous one is told so.
  */
 class SessionManager {
   constructor() {
@@ -46,7 +68,11 @@ class SessionManager {
         dbSession: null,
         source: 'tr',
         target: 'en',
+        seq: 0,                 // last phrase sequence number handed out
+        emitChain: Promise.resolve(),
+        pendingFinals: 0,
         // DeepL (browser STT) path
+        currentSeg: null,
         interim: '',
         interimTranslated: '',
         startedAt: null,
@@ -54,14 +80,35 @@ class SessionManager {
         interimInFlight: false,
         // OpenAI realtime path
         openai: null,
+        oaSeg: null,
         oaSource: '',
         oaTranslation: '',
         oaStartedAt: null,
         oaTimer: null,
+        oaTentativeTimer: null,
       };
       this.rooms.set(eventCode, room);
     }
     return room;
+  }
+
+  /** Whether a participant may open (or join) this room. */
+  canJoin(eventCode, maxRooms) {
+    return this.rooms.has(eventCode) || this.rooms.size < maxRooms;
+  }
+
+  /** Forget a room once nobody uses it, so random event codes can't pile up. */
+  _maybeDispose(room) {
+    if (room.host || room.participants.size > 0 || room.pendingFinals > 0) return;
+    this._clearTimers(room);
+    this._stopOpenai(room);
+    if (this.rooms.get(room.eventCode) === room) this.rooms.delete(room.eventCode);
+  }
+
+  _clearTimers(room) {
+    if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
+    if (room.oaTimer) { clearTimeout(room.oaTimer); room.oaTimer = null; }
+    if (room.oaTentativeTimer) { clearTimeout(room.oaTentativeTimer); room.oaTentativeTimer = null; }
   }
 
   isLive(eventCode) {
@@ -84,19 +131,38 @@ class SessionManager {
     if (!dir) throw new Error('Unsupported translation direction');
 
     const room = this._room(eventCode);
+    if (room.host && room.host !== ws) {
+      // A newer host connection takes over (e.g. the host reloaded, or a
+      // second operator started). Tell the old one so it stops reconnecting.
+      const old = room.host;
+      logger.warn(`Host superseded on ${eventCode}`);
+      this._send(old, { type: 'superseded' });
+      try { old.close(4409, 'superseded'); } catch (e) { /* ignore */ }
+    }
     room.host = ws;
     room.source = source;
     room.target = target;
     this._resetBuffer(room);
 
+    // An empty title (e.g. host page resumed after a reload) keeps the
+    // event's current title instead of renaming it to the default.
+    let cleanTitle = normalize(String(title || '')).slice(0, MAX_TITLE_LENGTH);
+    if (!cleanTitle) {
+      const existing = await transcriptSvc.getSessionByCode(eventCode);
+      cleanTitle = (existing && existing.title) || 'Live Event';
+    }
+    if (room.host !== ws) return null;
+
     room.dbSession = await transcriptSvc.createOrGetSession(eventCode, {
-      title: title || 'Live Event',
+      title: cleanTitle,
       sourceLanguage: source,
       targetLanguage: target,
     });
+    if (room.host !== ws) return null;
 
     // Decide the voice engine from admin settings (falls back to deepl).
     const cfg = await settings.getAll();
+    if (room.host !== ws) return null; // host left / was replaced meanwhile
     const wantOpenai = cfg.voice_engine === 'openai' && Boolean(config.openai.apiKey);
     room.engine = wantOpenai ? 'openai' : 'deepl';
     room.serverAudio = room.engine === 'openai';
@@ -106,17 +172,21 @@ class SessionManager {
       type: 'config',
       source,
       target,
+      title: cleanTitle,
       engine: room.engine,
       serverAudio: room.serverAudio,
       audio: config.deepl.enableTranslatedAudio,
     });
+    this._broadcast(room, { type: 'status', live: true, title: cleanTitle });
     this._broadcastDirection(room);
     this._broadcastParticipantCount(room);
 
     if (room.engine === 'openai') {
       this._ensureOpenai(room);
     } else {
+      this._stopOpenai(room);
       deeplText.verify().then((ok) => {
+        if (room.host !== ws) return;
         room.translatorConnected = ok;
         this._sendHost(room, { type: 'status', engine: 'deepl', connected: ok, live: true });
         this._broadcast(room, { type: 'service', engine: 'deepl', connected: ok });
@@ -126,44 +196,48 @@ class SessionManager {
   }
 
   _ensureOpenai(room) {
-    if (room.openai) room.openai.stop();
-    room.oaSource = ''; room.oaTranslation = ''; room.oaStartedAt = null;
-    if (room.oaTimer) { clearTimeout(room.oaTimer); room.oaTimer = null; }
-    room.openai = new OpenAIRealtimeSession({
+    this._stopOpenai(room);
+    const session = new OpenAIRealtimeSession({
       source: room.source,
       target: room.target,
-      onEvent: (evt) => this._onOpenaiEvent(room, evt),
+      // Ignore late events from a session that has since been replaced.
+      onEvent: (evt) => { if (room.openai === session) this._onOpenaiEvent(room, evt); },
     });
-    room.openai.start();
+    room.openai = session;
+    session.start();
   }
 
-  async setDirection(eventCode, source, target) {
+  async setDirection(eventCode, ws, source, target) {
     const room = this.rooms.get(eventCode);
-    if (!room) return;
+    if (!room || room.host !== ws) return;
     const dir = resolveDirection(source, target);
     if (!dir) return;
+    if (room.engine === 'openai') this._finalizeOpenai(room); // close the segment in the old direction
     room.source = source;
     room.target = target;
     this._resetBuffer(room);
-    if (room.dbSession) await transcriptSvc.updateDirection(room.dbSession.id, source, target);
     if (room.engine === 'openai') this._ensureOpenai(room); // reconnect with new target
     this._broadcastDirection(room);
     logger.info(`Direction changed: ${eventCode} -> ${source}->${target}`);
+    if (room.dbSession) await transcriptSvc.updateDirection(room.dbSession.id, source, target);
   }
 
   /** Host sent a transcript chunk from browser speech recognition. */
-  handleHostTranscript(eventCode, { final, text }) {
+  handleHostTranscript(eventCode, ws, { final, text }) {
     const room = this.rooms.get(eventCode);
-    if (!room) return;
+    if (!room || room.host !== ws) return;
     const clean = normalize(text);
     if (!clean && !final) return;
 
     if (final) {
       this._finalize(room, clean);
     } else {
+      if (room.currentSeg === null) room.currentSeg = ++room.seq;
       room.interim = clean;
       if (!room.startedAt) room.startedAt = new Date();
-      this._broadcast(room, { type: 'tentative', original: clean, translated: room.interimTranslated });
+      this._broadcast(room, {
+        type: 'tentative', seg: room.currentSeg, original: clean, translated: room.interimTranslated,
+      }, { droppable: true });
       this._scheduleInterimTranslate(room);
     }
   }
@@ -173,78 +247,108 @@ class SessionManager {
     room.interimTimer = setTimeout(async () => {
       room.interimTimer = null;
       const text = room.interim;
-      if (!text) return;
+      const seg = room.currentSeg;
+      if (!text || seg === null) return;
       room.interimInFlight = true;
       try {
-        const translated = await deeplText.translate(text, room.source, room.target);
-        // Only apply if this phrase is still the one being spoken.
-        if (room.interim === text) {
+        const translated = await deeplText.translate(text, room.source, room.target, { timeoutMs: 2500 });
+        // Apply to the phrase it belongs to, even if a few more words have
+        // been recognized meanwhile — a slightly stale preview beats none.
+        if (room.currentSeg === seg && room.interim) {
           room.interimTranslated = translated;
-          this._broadcast(room, { type: 'tentative', original: text, translated });
+          this._broadcast(room, {
+            type: 'tentative', seg, original: room.interim, translated,
+          }, { droppable: true });
         }
       } catch (e) {
         logger.debug('Interim translate failed (non-fatal)');
       } finally {
         room.interimInFlight = false;
+        // The phrase kept growing while we waited: refresh the preview.
+        if (room.currentSeg === seg && room.interim && room.interim !== text) {
+          this._scheduleInterimTranslate(room);
+        }
       }
     }, INTERIM_TRANSLATE_MS);
   }
 
-  async _finalize(room, sourceText) {
+  _finalize(room, sourceText) {
     if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
     const startedAt = room.startedAt || new Date();
     const source = normalize(sourceText || room.interim);
+    const seg = room.currentSeg !== null ? room.currentSeg : ++room.seq;
+    const { source: from, target: to } = room;
     this._resetBuffer(room);
-
-    if (!source) return;
-
-    let translated = '';
-    try {
-      translated = await deeplText.translate(source, room.source, room.target);
-    } catch (e) {
-      logger.error('Final translate failed', e);
-      // Clear the tentative line; nothing to finalize without a translation.
-      this._broadcast(room, { type: 'tentative', original: '', translated: '' });
+    if (!source) {
+      this._broadcast(room, { type: 'drop', seg });
       return;
     }
+    // Start translating right away (in parallel with earlier phrases)…
+    const translation = deeplText
+      .translate(source, from, to, { timeoutMs: 4000, retries: 2 })
+      .then((text) => ({ ok: true, text }))
+      .catch((e) => {
+        logger.error('Final translate failed after retries — sending original only', e);
+        return { ok: false, text: '' };
+      });
+    // …but emit strictly in spoken order.
+    this._enqueueFinal(room, () => translation.then((tr) => this._emitFinal(room, {
+      seg, source, translation: tr, from, to, startedAt,
+    })));
+  }
 
-    const verdict = acceptFinalSegment(translated);
+  _enqueueFinal(room, task) {
+    room.pendingFinals += 1;
+    room.emitChain = room.emitChain
+      .then(task)
+      .catch((e) => logger.error('Final segment failed', e))
+      .finally(() => {
+        room.pendingFinals -= 1;
+        this._maybeDispose(room);
+      });
+  }
+
+  async _emitFinal(room, { seg, source, translation, from, to, startedAt }) {
+    // Hallucination/junk filter. If translation failed, still deliver the
+    // original text (filtered the same way) rather than losing the sentence.
+    const verdict = acceptFinalSegment(translation.ok ? translation.text : source);
     if (!verdict.ok) {
       logger.debug(`Segment rejected (${verdict.reason})`);
-      this._broadcast(room, { type: 'tentative', original: '', translated: '' });
+      this._broadcast(room, { type: 'drop', seg });
       return;
     }
-
+    const translated = translation.ok ? verdict.text : '';
     const endedAt = new Date();
     let id = null;
     if (room.dbSession) {
       id = await transcriptSvc.saveSegment(room.dbSession.id, {
         sourceText: source,
-        translatedText: verdict.text,
-        sourceLanguage: room.source,
-        targetLanguage: room.target,
+        translatedText: translated,
+        sourceLanguage: from,
+        targetLanguage: to,
         startedAt,
         endedAt,
       });
     }
-
     this._broadcast(room, {
       type: 'final',
+      seg,
       id,
       original: source,
-      translated: verdict.text,
-      source: room.source,
-      target: room.target,
-      rtl: Boolean(LANGUAGES[room.target]?.rtl),
+      translated,
+      untranslated: !translation.ok,
+      source: from,
+      target: to,
+      rtl: Boolean(LANGUAGES[to]?.rtl),
       ts: endedAt.toISOString(),
     });
   }
 
   // ── OpenAI realtime path ──────────────────────────────────────────────
   /** Forward a PCM16 audio chunk from the host to the OpenAI session. */
-  handleHostAudio(eventCode, buffer) {
+  handleHostAudio(eventCode, ws, buffer) {
     const room = this.rooms.get(eventCode);
-    if (!room || room.engine !== 'openai' || !room.openai) return;
+    if (!room || room.host !== ws || room.engine !== 'openai' || !room.openai) return;
     room.openai.sendAudio(buffer);
   }
 
@@ -260,94 +364,119 @@ class SessionManager {
         this._broadcast(room, { type: 'reconnecting' });
         break;
       case 'transcript':
-        room.oaSource += evt.text;
-        if (!room.oaStartedAt) room.oaStartedAt = new Date();
-        this._broadcastOaTentative(room);
+      case 'translation': {
+        if (room.oaSeg === null) {
+          room.oaSeg = ++room.seq;
+          room.oaStartedAt = new Date();
+        }
+        if (evt.kind === 'transcript') room.oaSource += evt.text;
+        else room.oaTranslation += evt.text;
+        this._scheduleOaTentative(room);
         this._armOaFinalize(room);
         break;
-      case 'translation':
-        room.oaTranslation += evt.text;
-        if (!room.oaStartedAt) room.oaStartedAt = new Date();
-        this._broadcastOaTentative(room);
-        this._armOaFinalize(room);
+      }
+      case 'audio': {
+        let buf;
+        try { buf = Buffer.from(evt.base64, 'base64'); } catch (e) { return; }
+        if (buf.length < 2) return;
+        // Binary frame (no base64/JSON overhead), only to listeners who
+        // turned audio on, and dropped for clients that are falling behind.
+        for (const ws of room.participants) {
+          if (ws.wantsAudio) this._sendRaw(ws, buf, true);
+        }
         break;
-      case 'audio':
-        this._broadcast(room, { type: 'audio', chunk: evt.base64 });
-        break;
+      }
       default:
         break;
     }
   }
 
-  _broadcastOaTentative(room) {
-    this._broadcast(room, {
-      type: 'tentative',
-      original: normalize(room.oaSource),
-      translated: normalize(room.oaTranslation),
-    });
+  _scheduleOaTentative(room) {
+    if (room.oaTentativeTimer) return;
+    room.oaTentativeTimer = setTimeout(() => {
+      room.oaTentativeTimer = null;
+      if (room.oaSeg === null) return;
+      this._broadcast(room, {
+        type: 'tentative',
+        seg: room.oaSeg,
+        original: normalize(room.oaSource),
+        translated: normalize(room.oaTranslation),
+      }, { droppable: true });
+    }, OPENAI_TENTATIVE_THROTTLE_MS);
   }
 
   _armOaFinalize(room) {
     if (room.oaTimer) clearTimeout(room.oaTimer);
-    room.oaTimer = setTimeout(() => this._finalizeOpenai(room), OPENAI_FINALIZE_MS);
+    room.oaTimer = null;
+    const age = Date.now() - (room.oaStartedAt ? room.oaStartedAt.getTime() : Date.now());
+    if (age >= OPENAI_MAX_SEGMENT_MS || room.oaTranslation.length >= OPENAI_MAX_SEGMENT_CHARS) {
+      this._finalizeOpenai(room);
+      return;
+    }
+    const delay = SENTENCE_END.test(room.oaTranslation) ? OPENAI_PUNCT_FINALIZE_MS : OPENAI_FINALIZE_MS;
+    room.oaTimer = setTimeout(() => this._finalizeOpenai(room), delay);
   }
 
-  async _finalizeOpenai(room) {
+  _finalizeOpenai(room) {
     if (room.oaTimer) { clearTimeout(room.oaTimer); room.oaTimer = null; }
+    if (room.oaTentativeTimer) { clearTimeout(room.oaTentativeTimer); room.oaTentativeTimer = null; }
+    const seg = room.oaSeg;
     const source = normalize(room.oaSource);
     const translated = normalize(room.oaTranslation);
     const startedAt = room.oaStartedAt || new Date();
-    room.oaSource = ''; room.oaTranslation = ''; room.oaStartedAt = null;
-
-    const verdict = acceptFinalSegment(translated);
-    if (!verdict.ok || !translated) {
-      this._broadcast(room, { type: 'tentative', original: '', translated: '' });
+    const { source: from, target: to } = room;
+    room.oaSeg = null; room.oaSource = ''; room.oaTranslation = ''; room.oaStartedAt = null;
+    if (seg === null) return;
+    if (!translated) {
+      this._broadcast(room, { type: 'drop', seg });
       return;
     }
-    const endedAt = new Date();
-    let id = null;
-    if (room.dbSession) {
-      id = await transcriptSvc.saveSegment(room.dbSession.id, {
-        sourceText: source, translatedText: verdict.text,
-        sourceLanguage: room.source, targetLanguage: room.target,
-        startedAt, endedAt,
-      });
-    }
-    this._broadcast(room, {
-      type: 'final', id, original: source, translated: verdict.text,
-      source: room.source, target: room.target,
-      rtl: Boolean(LANGUAGES[room.target]?.rtl), ts: endedAt.toISOString(),
-    });
+    this._enqueueFinal(room, () => this._emitFinal(room, {
+      seg, source, translation: { ok: true, text: translated }, from, to, startedAt,
+    }));
   }
 
   _stopOpenai(room) {
     if (room.oaTimer) { clearTimeout(room.oaTimer); room.oaTimer = null; }
+    if (room.oaTentativeTimer) { clearTimeout(room.oaTentativeTimer); room.oaTentativeTimer = null; }
     if (room.openai) { room.openai.stop(); room.openai = null; }
-    room.oaSource = ''; room.oaTranslation = ''; room.oaStartedAt = null;
+    room.oaSeg = null; room.oaSource = ''; room.oaTranslation = ''; room.oaStartedAt = null;
   }
 
-  async stopBroadcast(eventCode) {
+  async stopBroadcast(eventCode, ws) {
     const room = this.rooms.get(eventCode);
-    if (!room) return;
+    if (!room || room.host !== ws) return;
+    // Deliver what was already spoken before going off-air.
+    if (room.interim) this._finalize(room, room.interim);
+    if (room.engine === 'openai') this._finalizeOpenai(room);
     if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
     this._stopOpenai(room);
     room.host = null;
-    if (room.dbSession) await transcriptSvc.endSession(room.dbSession.id);
     logger.info(`Session ended: ${eventCode}`);
     this._broadcast(room, { type: 'status', live: false });
+    const dbSession = room.dbSession;
+    this._maybeDispose(room);
+    if (dbSession) await transcriptSvc.endSession(dbSession.id);
   }
 
   disconnectHost(eventCode, ws) {
     const room = this.rooms.get(eventCode);
     if (!room || room.host !== ws) return;
     if (room.interimTimer) { clearTimeout(room.interimTimer); room.interimTimer = null; }
+    // The unfinished phrase will never be finalized: remove its faded line.
+    for (const seg of [room.currentSeg, room.oaSeg]) {
+      if (seg !== null) this._broadcast(room, { type: 'drop', seg });
+    }
     this._stopOpenai(room);
     room.host = null;
+    this._resetBuffer(room);
     logger.info(`Host disconnected: ${eventCode}`);
     this._broadcast(room, { type: 'status', live: false });
+    this._maybeDispose(room);
   }
 
   _resetBuffer(room) {
+    room.currentSeg = null;
     room.interim = '';
     room.interimTranslated = '';
     room.startedAt = null;
@@ -367,6 +496,7 @@ class SessionManager {
       audio: config.deepl.enableTranslatedAudio,
       source: room.source,
       target: room.target,
+      title: room.dbSession ? room.dbSession.title : undefined,
     });
     this._broadcastDirection(room, ws);
     this._broadcastParticipantCount(room);
@@ -374,37 +504,53 @@ class SessionManager {
 
   removeParticipant(eventCode, ws) {
     const room = this.rooms.get(eventCode);
-    if (!room) return;
-    room.participants.delete(ws);
+    if (!room || !room.participants.delete(ws)) return;
     logger.info(`Client disconnected: participant ${eventCode} (total ${room.participants.size})`);
     this._broadcastParticipantCount(room);
+    this._maybeDispose(room);
+  }
+
+  /** Every socket of every room (used for a graceful shutdown). */
+  allSockets() {
+    const out = [];
+    for (const room of this.rooms.values()) {
+      if (room.host) out.push(room.host);
+      out.push(...room.participants);
+    }
+    return out;
   }
 
   // ── Messaging helpers ─────────────────────────────────────────────────
-  _send(ws, obj) {
+  /**
+   * Send with backpressure: droppable frames are skipped for a slow client,
+   * and a client that is hopelessly behind is disconnected.
+   */
+  _sendRaw(ws, data, droppable) {
     if (!ws || ws.readyState !== 1) return;
+    if (ws.bufferedAmount > HARD_BUFFER_LIMIT) {
+      logger.warn('Dropping a client that is too far behind (send buffer full)');
+      try { ws.terminate(); } catch (e) { /* ignore */ }
+      return;
+    }
+    if (droppable && ws.bufferedAmount > SOFT_BUFFER_LIMIT) return;
     try {
-      ws.send(JSON.stringify(obj));
+      ws.send(data);
     } catch (e) {
       /* ignore */
     }
+  }
+
+  _send(ws, obj) {
+    this._sendRaw(ws, JSON.stringify(obj), false);
   }
 
   _sendHost(room, obj) {
     this._send(room.host, obj);
   }
 
-  _broadcast(room, obj) {
+  _broadcast(room, obj, { droppable = false } = {}) {
     const msg = JSON.stringify(obj);
-    for (const ws of room.participants) {
-      if (ws.readyState === 1) {
-        try {
-          ws.send(msg);
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
+    for (const ws of room.participants) this._sendRaw(ws, msg, droppable);
   }
 
   _broadcastDirection(room, only) {

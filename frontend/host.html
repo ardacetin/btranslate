@@ -92,6 +92,9 @@
     .btn-neutral { background:var(--text-secondary); }
     .btn-ghost-sm { background:var(--surface-2); color:var(--text-primary); border:1px solid var(--border-color); }
 
+    .link-btn { background:none; border:none; padding:0; font:inherit; color:var(--accent-color); font-weight:600; cursor:pointer; text-decoration:none; }
+    .link-btn:hover { text-decoration:underline; }
+    .link-btn.muted-link { color:var(--text-secondary); font-weight:500; font-size:.8rem; }
     .row-inline { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
     .field { display:flex; flex-direction:column; gap:.3rem; }
     .field label { font-size:.72rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.03em; }
@@ -150,8 +153,6 @@
       .broadcast-grid { grid-template-columns:1fr; }
     }
   </style>
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-BKKE9K5FN1"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-BKKE9K5FN1');</script>
 </head>
 <body>
 
@@ -159,10 +160,10 @@
   <div id="login-panel" class="login-wrap">
     <div class="login-card">
       <div class="brandline">B-Translate</div>
-      <div class="form-group"><input type="text" id="login-user" placeholder="Kullanıcı adı" autocomplete="username"></div>
-      <div class="form-group"><input type="password" id="login-pass" placeholder="Parola" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></div>
+      <div class="form-group"><input type="text" id="login-user" placeholder="Kullanıcı adı" aria-label="Kullanıcı adı" autocomplete="username"></div>
+      <div class="form-group"><input type="password" id="login-pass" placeholder="Parola" aria-label="Parola" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></div>
       <button class="btn-primary" style="width:100%;" onclick="login()">Giriş Yap</button>
-      <div id="login-error" style="color:var(--danger-color);margin-top:.75rem;font-size:.85rem;"></div>
+      <div id="login-error" role="alert" style="color:var(--danger-color);margin-top:.75rem;font-size:.85rem;"></div>
     </div>
   </div>
 
@@ -221,7 +222,7 @@
             <h2>Yeni Yayın Oturumu</h2>
             <p class="muted">Etkinlik adını girip yayını başlatın. Katılımcılar QR kod ile katılır.</p>
             <div class="form-group" style="margin-bottom:1rem;">
-              <input type="text" id="event-name" placeholder="Örn. 2026 Açılış Töreni">
+              <input type="text" id="event-name" placeholder="Örn. 2026 Açılış Töreni" aria-label="Etkinlik adı" maxlength="255">
             </div>
             <button class="btn-primary" style="width:100%;" onclick="createSession()">Oturumu Oluştur</button>
           </div>
@@ -237,7 +238,7 @@
               <div class="card" style="margin:0;">
                 <!-- Microphone picker -->
                 <div class="field" style="margin-bottom:1rem;">
-                  <label>Mikrofon</label>
+                  <label for="mic-select">Mikrofon</label>
                   <div class="row-inline">
                     <select id="mic-select" style="flex:1;min-width:180px;" onchange="onMicChange()"></select>
                     <button id="mic-test-btn" class="btn-sm btn-ghost-sm" onclick="toggleMonitor()">🎤 Test</button>
@@ -252,7 +253,6 @@
                     <div id="mic-level-bar" style="height:100%;width:0%;background:linear-gradient(90deg,var(--success-color),#d97706 70%,var(--danger-color));transition:width .06s;"></div>
                   </div>
                 </div>
-                <div id="mic-level-container" style="display:none;"></div>
 
                 <div class="field" style="margin-bottom:1rem;">
                   <label>Çeviri Yönü</label>
@@ -276,12 +276,12 @@
                   🔄 Katılımcı ekranlarını yenile
                 </button>
                 <div style="margin-top:.9rem;font-size:.82rem;">
-                  <a onclick="openParticipant()" style="color:var(--accent-color);cursor:pointer;font-weight:600;">Katılımcı ekranını aç ↗</a>
+                  <button type="button" class="link-btn" onclick="openParticipant()">Katılımcı ekranını aç ↗</button>
                   <span style="color:var(--text-muted);"> · Bugünkü geçmişi indir:</span>
-                  <a onclick="downloadToday()" style="color:var(--accent-color);cursor:pointer;font-weight:600;">TXT</a>
+                  <button type="button" class="link-btn" onclick="downloadToday()">TXT</button>
                 </div>
                 <p class="muted" style="margin-top:1rem;font-size:.78rem;">Not: Konuşma tanıma için host ekranını <b>Chrome</b> veya <b>Edge</b>'de açın.</p>
-                <div style="margin-top:1rem;"><a onclick="endSession()" style="color:var(--text-muted);cursor:pointer;font-size:.8rem;">Oturumu sıfırla</a></div>
+                <div style="margin-top:1rem;"><button type="button" class="link-btn muted-link" onclick="endSession()">Oturumu sıfırla</button></div>
               </div>
             </div>
           </div>
@@ -442,7 +442,8 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Self-hosted (verified against cdnjs SRI): no third-party script can read the admin token. -->
+  <script src="/static/vendor/qrcode.min.js"></script>
   <script>
     // ── Helpers ───────────────────────────────────────────────────────────
     const T = () => localStorage.getItem('bt_token');
@@ -479,6 +480,12 @@
       return d;
     }
     const jsonBody = (obj, method) => ({ method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(obj) });
+    // Today's date in the browser's local zone (toISOString() would be UTC and
+    // return yesterday between 00:00 and 03:00 in Turkey).
+    function localDay(d = new Date()) {
+      const p = (n) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+    }
     function fmtDate(v) {
       if (!v) return '';
       const d = new Date(v);
@@ -525,7 +532,18 @@
       try { await modalSubmit(); closeModal(); }
       catch (err) { errEl.textContent = err.message; btn.disabled = false; }
     });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.getElementById('modal').hidden) closeModal(); });
+    document.addEventListener('keydown', (e) => {
+      const modal = document.getElementById('modal');
+      if (modal.hidden) return;
+      if (e.key === 'Escape') { closeModal(); return; }
+      if (e.key !== 'Tab') return;
+      // Keep keyboard focus inside the open dialog.
+      const items = [...modal.querySelectorAll('input:not([disabled]), select:not([disabled]), button:not([disabled])')].filter(el => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0], last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
 
     // ── Auth ──────────────────────────────────────────────────────────────
     let currentUser = null; // { id, username, display_name, role }
@@ -549,6 +567,7 @@
         // Restore an active broadcast session view
         if (localStorage.getItem('bt_event_code')) {
           currentEventCode = 'LIVE';
+          document.getElementById('event-name').value = localStorage.getItem('bt_event_name') || '';
           document.getElementById('setup-section').style.display = 'none';
           document.getElementById('broadcast-section').style.display = 'block';
           renderQR(); refreshMics();
@@ -569,7 +588,7 @@
         location.reload();
       } catch(e) { document.getElementById('login-error').textContent = e.message; }
     }
-    function logout() { ['bt_token','bt_role','bt_user','bt_event_code'].forEach(k=>localStorage.removeItem(k)); location.reload(); }
+    function logout() { ['bt_token','bt_role','bt_user','bt_event_code','bt_event_name'].forEach(k=>localStorage.removeItem(k)); location.reload(); }
 
     // ── View routing ──────────────────────────────────────────────────────
     const TITLES = { broadcast:'Canlı Yayın', history:'Geçmiş', users:'Kullanıcı Yönetimi', logs:'Sistem Logları', settings:'Ayarlar' };
@@ -610,7 +629,7 @@
       if (socketOpen()) {
         const d = currentDirection();
         socket.send(JSON.stringify({ type:'direction', source:d.source, target:d.target }));
-        if (typeof restartRecognition==='function') restartRecognition();
+        restartRecognition();
       }
     }
     function setStatus(text, opts={}) {
@@ -633,24 +652,26 @@
       new QRCode(el, { text:`${location.origin}/participant?code=LIVE`, width:190, height:190, colorDark:'#241d1b', colorLight:'#fff', correctLevel:QRCode.CorrectLevel.H });
     }
     function openParticipant(){ window.open('/participant?code=LIVE','_blank'); }
-    function downloadToday(){ const d=new Date().toISOString().slice(0,10); dl(`/api/history/export?date=${d}&format=txt`); }
+    function downloadToday(){ const d=localDay(); dl(`/api/history/export?date=${d}&format=txt`); }
 
     async function createSession() {
       const eName = document.getElementById('event-name').value.trim() || 'Live Event';
       const d = currentDirection();
       try {
-        const res = await api('/api/sessions', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ event_name:eName, source:d.source, target:d.target }) });
-        await res.json();
+        await apiJson('/api/sessions', jsonBody({ event_name:eName, source:d.source, target:d.target }, 'POST'));
         currentEventCode='LIVE'; localStorage.setItem('bt_event_code','LIVE');
+        document.getElementById('event-name').value = eName;
+        localStorage.setItem('bt_event_name', eName);
         document.getElementById('setup-section').style.display='none';
         document.getElementById('broadcast-section').style.display='block';
         renderQR(); refreshMics();
-      } catch(e){ toast('Oturum oluşturulamadı'); }
+      } catch(e){ if (e.message !== 'unauthorized') toast('Oturum oluşturulamadı: ' + e.message); }
     }
-    function endSession(){ localStorage.removeItem('bt_event_code'); location.reload(); }
+    function endSession(){ localStorage.removeItem('bt_event_code'); localStorage.removeItem('bt_event_name'); location.reload(); }
 
     // ── Broadcast: speech recognition → server ────────────────────────────
     let manualStop=false, recognition=null, recognizing=false, silenceTimer=null, flushing=false;
+    let lastRecogError='', recogBackoff=0;
     const SENTENCE_END = /[.!?…][""'’”)\]]?\s*$/;
     // Segmentation tuning, managed from the Settings tab (loaded from server).
     let flushCfg = { flush_on_punctuation:true, max_words:12, silence_ms:500 };
@@ -663,36 +684,67 @@
       if (!currentEventCode) return;
       manualStop=false; captureStarted=false; openHostSocket();
     }
+    let hostRetry = 0, hostReconnectTimer = null;
     function openHostSocket() {
+      clearTimeout(hostReconnectTimer);
       const proto = location.protocol==='https:'?'wss:':'ws:';
-      socket = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}?token=${encodeURIComponent(T())}`);
-      socket.onopen = () => {
-        const d = currentDirection();
-        socket.send(JSON.stringify({ type:'start', title:document.getElementById('event-name').value.trim()||'Live Event', source:d.source, target:d.target }));
+      // The token is sent as the first message, never in the URL (URLs end up in proxy logs).
+      const ws = new WebSocket(`${proto}//${location.host}/ws/host/${currentEventCode}`);
+      socket = ws;
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type:'auth', token:T() }));
         document.getElementById('btn-start').style.display='none';
         document.getElementById('btn-stop').style.display='inline-flex';
         document.getElementById('qr-hero').classList.add('recording');
         setStatus('Başlatılıyor…',{live:true});
+      };
+      ws.onmessage = (e) => {
+        let m; try { m = JSON.parse(e.data); } catch(x){ return; }
+        if (m.type==='auth_ok') {
+          hostRetry = 0;
+          const d = currentDirection();
+          // Empty title on a resumed session = keep the event's current name.
+          ws.send(JSON.stringify({ type:'start', title:document.getElementById('event-name').value.trim(), source:d.source, target:d.target }));
+          clearInterval(window.pingInterval);
+          window.pingInterval = setInterval(()=>{ if (socketOpen()) socket.send(JSON.stringify({type:'ping'})); },25000);
+          // Capture starts once the server tells us which engine is active (config).
+        }
+        else if (m.type==='participants') { document.getElementById('participant-count-val').textContent=m.count; }
+        else if (m.type==='config') {
+          activeEngine = m.engine || 'deepl';
+          const nameEl = document.getElementById('event-name');
+          if (m.title && !nameEl.value.trim()) { nameEl.value = m.title; localStorage.setItem('bt_event_name', m.title); }
+          startCapture();
+        }
+        else if (m.type==='status') { if (typeof m.connected==='boolean') setDeeplStatus(m.connected); }
+        else if (m.type==='service') { if (typeof m.connected==='boolean') setDeeplStatus(m.connected); }
+        else if (m.type==='reconnecting') { setDeeplStatus(false,true); }
+        else if (m.type==='error' && m.code==='start_failed') { toast('Yayın başlatılamadı (sunucu hatası). Tekrar deneyin.'); stopBroadcast(); }
+      };
+      ws.onclose = (ev) => {
+        if (socket !== ws) return; // an older socket closing after we moved on
         clearInterval(window.pingInterval);
-        window.pingInterval = setInterval(()=>{ if (socketOpen()) socket.send(JSON.stringify({type:'ping'})); },25000);
-        // Capture starts once the server tells us which engine is active (config).
-      };
-      socket.onmessage = (e) => {
-        try { const m = JSON.parse(e.data);
-          if (m.type==='participants') { document.getElementById('participant-count-val').textContent=m.count; }
-          else if (m.type==='config') { activeEngine = m.engine || 'deepl'; startCapture(); }
-          else if (m.type==='status') { if (typeof m.connected==='boolean') setDeeplStatus(m.connected); }
-          else if (m.type==='service') { if (typeof m.connected==='boolean') setDeeplStatus(m.connected); }
-          else if (m.type==='reconnecting') { setDeeplStatus(false,true); }
-        } catch(x){}
-      };
-      socket.onclose = () => {
         if (manualStop) return;
+        if (ev.code === 4401) { // token revoked/expired: retrying can't help
+          stopBroadcast();
+          toast('Oturumunuz sona erdi, lütfen tekrar giriş yapın.');
+          setTimeout(logout, 1800);
+          return;
+        }
+        if (ev.code === 4409) { // another host panel took over this event
+          stopBroadcast();
+          setStatus('Yayın başka bir panelden devralındı');
+          toast('Yayın başka bir yönetim panelinden devralındı.');
+          return;
+        }
         setStatus('Bağlantı yeniden kuruluyor…');
         document.getElementById('qr-hero').classList.remove('recording');
-        setTimeout(()=>{ if(!manualStop) openHostSocket(); },2000);
+        // Exponential backoff with jitter (1 s → 30 s) instead of a fixed 2 s loop.
+        const delay = Math.min(30000, 1000 * 2 ** hostRetry) + Math.floor(Math.random() * 500);
+        hostRetry = Math.min(hostRetry + 1, 5);
+        hostReconnectTimer = setTimeout(()=>{ if (!manualStop) openHostSocket(); }, delay);
       };
-      socket.onerror = () => {};
+      ws.onerror = () => {};
     }
     function startRecognition() {
       const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -704,6 +756,7 @@
         let interim='', finalChunk='';
         for (let i=event.resultIndex;i<event.results.length;i++){ const r=event.results[i]; if (r.isFinal) finalChunk+=r[0].transcript; else interim+=r[0].transcript; }
         if (!socketOpen()) return;
+        recogBackoff = 0;
         if (interim.trim()) {
           setStatus('Konuşma algılandı',{live:true});
           socket.send(JSON.stringify({type:'transcript',final:false,text:interim}));
@@ -718,8 +771,23 @@
         }
         if (finalChunk.trim()) { clearSilenceTimer(); socket.send(JSON.stringify({type:'transcript',final:true,text:finalChunk})); setStatus('Dinleniyor…',{live:true}); }
       };
-      recognition.onerror = (e) => { if (e.error==='not-allowed'||e.error==='service-not-allowed'){ toast('Mikrofon izni reddedildi.'); stopBroadcast(); } };
-      recognition.onend = () => { recognizing=false; flushing=false; if (!manualStop){ try{ recognition.start(); recognizing=true; }catch(e){} } };
+      recognition.onerror = (e) => {
+        lastRecogError = e.error || 'unknown';
+        if (e.error==='not-allowed'||e.error==='service-not-allowed'){ toast('Mikrofon izni reddedildi.'); stopBroadcast(); }
+      };
+      recognition.onend = () => {
+        recognizing=false; flushing=false;
+        if (manualStop || !recognition) return;
+        const rec = recognition;
+        // 'no-speech'/'aborted' are routine (and our own flushes end this way):
+        // restart at once. Real failures (network, audio-capture…) back off.
+        const failed = lastRecogError && lastRecogError!=='no-speech' && lastRecogError!=='aborted';
+        lastRecogError = '';
+        if (!failed) { recogBackoff = 0; try{ rec.start(); recognizing=true; }catch(e){} return; }
+        recogBackoff = Math.min(8000, Math.max(500, recogBackoff*2));
+        setStatus('Konuşma tanıma yeniden deneniyor…',{live:true});
+        setTimeout(()=>{ if (!manualStop && recognition===rec){ try{ rec.start(); recognizing=true; }catch(e){} } }, recogBackoff);
+      };
       try { recognition.start(); recognizing=true; } catch(e){}
     }
     // Force the engine to emit its final result now (flushes the current phrase).
@@ -761,12 +829,14 @@
       const proc = ctx.createScriptProcessor(4096,1,1); window._proc = proc;
       const silent = ctx.createGain(); silent.gain.value = 0.00001; window._silent = silent;
       src.connect(proc); proc.connect(silent); silent.connect(ctx.destination);
-      document.getElementById('mic-level-container').style.display = 'block';
       proc.onaudioprocess = (e) => {
         if (!socketOpen()) return;
         const f32 = e.inputBuffer.getChannelData(0);
         let sum=0; for (let i=0;i<f32.length;i++) sum+=f32[i]*f32[i];
         document.getElementById('mic-level-bar').style.width = Math.min(100,(Math.sqrt(sum/f32.length)/0.3)*100)+'%';
+        // On a congested uplink drop audio rather than queueing an ever-growing
+        // backlog (which would make the translation lag further and further).
+        if (socket.bufferedAmount > 512*1024) return;
         const data = ctx.sampleRate===24000 ? f32 : downsample(f32, ctx.sampleRate, 24000);
         socket.send(floatToPCM16(data).buffer);
       };
@@ -777,7 +847,6 @@
       if (window._src){ try{window._src.disconnect();}catch(e){} window._src=null; }
       if (window._micStream){ window._micStream.getTracks().forEach(t=>t.stop()); window._micStream=null; }
       if (window._audioCtx){ try{window._audioCtx.close();}catch(e){} window._audioCtx=null; }
-      document.getElementById('mic-level-container').style.display='none';
     }
 
     // ── Microphone selection + live input level monitor ──────────────────
@@ -791,7 +860,7 @@
         const sel = document.getElementById('mic-select'); if (!sel) return;
         const cur = sel.value || localStorage.getItem('bt_mic') || '';
         sel.innerHTML = mics.length
-          ? mics.map((d,i)=>`<option value="${d.deviceId}">${esc(d.label || ('Mikrofon '+(i+1)))}</option>`).join('')
+          ? mics.map((d,i)=>`<option value="${escAttr(d.deviceId)}">${esc(d.label || ('Mikrofon '+(i+1)))}</option>`).join('')
           : '<option value="">Varsayılan mikrofon</option>';
         if (cur && mics.find(m=>m.deviceId===cur)) sel.value = cur;
       } catch(e){}
@@ -835,11 +904,11 @@
     }
 
     function stopBroadcast() {
-      manualStop=true; captureStarted=false; clearInterval(window.pingInterval);
+      manualStop=true; captureStarted=false; clearInterval(window.pingInterval); clearTimeout(hostReconnectTimer); hostRetry=0;
       stopRecognition(); stopAudioCapture();
       const bar=document.getElementById('mic-level-bar'); if (bar) bar.style.width='0%';
       try{ if (socketOpen()) socket.send(JSON.stringify({type:'stop'})); }catch(e){}
-      if (socket){ socket.close(); socket=null; }
+      if (socket){ const ws=socket; socket=null; ws.close(); }
       setStatus('Yayın durduruldu');
       document.getElementById('btn-start').style.display='inline-flex';
       document.getElementById('btn-stop').style.display='none';
@@ -848,30 +917,37 @@
     }
 
     // ── History ───────────────────────────────────────────────────────────
+    const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
     async function loadHistoryDays() {
       const tb = document.getElementById('history-days');
       tb.innerHTML = '<tr><td colspan="3" class="empty">Yükleniyor…</td></tr>';
       try {
-        const rows = await (await api('/api/history/days')).json();
+        const rows = (await apiJson('/api/history/days')).filter(r => DAY_RE.test(r.day));
         if (!rows.length) { tb.innerHTML='<tr><td colspan="3" class="empty">Henüz kayıt yok.</td></tr>'; return; }
         tb.innerHTML = rows.map(r=>`<tr>
-          <td><a onclick="previewHistory('${r.day}')" style="color:var(--accent-color);cursor:pointer;font-weight:600;">${r.day}</a></td>
-          <td>${r.count}</td>
+          <td><button type="button" class="link-btn" data-preview="${r.day}">${r.day}</button></td>
+          <td>${esc(r.count)}</td>
           <td class="row-inline">
-            <button class="btn-sm btn-accent" onclick="dl('/api/history/export?date=${r.day}&format=txt')">TXT</button>
-            <button class="btn-sm btn-ghost-sm" onclick="dl('/api/history/export?date=${r.day}&format=csv')">CSV</button>
-            <button class="btn-sm btn-ghost-sm" onclick="dl('/api/history/export?date=${r.day}&format=json')">JSON</button>
+            <button class="btn-sm btn-accent" data-day="${r.day}" data-fmt="txt">TXT</button>
+            <button class="btn-sm btn-ghost-sm" data-day="${r.day}" data-fmt="csv">CSV</button>
+            <button class="btn-sm btn-ghost-sm" data-day="${r.day}" data-fmt="json">JSON</button>
           </td></tr>`).join('');
       } catch(e){ tb.innerHTML='<tr><td colspan="3" class="empty">Yüklenemedi.</td></tr>'; }
     }
+    document.getElementById('history-days').addEventListener('click', (e) => {
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.preview) previewHistory(b.dataset.preview);
+      else if (b.dataset.day) dl(`/api/history/export?date=${b.dataset.day}&format=${b.dataset.fmt}`);
+    });
     async function previewHistory(day) {
+      if (!DAY_RE.test(day)) return;
       const card=document.getElementById('history-preview-card'); card.style.display='block';
       document.getElementById('history-preview-title').textContent = day + ' — Döküm';
       const body=document.getElementById('history-preview'); body.innerHTML='<tr><td colspan="3" class="empty">Yükleniyor…</td></tr>';
       try {
-        const rows = await (await api(`/api/history/segments?date=${day}`)).json();
+        const rows = await apiJson(`/api/history/segments?date=${day}`);
         document.getElementById('history-preview-sub').textContent = `${rows.length} kayıt`;
-        body.innerHTML = rows.length ? rows.map(r=>`<tr><td class="log-time">${r.time}</td><td>${esc(r.original)}</td><td style="font-weight:600;">${esc(r.translation)}</td></tr>`).join('')
+        body.innerHTML = rows.length ? rows.map(r=>`<tr><td class="log-time">${esc(r.time)}</td><td>${esc(r.original)}</td><td style="font-weight:600;">${r.translation ? esc(r.translation) : '<span class="hint">(çevrilemedi)</span>'}</td></tr>`).join('')
           : '<tr><td colspan="3" class="empty">Kayıt yok.</td></tr>';
         card.scrollIntoView({behavior:'smooth'});
       } catch(e){ body.innerHTML='<tr><td colspan="3" class="empty">Yüklenemedi.</td></tr>'; }
@@ -1002,10 +1078,10 @@
     async function loadLogDays() {
       const sel=document.getElementById('logs-day');
       try {
-        const days = await (await api('/api/logs/days')).json();
-        const today = new Date().toISOString().slice(0,10);
+        const days = (await apiJson('/api/logs/days')).filter(d => DAY_RE.test(d.day));
+        const today = localDay();
         if (!days.find(d=>d.day===today)) days.unshift({day:today,count:0});
-        sel.innerHTML = days.map(d=>`<option value="${d.day}">${d.day} (${d.count})</option>`).join('');
+        sel.innerHTML = days.map(d=>`<option value="${d.day}">${d.day} (${esc(d.count)})</option>`).join('');
         loadLogs();
       } catch(e){ sel.innerHTML=''; }
     }
@@ -1014,8 +1090,9 @@
       const tb=document.getElementById('logs-body'); tb.innerHTML='<tr><td colspan="3" class="empty">Yükleniyor…</td></tr>';
       if (!day) return;
       try {
-        const rows = await (await api(`/api/logs?date=${day}${level?`&level=${level}`:''}`)).json();
-        tb.innerHTML = rows.length ? rows.map(r=>`<tr><td class="log-time">${r.created_at}</td><td><span class="log-level lvl-${r.level}">${r.level}</span></td><td class="log-msg">${esc(r.message)}</td></tr>`).join('')
+        const rows = await apiJson(`/api/logs?date=${encodeURIComponent(day)}${level?`&level=${encodeURIComponent(level)}`:''}`);
+        const lvl = (l) => ['INFO','WARN','ERROR','DEBUG'].includes(l) ? l : 'INFO';
+        tb.innerHTML = rows.length ? rows.map(r=>`<tr><td class="log-time">${esc(r.created_at)}</td><td><span class="log-level lvl-${lvl(r.level)}">${esc(r.level)}</span></td><td class="log-msg">${esc(r.message)}</td></tr>`).join('')
           : '<tr><td colspan="3" class="empty">Bu gün için log yok.</td></tr>';
       } catch(e){ tb.innerHTML='<tr><td colspan="3" class="empty">Yüklenemedi.</td></tr>'; }
     }
@@ -1054,7 +1131,7 @@
     async function loadSettings(useDefaults) {
       try {
         const cfg = useDefaults ? { voice_engine:'deepl', flush_on_punctuation:true, max_words:12, silence_ms:500 }
-                                : await (await api('/api/settings')).json();
+                                : await apiJson('/api/settings');
         applyCfg(cfg); fillSettingsForm();
       } catch (e) { /* keep current cfg */ }
     }
@@ -1067,9 +1144,7 @@
         silence_ms: parseInt(document.getElementById('set-silence').value, 10) || 500,
       };
       try {
-        const res = await api('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
-        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error || 'Kaydedilemedi'); }
-        applyCfg(await res.json()); fillSettingsForm();
+        applyCfg(await apiJson('/api/settings', jsonBody(body, 'PUT'))); fillSettingsForm();
         const s = document.getElementById('set-status'); s.textContent = 'Kaydedildi ✓';
         setTimeout(()=>{ if (s) s.textContent=''; }, 2500);
         toast('Ayarlar kaydedildi');
@@ -1079,17 +1154,16 @@
     // ── Participant refresh + server restart ──────────────────────────────
     async function refreshParticipants() {
       try {
-        const res = await api('/api/sessions/LIVE/refresh', { method:'POST' });
-        const d = await res.json();
+        const d = await apiJson('/api/sessions/LIVE/refresh', { method:'POST' });
         toast((d.refreshed || 0) + ' katılımcı ekranı yenilendi');
-      } catch (e) { toast('Yenilenemedi'); }
+      } catch (e) { toast('Yenilenemedi: ' + e.message); }
     }
     async function restartServer() {
       if (!confirm('Servis yeniden başlatılsın mı? Aktif yayın birkaç saniye kesilir.')) return;
       try {
-        await api('/api/system/restart', { method:'POST' });
+        await apiJson('/api/system/restart', { method:'POST' });
         toast('Yeniden başlatılıyor… ~5 sn');
-      } catch (e) { toast('İşlem başarısız'); }
+      } catch (e) { toast('İşlem başarısız: ' + e.message); }
     }
 
     // ── Boot ──────────────────────────────────────────────────────────────

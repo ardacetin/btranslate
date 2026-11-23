@@ -98,10 +98,7 @@ router.patch('/:id', wrap(async (req, res) => {
   if (isSelf && nextRole !== target.role) return fail(res, 400, 'self_role', 'You cannot change your own role');
   if (isSelf && !nextActive) return fail(res, 400, 'self_disable', 'You cannot disable your own account');
 
-  const losesAdmin = target.role === 'admin' && target.is_active && (nextRole !== 'admin' || !nextActive);
-  if (losesAdmin && (await users.countActiveAdmins(id)) === 0) {
-    return fail(res, 400, 'last_admin', 'At least one active admin is required');
-  }
+  const losesAdmin = target.role === 'admin' && Boolean(target.is_active) && (nextRole !== 'admin' || !nextActive);
 
   if (nextRole !== target.role) {
     sets.push('role = ?');
@@ -115,7 +112,12 @@ router.patch('/:id', wrap(async (req, res) => {
   }
 
   if (sets.length) {
-    await db.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
+    const blocked = await users.withAdminLock(async (conn, adminIds) => {
+      if (losesAdmin && adminIds.filter((a) => a !== id).length === 0) return true;
+      await conn.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
+      return false;
+    });
+    if (blocked) return fail(res, 400, 'last_admin', 'At least one active admin is required');
     logger.info(`User updated: ${target.username}${changes.length ? ` (${changes.join(', ')})` : ''} by ${req.user.sub}`);
   }
   return res.json(users.toPublic(await users.findById(id)));
@@ -151,10 +153,12 @@ router.delete('/:id', wrap(async (req, res) => {
   if (id === req.user.uid) return fail(res, 400, 'self_delete', 'You cannot delete yourself');
   const target = await users.findById(id);
   if (!target) return fail(res, 404, 'not_found', 'User not found');
-  if (target.role === 'admin' && target.is_active && (await users.countActiveAdmins(id)) === 0) {
-    return fail(res, 400, 'last_admin', 'At least one active admin is required');
-  }
-  await db.query('DELETE FROM users WHERE id = ?', [id]);
+  const blocked = await users.withAdminLock(async (conn, adminIds) => {
+    if (adminIds.includes(id) && adminIds.length === 1) return true;
+    await conn.query('DELETE FROM users WHERE id = ?', [id]);
+    return false;
+  });
+  if (blocked) return fail(res, 400, 'last_admin', 'At least one active admin is required');
   logger.info(`User deleted: ${target.username} by ${req.user.sub}`);
   return res.json({ detail: 'User deleted' });
 }));

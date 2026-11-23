@@ -10,12 +10,13 @@ function signToken(user) {
   return jwt.sign(
     { sub: user.username, role: user.role, uid: user.id, tv: Number(user.token_version) || 0 },
     config.auth.jwtSecret,
-    { expiresIn: config.auth.jwtExpiresIn }
+    { expiresIn: config.auth.jwtExpiresIn, algorithm: 'HS256' }
   );
 }
 
 function verifyToken(token) {
-  return jwt.verify(token, config.auth.jwtSecret);
+  // Pin the algorithm: never let the token header choose how it is verified.
+  return jwt.verify(token, config.auth.jwtSecret, { algorithms: ['HS256'] });
 }
 
 function hashPassword(plain) {
