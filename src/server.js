@@ -147,7 +147,7 @@ app.get('/host', (req, res) => {
   res.sendFile(path.join(frontendDir, 'panel', 'index.html'));
 });
 app.get('/participant', (req, res) => res.sendFile(path.join(frontendDir, 'participant.html')));
-app.get('/favicon.ico', (req, res) => res.status(204).end());
+app.get('/favicon.ico', (req, res) => res.redirect(301, '/static/favicon.svg'));
 app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
 
 // ── Error handler (must be registered last) ───────────────────────────────
@@ -155,6 +155,9 @@ app.get('/healthz', (req, res) => res.json({ status: 'ok' }));
 // raised by body parsing (bad JSON, too large) keep their 4xx status; anything
 // else is logged and answered with a generic 500 so nothing internal leaks.
 // eslint-disable-next-line no-unused-vars
+// Branded 404 for any other page (API 404s are JSON, handled above).
+app.use((req, res) => res.status(404).sendFile(path.join(frontendDir, '404.html')));
+
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err); // let Express abort the response
   const status = Number(err && (err.status || err.statusCode));

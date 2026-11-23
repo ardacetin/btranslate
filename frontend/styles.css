@@ -178,30 +178,6 @@ a { color: inherit; }
   letter-spacing: 0;
 }
 
-.lang-switcher {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.lang-toggle {
-  cursor: pointer;
-  background: none;
-  border: none;
-  font: inherit;
-  color: var(--text-secondary);
-  opacity: 0.7;
-  padding: 0.15rem 0.35rem;
-  border-radius: var(--r-xs);
-  transition: opacity var(--dur), color var(--dur), background var(--dur);
-}
-.lang-toggle:hover { opacity: 1; background: var(--surface-2); }
-.lang-toggle.active { opacity: 1; font-weight: 600; color: var(--text-primary); background: var(--surface-2); }
-.lang-toggle:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 2px; }
-
 /* ── Footer ─────────────────────────────────────────────── */
 .site-footer {
   width: 100%;
@@ -328,40 +304,6 @@ a:focus-visible {
 * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
 
 /* ── Landing (legacy classes, refined) ──────────────────── */
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0.8rem 0.35rem 0.6rem;
-  border-radius: 999px;
-  background: var(--surface-color);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0;
-  color: var(--text-secondary);
-}
-.eyebrow .pulse {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--accent-color);
-  box-shadow: 0 0 0 0 var(--accent-ring);
-  animation: pulseDot 1.8s infinite;
-}
-@keyframes pulseDot {
-  0%   { box-shadow: 0 0 0 0 rgba(122,32,33,0.35); }
-  70%  { box-shadow: 0 0 0 7px rgba(122,32,33,0); }
-  100% { box-shadow: 0 0 0 0 rgba(122,32,33,0); }
-}
-
-.grad-text {
-  background: var(--accent-grad);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
 /* ── Reduced motion ─────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -375,5 +317,4 @@ a:focus-visible {
 @media (max-width: 768px) {
   .container { padding: 1rem; margin-top: 4.5rem; }
   .navbar { padding: 0.75rem 1.1rem; }
-  .lang-switcher { font-size: 0.8rem; }
-}
+  }
