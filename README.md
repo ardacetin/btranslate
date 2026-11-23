@@ -71,7 +71,7 @@ src/
     migrate.js              # `npm run migrate`
     migrations/001_init.sql
   utils/                    # logger (never logs audio/transcripts), asyncHandler, csv, time (UTC ↔ APP_TIMEZONE), lifecycle (graceful shutdown)
-frontend/                   # index.html, participant.html, styles.css, lang.js, fonts/ (Inter)
+frontend/                   # index.html + landing.css, participant.html + styles.css, lang.js, 404.html, fonts/
   panel/                    # BUILT admin panel (committed output of panel/ — don't edit)
 panel/                      # admin panel source (served at /host)
   src/components/           # BoardUI components (source, MIT — see LICENSE-BoardUI)
@@ -117,9 +117,17 @@ Commit the rebuilt `frontend/panel/` together with the source change. For live
 editing run `npm run dev` (API on :3000) and `npm run dev:panel`, then open
 `http://localhost:5173/static/panel/`.
 
-The landing and participant pages stay plain HTML/JS for speed on phones and use
-the same BoardUI tokens (neutral palette, Inter, radii, shadows) and the same
-maroon accent ramp (`frontend/styles.css`, `panel/src/index.css`).
+The participant page stays plain HTML/JS for speed on phones and uses the same
+BoardUI tokens (neutral palette, Inter, radii, shadows) and the same maroon
+accent ramp (`frontend/styles.css`, `panel/src/index.css`).
+
+The landing page (`frontend/index.html` + `frontend/landing.css`) follows the
+[landing-page-design](https://github.com/elayadesign/ai-design-skills) system:
+Geist, named text styles on the Tailwind type scale, a fixed spacing scale, flat
+backgrounds, one motion curve and a word-by-word tagline reveal. Its copy lives
+in `frontend/lang.js` (`lp_*` keys, English and Turkish). Fonts (Geist, Inter)
+and icons (Phosphor, inlined SVG) are self-hosted; `frontend/og-image.png` is
+the social sharing image. Unknown pages get the branded `frontend/404.html`.
 
 **First admin login:** the first `npm run migrate` creates the `admin` account.
 If `ADMIN_PASSWORD` is set (min. 8 characters, not `admin123`) it is used;

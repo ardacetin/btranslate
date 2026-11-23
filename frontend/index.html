@@ -3,170 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>btranslate — Canlı Yapay Zeka Çeviri</title>
-  <link rel="stylesheet" href="/static/styles.css">
-  <meta name="description" content="Beykoz Üniversitesi etkinlikleri için gerçek zamanlı Türkçe–İngilizce yapay zeka çeviri sistemi.">
-  <style>
-    @keyframes floatUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
-    .rise { animation: floatUp 0.7s var(--ease) both; }
-    .d1 { animation-delay: 0.08s; } .d2 { animation-delay: 0.16s; }
-    .d3 { animation-delay: 0.24s; } .d4 { animation-delay: 0.32s; }
-
-    /* ── Hero ─────────────────────────────────────────── */
-    .hero {
-      max-width: 1120px;
-      margin: 0 auto;
-      padding: 7rem 1.5rem 3rem;
-      display: grid;
-      grid-template-columns: 1.05fr 0.95fr;
-      gap: 3.5rem;
-      align-items: center;
-    }
-    /* BoardUI display type: Inter semibold, near-zero tracking */
-    .hero-copy h1 {
-      font-size: clamp(2.4rem, 5vw, 3.75rem);
-      font-weight: 600;
-      letter-spacing: -0.025em;
-      line-height: 1.08;
-      margin: 1.1rem 0 1.2rem;
-    }
-    .hero-copy p.lede {
-      font-size: 1.0625rem;
-      color: var(--text-secondary);
-      line-height: 1.6;
-      max-width: 34rem;
-      margin-bottom: 2rem;
-    }
-    .hero-ctas { display: flex; gap: 0.85rem; flex-wrap: wrap; align-items: center; }
-    .btn-lg { min-height: 2.75rem; padding: 0.625rem 1.25rem; font-size: 0.9375rem; border-radius: 12px; }
-    /* BoardUI secondary button */
-    .btn-ghost {
-      display: inline-flex; align-items: center; gap: 0.5rem;
-      min-height: 2.75rem; padding: 0.625rem 1.1rem; font-weight: 500; font-size: 0.9375rem;
-      color: var(--text-primary); text-decoration: none; border-radius: 12px;
-      background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: var(--shadow-xs);
-      transition: background var(--dur), border-color var(--dur);
-    }
-    .btn-ghost:hover { background: var(--surface-2); border-color: var(--border-strong); }
-    .hero-note { margin-top: 1.4rem; font-size: 0.82rem; color: var(--text-muted); display: flex; gap: 1.2rem; flex-wrap: wrap; }
-    .hero-note span { display: inline-flex; align-items: center; gap: 0.4rem; }
-
-    /* ── Live preview mockup ──────────────────────────── */
-    .preview {
-      position: relative;
-      background: var(--surface-color);
-      border: 1px solid var(--border-color);
-      border-radius: var(--r-xl);
-      box-shadow: var(--shadow-lg);
-      overflow: hidden;
-    }
-    .pv-head {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-color);
-      background: var(--surface-2);
-    }
-    .pv-title { display: flex; align-items: center; gap: 0.55rem; font-weight: 600; font-size: 0.9375rem; }
-    .pv-live { width: 9px; height: 9px; border-radius: 50%; background: var(--success-color); box-shadow: 0 0 0 3px var(--success-soft); animation: pulseDot 1.8s infinite; }
-    .pv-dir {
-      font-size: 0.75rem; font-weight: 600;
-      color: var(--accent-700); background: var(--accent-100);
-      padding: 0.125rem 0.5rem; border-radius: var(--r-xs);
-    }
-    .pv-body { padding: 1.2rem; display: flex; flex-direction: column; gap: 1rem; min-height: 220px; }
-    .pv-seg { animation: floatUp 0.5s var(--ease) both; }
-    .pv-seg .t { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); line-height: 1.4; }
-    .pv-seg .o { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
-    .pv-seg.tentative { opacity: 0.55; }
-    .pv-caret { display: inline-block; width: 2px; height: 1.05em; background: var(--accent-color); margin-left: 2px; vertical-align: text-bottom; animation: blink 1s steps(2) infinite; }
-    @keyframes blink { 50% { opacity: 0; } }
-    .pv-foot {
-      display: flex; gap: 0.5rem; flex-wrap: wrap;
-      padding: 0.9rem 1.2rem; border-top: 1px solid var(--border-color); background: var(--surface-2);
-    }
-    /* BoardUI Chip (subtle) */
-    .chip {
-      font-size: 0.75rem; line-height: 1rem; font-weight: 500; color: var(--text-secondary);
-      background: var(--surface-color); border: 1px solid var(--border-color);
-      padding: 0.25rem 0.5rem; border-radius: var(--r-xs); display: inline-flex; align-items: center; gap: 0.35rem;
-    }
-
-    /* ── Stat strip ───────────────────────────────────── */
-    .stats {
-      max-width: 1120px; margin: 1rem auto 0; padding: 0 1.5rem;
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;
-    }
-    .stat {
-      background: var(--surface-color); border: 1px solid var(--border-color);
-      border-radius: var(--r-xl); padding: 1.25rem 1.5rem; box-shadow: var(--shadow-sm);
-    }
-    .stat .n { font-size: 1.75rem; line-height: 2.25rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-    .stat .l { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem; }
-
-    /* ── Bento features ───────────────────────────────── */
-    .section { max-width: 1120px; margin: 5.5rem auto 0; padding: 0 1.5rem; }
-    .section-head { text-align: center; max-width: 40rem; margin: 0 auto 2.5rem; }
-    .section-head h2 { font-size: clamp(1.75rem, 3.5vw, 2.25rem); letter-spacing: -0.02em; }
-    .section-head p { color: var(--text-secondary); margin-top: 0.7rem; font-size: 1.02rem; line-height: 1.6; }
-
-    .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1.1rem; }
-    .card {
-      background: var(--surface-color); border: 1px solid var(--border-color);
-      border-radius: var(--r-xl); padding: 1.5rem; box-shadow: var(--shadow-sm);
-      transition: box-shadow var(--dur) var(--ease), border-color var(--dur);
-      display: flex; flex-direction: column; gap: 0.6rem;
-    }
-    .card:hover { box-shadow: var(--shadow); border-color: var(--border-strong); }
-    .card.span3 { grid-column: span 3; }
-    .card.span2 { grid-column: span 2; }
-    .card.feature { background: var(--accent-grad); border: none; color: #fff; box-shadow: var(--shadow-selected), var(--shadow); }
-    .card.feature h3, .card.feature p { color: #fff; }
-    .card .ic {
-      width: 40px; height: 40px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center;
-      background: var(--surface-2); border: 1px solid var(--border-color); color: var(--accent-color); margin-bottom: 0.4rem;
-    }
-    .card.feature .ic { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.2); color: #fff; }
-    .card h3 { font-size: 1rem; line-height: 1.375rem; }
-    .card p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.55; margin: 0; }
-
-    /* ── Steps ────────────────────────────────────────── */
-    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; counter-reset: s; }
-    .step { position: relative; padding-top: 0.5rem; }
-    .step .num {
-      width: 32px; height: 32px; border-radius: 8px; background: var(--accent-grad); color: #fff;
-      box-shadow: var(--shadow-selected); font-weight: 600; display: flex; align-items: center; justify-content: center;
-      margin-bottom: 0.9rem; font-size: 0.875rem;
-    }
-    .step h4 { font-size: 1rem; margin-bottom: 0.35rem; }
-    .step p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.55; }
-
-    /* ── CTA band ─────────────────────────────────────── */
-    .cta-band { max-width: 1120px; margin: 5.5rem auto 4rem; padding: 0 1.5rem; }
-    .cta-inner {
-      position: relative; overflow: hidden;
-      background: var(--ink-grad); border-radius: var(--r-xl);
-      padding: 3.5rem 2rem; text-align: center; color: #fff;
-      box-shadow: var(--shadow-lg);
-    }
-    .cta-inner h2 { color: #fff; font-size: clamp(1.75rem, 3.5vw, 2.25rem); letter-spacing: -0.02em; position: relative; }
-    .cta-inner p { color: rgba(255,255,255,0.82); max-width: 34rem; margin: 0.8rem auto 1.8rem; line-height: 1.6; position: relative; }
-    .btn-on-dark {
-      position: relative; display: inline-flex; align-items: center; gap: 0.5rem;
-      background: var(--accent-grad); color: #fff; font-weight: 500; font-size: 0.9375rem;
-      min-height: 2.75rem; padding: 0.625rem 1.4rem; border-radius: 12px; text-decoration: none;
-      box-shadow: var(--shadow-selected); transition: background var(--dur);
-    }
-    .btn-on-dark:hover { background: linear-gradient(180deg, var(--accent-400) 0%, var(--accent-500) 100%); }
-
-    /* ── Responsive ───────────────────────────────────── */
-    @media (max-width: 900px) {
-      .hero { grid-template-columns: 1fr; gap: 2.5rem; padding-top: 6rem; }
-      .preview { order: 2; }
-      .stats { grid-template-columns: 1fr; }
-      .bento { grid-template-columns: 1fr; }
-      .card.span3, .card.span2 { grid-column: auto; }
-      .steps { grid-template-columns: 1fr; }
-    }
-  </style>
+  <title>B-Translate · Live Turkish and English translation for Beykoz University events</title>
+  <meta name="description" content="Follow every talk at Beykoz University events in Turkish or English. Scan the QR code, open the live page in your browser and read or listen to each sentence as it is spoken. Free, no app, no account.">
+  <link rel="canonical" href="https://btranslate.beykoz.edu.tr/">
+  <meta name="theme-color" content="#ffffff">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="B-Translate">
+  <meta property="og:title" content="B-Translate · Live translation for Beykoz University events">
+  <meta property="og:description" content="Read or listen to every talk in Turkish or English, live on your phone. Free, no app, no account.">
+  <meta property="og:url" content="https://btranslate.beykoz.edu.tr/">
+  <meta property="og:image" content="https://btranslate.beykoz.edu.tr/static/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="B-Translate live feed showing a talk translated from Turkish to English">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preload" href="/static/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/landing.css?v=5">
+  <script>document.documentElement.classList.add('js');</script>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-BKKE9K5FN1"></script>
   <script>
@@ -176,178 +30,326 @@
     gtag('config', 'G-BKKE9K5FN1');
   </script>
 </head>
-<body style="margin-top:0;">
+<body>
+  <a class="skip-link body-5" href="#main" data-i18n="lp_skip">Skip to content</a>
 
-  <nav class="navbar">
-    <a href="/" class="nav-brand" data-i18n="nav_title">B-Translate</a>
-    <div class="lang-switcher">
-      <button type="button" class="lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')" aria-label="English">EN</button>
-      <span aria-hidden="true">|</span>
-      <button type="button" class="lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')" aria-label="Türkçe">TR</button>
-    </div>
-  </nav>
-
-  <!-- ── Hero ── -->
-  <section class="hero">
-    <div class="hero-copy rise">
-      <span class="eyebrow"><span class="pulse"></span> <span data-i18n="hero_eyebrow">Beykoz University · Live Translation</span></span>
-      <h1 data-i18n="hero_title">Communication <span class="grad-text">Without Borders.</span></h1>
-      <p class="lede" data-i18n="hero_subtitle">Instantly transcribe and translate your events using AI — in real-time, with the lowest possible latency.</p>
-      <div class="hero-ctas">
-        <button class="btn-primary btn-lg join-cta" onclick="joinEvent()" data-i18n="card_part_btn" style="display:none;">Join Event</button>
-        <a class="btn-ghost" href="/host">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
-          <span data-i18n="card_host_btn">Log In as Host</span>
-        </a>
-      </div>
-      <div id="no-live" style="display:none; margin-top:0.9rem; font-size:0.9rem; color:var(--text-secondary); align-items:center; gap:0.5rem;">
-        <span style="width:8px;height:8px;border-radius:50%;background:var(--text-muted);display:inline-block;"></span>
-        <span data-i18n="no_live_note">No live broadcast right now. A host can start one from the host login.</span>
-      </div>
-      <div class="hero-note">
-        <span>🔒 <span data-i18n="hero_note_secure">API key stays on the server</span></span>
-        <span>⚡ <span data-i18n="hero_note_latency">Sub-second delivery</span></span>
-        <span>🎯 <span data-i18n="hero_note_vad">Silence &amp; noise filtered</span></span>
-      </div>
-    </div>
-
-    <!-- Live product preview -->
-    <div class="preview rise d2" aria-hidden="true">
-      <div class="pv-head">
-        <div class="pv-title"><span class="pv-live"></span> <span data-i18n="pv_live">Live Feed</span></div>
-        <div class="pv-dir">TR → EN</div>
-      </div>
-      <div class="pv-body">
-        <div class="pv-seg">
-          <div class="t">Welcome to Beykoz University.</div>
-          <div class="o">Beykoz Üniversitesi'ne hoş geldiniz.</div>
+  <!-- ── Floating navigation ── -->
+  <header>
+    <nav class="nav" aria-label="Main">
+      <a href="/" class="brand title-3" aria-label="B-Translate home"><span class="brand-mark" aria-hidden="true">BT</span> B-Translate</a>
+      <ul class="nav-links body-5">
+        <li><a class="nav-link" href="#features" data-i18n="lp_nav_features">Features</a></li>
+        <li><a class="nav-link" href="#how" data-i18n="lp_nav_how">How it works</a></li>
+        <li><a class="nav-link" href="#faq" data-i18n="lp_nav_faq">FAQ</a></li>
+      </ul>
+      <div class="nav-actions">
+        <div class="lang caption-3" role="group" aria-label="Language">
+          <button type="button" class="lang-btn lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')" aria-label="English">EN</button>
+          <button type="button" class="lang-btn lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')" aria-label="Türkçe">TR</button>
         </div>
-        <div class="pv-seg">
-          <div class="t">Today we open the new academic year.</div>
-          <div class="o">Bugün yeni akademik yılı açıyoruz.</div>
+        <a class="btn btn-secondary button-sm" href="/host"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg> <span data-i18n="lp_nav_host">Host login</span></a>
+        <button type="button" class="menu-toggle" id="menu-toggle" aria-expanded="false" aria-controls="mobile-menu" aria-label="Open menu">
+          <span></span><span></span>
+        </button>
+      </div>
+    </nav>
+    <div class="mobile-menu" id="mobile-menu" aria-label="Menu">
+      <a class="m-link heading-6" href="#features" data-i18n="lp_nav_features">Features</a>
+      <a class="m-link heading-6" href="#how" data-i18n="lp_nav_how">How it works</a>
+      <a class="m-link heading-6" href="#faq" data-i18n="lp_nav_faq">FAQ</a>
+      <div class="lang caption-3" role="group" aria-label="Language" style="margin-top: var(--s-300); align-self: flex-start;">
+        <button type="button" class="lang-btn lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')" aria-label="English">EN</button>
+        <button type="button" class="lang-btn lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')" aria-label="Türkçe">TR</button>
+      </div>
+      <a class="btn btn-secondary button-md" href="/host"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M208,80H176V56a48,48,0,0,0-96,0V80H48A16,16,0,0,0,32,96V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V96A16,16,0,0,0,208,80ZM96,56a32,32,0,0,1,64,0V80H96ZM208,208H48V96H208V208Z"/></svg> <span data-i18n="lp_nav_host">Host login</span></a>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ── Hero ── -->
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <span class="status-chip caption-4" role="status">
+            <span class="status-dot" aria-hidden="true"></span>
+            <span data-when="live" data-i18n="lp_live_on">A broadcast is live now</span>
+            <span data-when="waiting" data-i18n="lp_live_off">No live broadcast right now</span>
+          </span>
+          <h1 id="hero-title" class="heading-1 hero-title" data-i18n="lp_hero_title">Understand every talk,<br>in your own language.</h1>
+          <p class="lede title-2 muted" data-i18n="lp_hero_sub">Live Turkish and English translation for Beykoz University events. Scan the code, open the page in your browser and read every sentence as it is spoken.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg button-md" href="/participant?code=LIVE" data-when="live"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg> <span data-i18n="lp_cta_join">Join the live broadcast</span></a>
+            <span class="btn btn-waiting btn-lg button-md" data-when="waiting" aria-disabled="true"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg> <span data-i18n="lp_cta_wait">Waiting for the next broadcast</span></span>
+          </div>
+          <p class="cta-note caption-2" data-when="waiting" data-i18n="lp_cta_wait_note">The join button appears here as soon as a host starts broadcasting. Keep this page open.</p>
+          <ul class="proof caption-1">
+            <li><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg> <span data-i18n="lp_proof_1">Built by Beykoz University IT</span></li>
+            <li><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg> <span data-i18n="lp_proof_2">Free for every participant</span></li>
+            <li><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg> <span data-i18n="lp_proof_3">No app, no account</span></li>
+          </ul>
         </div>
-        <div class="pv-seg tentative">
-          <div class="t">Our rector will now take the floor<span class="pv-caret"></span></div>
-          <div class="o">Rektörümüz şimdi söz alacak…</div>
+
+        <!-- Hero visual: what the live page looks like -->
+        <div class="preview" aria-hidden="true" data-reveal>
+          <div class="pv-head">
+            <div class="pv-title title-4"><span class="pv-live"></span> <span data-i18n="pv_live">Live feed</span></div>
+            <div class="pv-dir caption-3">TR → EN</div>
+          </div>
+          <div class="pv-body">
+            <div class="pv-seg"><div class="t title-2">Welcome to Beykoz University.</div><div class="o caption-2">Beykoz Üniversitesi'ne hoş geldiniz.</div></div>
+            <div class="pv-seg"><div class="t title-2">Today we open the new academic year.</div><div class="o caption-2">Bugün yeni akademik yılı açıyoruz.</div></div>
+            <div class="pv-seg tentative"><div class="t title-2">Our rector will now take the floor<span class="pv-caret"></span></div><div class="o caption-2">Rektörümüz şimdi söz alacak</div></div>
+          </div>
+          <div class="pv-foot caption-4">
+            <span class="chip"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V240a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z"/></svg> <span data-i18n="pv_listening">Listening</span></span>
+            <span class="chip"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M247.15,212.42l-56-112a8,8,0,0,0-14.31,0l-21.71,43.43A88,88,0,0,1,108,126.93,103.65,103.65,0,0,0,135.69,64H160a8,8,0,0,0,0-16H104V32a8,8,0,0,0-16,0V48H32a8,8,0,0,0,0,16h87.63A87.76,87.76,0,0,1,96,116.35a87.74,87.74,0,0,1-19-31,8,8,0,1,0-15.08,5.34A103.63,103.63,0,0,0,84,127a87.55,87.55,0,0,1-52,17,8,8,0,0,0,0,16,103.46,103.46,0,0,0,64-22.08,104.18,104.18,0,0,0,51.44,21.31l-26.6,53.19a8,8,0,0,0,14.31,7.16L148.94,192h70.11l13.79,27.58A8,8,0,0,0,240,224a8,8,0,0,0,7.15-11.58ZM156.94,176,184,121.89,211.05,176Z"/></svg> <span data-i18n="pv_connected">DeepL connected</span></span>
+            <span class="chip"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M155.51,24.81a8,8,0,0,0-8.42.88L77.25,80H32A16,16,0,0,0,16,96v64a16,16,0,0,0,16,16H77.25l69.84,54.31A8,8,0,0,0,160,224V32A8,8,0,0,0,155.51,24.81ZM32,96H72v64H32ZM144,207.64,88,164.09V91.91l56-43.55Zm54-106.08a40,40,0,0,1,0,52.88,8,8,0,0,1-12-10.58,24,24,0,0,0,0-31.72,8,8,0,0,1,12-10.58ZM248,128a79.9,79.9,0,0,1-20.37,53.34,8,8,0,0,1-11.92-10.67,64,64,0,0,0,0-85.33,8,8,0,1,1,11.92-10.67A79.83,79.83,0,0,1,248,128Z"/></svg> <span data-i18n="pv_audio">Spoken translation</span></span>
+          </div>
         </div>
       </div>
-      <div class="pv-foot">
-        <span class="chip">🎙️ <span data-i18n="pv_listening">Listening</span></span>
-        <span class="chip">🟢 <span data-i18n="pv_connected">DeepL connected</span></span>
-        <span class="chip">🔊 <span data-i18n="pv_audio">Translated audio</span></span>
-      </div>
-    </div>
-  </section>
 
-  <!-- ── Stats ── -->
-  <div class="stats rise d3">
-    <div class="stat"><div class="n">&lt; 1 sn</div><div class="l" data-i18n="stat_latency">End-to-end latency</div></div>
-    <div class="stat"><div class="n">TR ⇄ EN</div><div class="l" data-i18n="stat_langs">Two-way, one-tap switch</div></div>
-    <div class="stat"><div class="n">100%</div><div class="l" data-i18n="stat_secure">Server-side API key</div></div>
-  </div>
+      <!-- Facts (all true of the product; no invented numbers) -->
+      <div class="wrap" style="margin-top: var(--s-700);">
+        <ul class="facts" style="list-style: none;" data-reveal>
+          <li class="fact"><span class="n heading-5">TR ⇄ EN</span><span class="caption-2 muted" data-i18n="lp_fact_1">Both directions, switched by the host in one tap</span></li>
+          <li class="fact"><span class="n heading-5" data-i18n="lp_fact_2_n">QR code</span><span class="caption-2 muted" data-i18n="lp_fact_2">Scan and read in your browser, nothing to install</span></li>
+          <li class="fact"><span class="n heading-5">TXT · CSV · JSON</span><span class="caption-2 muted" data-i18n="lp_fact_3">Every final sentence is saved for the event record</span></li>
+        </ul>
+      </div>
+    </section>
 
-  <!-- ── Features (bento) ── -->
-  <section class="section">
-    <div class="section-head">
-      <h2 data-i18n="feats_title">Built for live events</h2>
-      <p data-i18n="feats_sub">Everything the stage needs — accurate, fast, and quiet when the room is quiet.</p>
-    </div>
-    <div class="bento">
-      <div class="card feature span3">
-        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg></div>
-        <h3 data-i18n="feat_1_title">Voice Activity Detection</h3>
-        <p data-i18n="feat_1_desc">Only real speech is streamed. Silence, music, applause and mic noise are filtered out before they can cause hallucinations.</p>
+    <!-- ── Problem → solution ── -->
+    <section class="section section-alt" aria-labelledby="problem-title">
+      <div class="wrap split">
+        <h2 id="problem-title" class="heading-3" data-reveal data-i18n="lp_problem_title">Nobody in the hall should miss the talk.</h2>
+        <div data-reveal>
+          <p class="body-3 muted" data-i18n="lp_problem_1">International students, guests and staff sit in the same hall, but a talk is given in one language. An interpreter is not available at every event, and printed summaries arrive after the moment has passed.</p>
+          <p class="body-3 muted" data-i18n="lp_problem_2">B-Translate puts the talk on every phone in the hall, in Turkish or English, while it is happening.</p>
+        </div>
       </div>
-      <div class="card span3">
-        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-        <h3 data-i18n="feat_2_title">Ultra-low latency</h3>
-        <p data-i18n="feat_2_desc">A lean WebSocket pipeline streams transcript and translation the moment words are spoken.</p>
-      </div>
-      <div class="card span2">
-        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-        <h3 data-i18n="feat_3_title">TR ⇄ EN, one tap</h3>
-        <p data-i18n="feat_3_desc">Switch direction instantly. The language layer is central, so more languages drop in easily.</p>
-      </div>
-      <div class="card span2">
-        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></div>
-        <h3 data-i18n="feat_4_title">Translated audio</h3>
-        <p data-i18n="feat_4_desc">Optional spoken translation with its own volume &amp; mute — a gap-free playback queue.</p>
-      </div>
-      <div class="card span2">
-        <div class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-        <h3 data-i18n="feat_5_title">Session transcripts</h3>
-        <p data-i18n="feat_5_desc">Every finalized segment is saved and exportable as TXT, CSV or JSON after the event.</p>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- ── How it works ── -->
-  <section class="section">
-    <div class="section-head">
-      <h2 data-i18n="hiw_title">How It Works</h2>
-      <p data-i18n="hiw_sub">From the speaker's mic to the audience's screen in three steps.</p>
-    </div>
-    <div class="steps">
-      <div class="step rise">
-        <div class="num">1</div>
-        <h4 data-i18n="hiw_s1_title">Start a session</h4>
-        <p data-i18n="hiw_s1_desc">The host logs in, picks a direction, and shares a QR code. Participants join in one tap.</p>
+    <!-- ── Tagline reveal ── -->
+    <section class="section" aria-label="Tagline">
+      <div class="wrap">
+        <p class="tagline heading-2" id="tagline" data-i18n="lp_tagline">The speaker talks.<br>The whole room understands.</p>
       </div>
-      <div class="step rise d1">
-        <div class="num">2</div>
-        <h4 data-i18n="hiw_s2_title">Speak naturally</h4>
-        <p data-i18n="hiw_s2_desc">Browser VAD streams only speech to the server, which manages the DeepL Voice connection.</p>
+    </section>
+
+    <!-- ── Benefits ── -->
+    <section class="section section-alt" id="features" aria-labelledby="features-title">
+      <div class="wrap">
+        <div class="section-head" data-reveal>
+          <h2 id="features-title" class="heading-3" data-i18n="lp_feats_title">What you get in the hall</h2>
+          <p class="title-2 muted" data-i18n="lp_feats_sub">Everything happens in the browser on your phone or laptop.</p>
+        </div>
+        <div class="benefits">
+          <article class="benefit wide accent" data-reveal>
+            <div class="icon-tile"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M216,48H40A16,16,0,0,0,24,64V224a15.85,15.85,0,0,0,9.24,14.5A16.13,16.13,0,0,0,40,240a15.89,15.89,0,0,0,10.25-3.78l.09-.07L83,208H216a16,16,0,0,0,16-16V64A16,16,0,0,0,216,48ZM40,224h0ZM216,192H80a8,8,0,0,0-5.23,1.95L40,224V64H216ZM88,112a8,8,0,0,1,8-8h64a8,8,0,0,1,0,16H96A8,8,0,0,1,88,112Zm0,32a8,8,0,0,1,8-8h64a8,8,0,1,1,0,16H96A8,8,0,0,1,88,144Z"/></svg></div>
+            <h3 class="heading-6" data-i18n="lp_b1_t">Read it as it is spoken</h3>
+            <p class="body-6 muted" data-i18n="lp_b1_d">Text arrives line by line while the speaker talks, first as a faded draft and then as the final sentence.</p>
+          </article>
+          <article class="benefit wide" data-reveal>
+            <div class="icon-tile"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M201.89,54.66A103.43,103.43,0,0,0,128.79,24H128A104,104,0,0,0,24,128v56a24,24,0,0,0,24,24H64a24,24,0,0,0,24-24V144a24,24,0,0,0-24-24H40.36A88,88,0,0,1,128,40h.67a87.71,87.71,0,0,1,87,80H192a24,24,0,0,0-24,24v40a24,24,0,0,0,24,24h16a24,24,0,0,0,24-24V128A103.41,103.41,0,0,0,201.89,54.66ZM64,136a8,8,0,0,1,8,8v40a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V136Zm152,48a8,8,0,0,1-8,8H192a8,8,0,0,1-8-8V144a8,8,0,0,1,8-8h24Z"/></svg></div>
+            <h3 class="heading-6" data-i18n="lp_b2_t">Listen instead of reading</h3>
+            <p class="body-6 muted" data-i18n="lp_b2_d">Turn on spoken translation and follow with headphones. Volume and mute are always one tap away.</p>
+          </article>
+          <article class="benefit" data-reveal>
+            <div class="icon-tile"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M216,64H147.31l34.35-34.34a8,8,0,1,0-11.32-11.32L128,60.69,85.66,18.34A8,8,0,0,0,74.34,29.66L108.69,64H40A16,16,0,0,0,24,80V200a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,136H40V80H216V200Z"/></svg></div>
+            <h3 class="heading-6" data-i18n="lp_b3_t">Big screen mode</h3>
+            <p class="body-6 muted" data-i18n="lp_b3_d">TV mode shows large subtitles for a projector or a screen beside the stage.</p>
+          </article>
+          <article class="benefit" data-reveal>
+            <div class="icon-tile"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M56,96v64a8,8,0,0,1-16,0V96a8,8,0,0,1,16,0ZM88,24a8,8,0,0,0-8,8V224a8,8,0,0,0,16,0V32A8,8,0,0,0,88,24Zm40,32a8,8,0,0,0-8,8V192a8,8,0,0,0,16,0V64A8,8,0,0,0,128,56Zm40,32a8,8,0,0,0-8,8v64a8,8,0,0,0,16,0V96A8,8,0,0,0,168,88Zm40-16a8,8,0,0,0-8,8v96a8,8,0,0,0,16,0V80A8,8,0,0,0,208,72Z"/></svg></div>
+            <h3 class="heading-6" data-i18n="lp_b4_t">Quiet when the room is quiet</h3>
+            <p class="body-6 muted" data-i18n="lp_b4_d">Only real speech goes to translation. Pauses, music and applause do not fill the screen.</p>
+          </article>
+          <article class="benefit" data-reveal>
+            <div class="icon-tile"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,82.34l-56-56A8,8,0,0,0,152,24H56A16,16,0,0,0,40,40V216a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V88A8,8,0,0,0,213.66,82.34ZM160,51.31,188.69,80H160ZM200,216H56V40h88V88a8,8,0,0,0,8,8h48V216Zm-32-80a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,136Zm0,32a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h64A8,8,0,0,1,168,168Z"/></svg></div>
+            <h3 class="heading-6" data-i18n="lp_b5_t">A record of every session</h3>
+            <p class="body-6 muted" data-i18n="lp_b5_d">Organisers download the full transcript of the day as TXT, CSV or JSON after the event.</p>
+          </article>
+        </div>
       </div>
-      <div class="step rise d2">
-        <div class="num">3</div>
-        <h4 data-i18n="hiw_s3_title">Read &amp; hear</h4>
-        <p data-i18n="hiw_s3_desc">Participants see live transcript and translation — and, when enabled, hear it aloud.</p>
+    </section>
+
+    <!-- ── How it works ── -->
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="wrap">
+        <div class="section-head" data-reveal>
+          <h2 id="how-title" class="heading-3" data-i18n="lp_how_title">How it works</h2>
+          <p class="title-2 muted" data-i18n="lp_how_sub">From the speaker’s microphone to your screen in three steps.</p>
+        </div>
+        <ol class="steps">
+          <li class="step" data-reveal>
+            <span class="step-num caption-3" aria-hidden="true">1</span>
+            <h3 class="title-2" data-i18n="lp_s1_t">Scan the code</h3>
+            <p class="body-6 muted" data-i18n="lp_s1_d">Scan the QR code shown in the hall, or open this page and tap the join button.</p>
+          </li>
+          <li class="step" data-reveal>
+            <span class="step-num caption-3" aria-hidden="true">2</span>
+            <h3 class="title-2" data-i18n="lp_s2_t">Follow the talk</h3>
+            <p class="body-6 muted" data-i18n="lp_s2_d">The host speaks. Each sentence is recognised, translated with DeepL and sent to your screen.</p>
+          </li>
+          <li class="step" data-reveal>
+            <span class="step-num caption-3" aria-hidden="true">3</span>
+            <h3 class="title-2" data-i18n="lp_s3_t">Read or listen</h3>
+            <p class="body-6 muted" data-i18n="lp_s3_d">Pick your interface language, turn on audio or switch to TV mode whenever you like.</p>
+          </li>
+        </ol>
       </div>
+    </section>
+
+    <!-- ── FAQ ── -->
+    <section class="section section-alt" id="faq" aria-labelledby="faq-title">
+      <div class="wrap">
+        <div class="section-head" data-reveal>
+          <h2 id="faq-title" class="heading-3" data-i18n="lp_faq_title">Questions people ask</h2>
+        </div>
+        <div class="faq" data-reveal>
+          <details><summary class="title-3"><span data-i18n="lp_q1">Do I need to install an app or create an account?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a1">No. The live page runs in any current mobile or desktop browser. Scan the code or open the link and you are in.</p></details>
+          <details><summary class="title-3"><span data-i18n="lp_q2">Which languages are supported?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a2">Turkish to English and English to Turkish. The host chooses the direction and can switch it during the talk.</p></details>
+          <details><summary class="title-3"><span data-i18n="lp_q3">How quickly does the translation appear?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a3">A draft appears while the sentence is still being spoken and is replaced by the final translation a moment after the speaker finishes it.</p></details>
+          <details><summary class="title-3"><span data-i18n="lp_q4">How accurate is it?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a4">Speech is recognised automatically and translated by DeepL, so names, technical terms and fast or unclear speech can come out wrong. Use it as a live aid, not as an official transcript.</p></details>
+          <details><summary class="title-3"><span data-i18n="lp_q5">Can I listen instead of reading?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a5">Yes. Turn on audio on the live page and use headphones so you do not disturb the people around you.</p></details>
+          <details><summary class="title-3"><span data-i18n="lp_q6">Does the page use my microphone?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a6">No. As a participant your device only receives the broadcast. Only the host’s computer captures sound.</p></details>
+          <details><summary class="title-3"><span data-i18n="lp_q7">Is what is said stored?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a7">The final sentences and their translations are kept on the university server so organisers can download the transcript after the event. Audio is not recorded on the server.</p></details>
+          <details><summary class="title-3"><span data-i18n="lp_q8">Why is there no join button right now?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a8">The button only appears while a host is broadcasting. The page checks regularly, so keep it open and the button appears when the session starts.</p></details>
+          <details><summary class="title-3"><span data-i18n="lp_q9">How can I use it at my own event?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a9">Contact the Beykoz University IT Directorate for a host account. Hosts sign in from the host login and start the broadcast from a laptop at the lectern.</p></details>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Final CTA (identical action to the hero) ── -->
+    <section class="section" aria-labelledby="cta-title">
+      <div class="wrap">
+        <div class="cta-band" data-reveal>
+          <h2 id="cta-title" class="heading-3" data-i18n="lp_cta_title">Ready when the next talk starts</h2>
+          <p class="title-2" data-i18n="lp_cta_sub">Open the live page on your phone and follow the talk in your language.</p>
+          <a class="btn btn-primary btn-lg button-md" href="/participant?code=LIVE" data-when="live"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M221.66,133.66l-72,72a8,8,0,0,1-11.32-11.32L196.69,136H40a8,8,0,0,1,0-16H196.69L138.34,61.66a8,8,0,0,1,11.32-11.32l72,72A8,8,0,0,1,221.66,133.66Z"/></svg> <span data-i18n="lp_cta_join">Join the live broadcast</span></a>
+          <span class="btn btn-waiting btn-on-dark btn-lg button-md" data-when="waiting" aria-disabled="true"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg> <span data-i18n="lp_cta_wait">Waiting for the next broadcast</span></span>
+          <ul class="proof caption-1">
+            <li><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg> <span data-i18n="lp_proof_2">Free for every participant</span></li>
+            <li><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg> <span data-i18n="lp_proof_3">No app, no account</span></li>
+            <li><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></svg> <span data-i18n="lp_proof_4">Works in your browser</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap caption-2">
+      <span data-i18n="lp_footer">B-Translate · Beykoz University IT Directorate · CC BY-NC-SA 4.0</span>
+      <nav aria-label="Footer">
+        <a href="/participant?code=LIVE" data-i18n="lp_footer_live">Live page</a>
+        <a href="/host" data-i18n="lp_nav_host">Host login</a>
+        <a href="#main" data-i18n="lp_footer_top">Back to top</a>
+      </nav>
     </div>
-  </section>
+  </footer>
 
-  <!-- ── CTA band ── -->
-  <div class="cta-band">
-    <div class="cta-inner rise">
-      <h2 data-i18n="cta_title">Ready for your next event?</h2>
-      <p data-i18n="cta_desc">Join a live session as a participant, or log in as a host to start broadcasting.</p>
-      <a class="btn-on-dark join-cta" href="/participant?code=LIVE" onclick="joinEvent(); return false;" style="display:none;">
-        <span data-i18n="cta_btn">Join Live Event</span>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </a>
-      <a class="btn-on-dark join-off" href="/host" style="display:none; background:rgba(255,255,255,0.14); color:#fff;">
-        <span data-i18n="cta_host">Log In as Host</span>
-      </a>
-    </div>
-  </div>
-
-  <footer class="site-footer" data-i18n="footer_copy">B-Translate | Licensed under CC BY-NC-SA 4.0 — Beykoz University IT Directorate</footer>
-
-  <script src="/static/lang.js?v=4"></script>
+  <script src="/static/lang.js?v=6"></script>
   <script>
-    function joinEvent() {
-      window.location.href = `/participant?code=LIVE`;
-    }
+    (function () {
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Only show the "Join" CTAs when a host is actually broadcasting.
-    let lastLive = false;
-    async function refreshLiveState() {
-      let live = lastLive;
-      try {
-        const res = await fetch('/api/sessions/LIVE/live', { cache: 'no-store' });
-        // On errors (e.g. 429 behind a busy campus NAT) keep the last known
-        // state instead of hiding the Join button.
-        if (res.ok) live = (await res.json()).live === true;
-      } catch (e) { /* keep last known state */ }
-      lastLive = live;
-      document.querySelectorAll('.join-cta').forEach(el => el.style.display = live ? '' : 'none');
-      document.querySelectorAll('.join-off').forEach(el => el.style.display = live ? 'none' : '');
-      const note = document.getElementById('no-live');
-      if (note) note.style.display = live ? 'none' : 'flex';
-    }
-    refreshLiveState();
-    // Re-check periodically so the button appears when a broadcast starts.
-    setInterval(refreshLiveState, 15000);
+      // ── Live state: the primary action only exists while a host broadcasts ──
+      let lastLive = false;
+      async function refreshLiveState() {
+        let live = lastLive;
+        try {
+          const res = await fetch('/api/sessions/LIVE/live', { cache: 'no-store' });
+          // On errors (e.g. 429 behind a busy campus network) keep the last known state.
+          if (res.ok) live = (await res.json()).live === true;
+        } catch (e) { /* keep last known state */ }
+        lastLive = live;
+        document.body.classList.toggle('is-live', live);
+      }
+      refreshLiveState();
+      setInterval(refreshLiveState, 15000);
+
+      // ── Mobile menu ──
+      const toggle = document.getElementById('menu-toggle');
+      const menu = document.getElementById('mobile-menu');
+      function setMenu(open) {
+        document.body.classList.toggle('menu-open', open);
+        toggle.setAttribute('aria-expanded', String(open));
+        toggle.setAttribute('aria-label', (translations[localStorage.getItem('bt_lang')] || translations.en)[open ? 'lp_menu_close' : 'lp_menu_open']);
+        document.body.style.overflow = open ? 'hidden' : '';
+      }
+      toggle.addEventListener('click', () => setMenu(!document.body.classList.contains('menu-open')));
+      menu.addEventListener('click', (e) => { if (e.target.closest('a')) setMenu(false); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('menu-open')) { setMenu(false); toggle.focus(); } });
+
+      // ── Current section in the nav ──
+      const links = [...document.querySelectorAll('.nav-link')];
+      const sectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          links.forEach((l) => l.setAttribute('aria-current', String(l.getAttribute('href') === '#' + entry.target.id)));
+        });
+      }, { rootMargin: '-45% 0px -50% 0px' });
+      ['features', 'how', 'faq'].forEach((id) => sectionObserver.observe(document.getElementById(id)));
+
+      // ── Scroll reveal: once per element ──
+      const revealObserver = new IntersectionObserver((entries, obs) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) { entry.target.classList.add('revealed'); obs.unobserve(entry.target); }
+        });
+      }, { threshold: 0.15 });
+      document.querySelectorAll('[data-reveal]').forEach((el) => revealObserver.observe(el));
+
+      // ── Tagline reveal: words light up one at a time, in reading order, as the
+      // section scrolls through a trigger band. One passive scroll listener,
+      // throttled with requestAnimationFrame and only attached while the
+      // section is on screen.
+      const tagline = document.getElementById('tagline');
+      let words = [];
+      let shown = 0;
+      function splitTagline() {
+        shown = 0;
+        // Undo a previous split (initial load + the language switcher both call this).
+        tagline.querySelectorAll('.w').forEach((w) => w.replaceWith(document.createTextNode(w.textContent)));
+        tagline.querySelectorAll('.tl-line').forEach((l) => l.replaceWith(...l.childNodes, document.createElement('br')));
+        tagline.normalize();
+        // Each phrase becomes its own block line so it balances on its own
+        // (a single block with <br> lets the last line end on one word).
+        const phrases = tagline.innerHTML.split(/<br\s*\/?>/i).map((p) => p.trim()).filter(Boolean);
+        const wrapWords = (p) => p.split(/(\s+)/).map((w) => (w.trim() ? `<span class="w">${w}</span>` : w)).join('');
+        tagline.innerHTML = phrases.map((p) => `<span class="tl-line">${reduceMotion ? p : wrapWords(p)}</span>`).join('');
+        words = reduceMotion ? [] : [...tagline.querySelectorAll('.w')]; // reduced motion: full color right away
+        update();
+      }
+      function update() {
+        if (!words.length) return;
+        const r = tagline.getBoundingClientRect();
+        const vh = window.innerHeight;
+        // 0 when the block's top reaches 85% of the viewport, 1 when its bottom reaches 45%.
+        const start = vh * 0.85, end = vh * 0.45;
+        const progress = Math.min(1, Math.max(0, (start - r.top) / (start - end + r.height)));
+        const target = Math.round(progress * words.length);
+        if (target > shown) { // never un-reveal
+          for (let i = shown; i < target; i++) words[i].classList.add('on');
+          shown = target;
+        }
+      }
+      let ticking = false;
+      const onScroll = () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => { ticking = false; update(); });
+      };
+      new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) { window.addEventListener('scroll', onScroll, { passive: true }); update(); }
+          else window.removeEventListener('scroll', onScroll);
+        });
+      }).observe(tagline);
+      // Re-split after the language switcher rewrites the text.
+      document.addEventListener('bt:langchange', splitTagline);
+      if (document.readyState !== 'loading') splitTagline(); else document.addEventListener('DOMContentLoaded', splitTagline);
+    })();
   </script>
 </body>
 </html>
