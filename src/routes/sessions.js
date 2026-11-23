@@ -7,6 +7,7 @@ const { getDirection, resolveDirection, DIRECTIONS } = require('../config/langua
 const sessionManager = require('../services/sessionManager');
 const config = require('../config');
 const logger = require('../utils/logger');
+const { wrap } = require('../utils/asyncHandler');
 
 const router = express.Router();
 
@@ -38,7 +39,7 @@ router.get('/config', (req, res) => {
 });
 
 /** Create / (re)start a session. Host only. */
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, wrap(async (req, res) => {
   const title = String(req.body.event_name || req.body.title || 'Live Event').slice(0, 255);
   let eventCode = String(req.body.event_code || 'LIVE').toUpperCase();
   if (!EVENT_CODE_RE.test(eventCode)) eventCode = 'LIVE';
@@ -62,7 +63,7 @@ router.post('/', requireAuth, async (req, res) => {
     logger.error('Create session error', e);
     res.status(500).json({ error: 'Failed to create session' });
   }
-});
+}));
 
 /** Host: force all connected participants to reload (unfreeze their screens). */
 router.post('/:code/refresh', requireAuth, (req, res) => {
@@ -79,17 +80,25 @@ router.get('/:code/live', (req, res) => {
   res.json({ live: sessionManager.isLive(eventCode) });
 });
 
-/** Public: fetch session info (used by participant page). */
-router.get('/:code', async (req, res) => {
+/**
+ * Public: fetch session info (used by participant page).
+ *
+ * Read-only: an unknown code returns defaults (status 'idle') instead of a
+ * 404 so participants can open the page before the host starts, but it never
+ * inserts a row — only an authenticated host (POST / or the host WebSocket)
+ * creates sessions.
+ */
+router.get('/:code', wrap(async (req, res) => {
   const eventCode = String(req.params.code || '').toUpperCase();
   if (!EVENT_CODE_RE.test(eventCode)) return res.status(400).json({ error: 'Invalid code' });
-  let session = await transcriptSvc.getSessionByCode(eventCode);
+  const session = await transcriptSvc.getSessionByCode(eventCode);
   if (!session) {
-    // Auto-create so participants never hit a 404 (matches previous behavior).
-    session = await transcriptSvc.createOrGetSession(eventCode, {
-      title: 'Live Event',
-      sourceLanguage: DIRECTIONS[0].source,
-      targetLanguage: DIRECTIONS[0].target,
+    return res.json({
+      event_code: eventCode,
+      event_name: 'Live Event',
+      source_language: DIRECTIONS[0].source,
+      target_language: DIRECTIONS[0].target,
+      status: 'idle',
     });
   }
   res.json({
@@ -99,6 +108,6 @@ router.get('/:code', async (req, res) => {
     target_language: session.target_language,
     status: session.status,
   });
-});
+}));
 
 module.exports = router;

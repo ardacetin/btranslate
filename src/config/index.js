@@ -5,6 +5,13 @@
  * defaults so the app boots even with a partial .env during development.
  */
 require('dotenv').config();
+const crypto = require('crypto');
+
+// The placeholder shipped in old .env.example files. A server signing tokens
+// with it lets anyone forge an admin JWT, so it is treated as "no secret".
+const PLACEHOLDER_JWT_SECRET = 'change-me-to-a-long-random-string';
+const MIN_JWT_SECRET_LENGTH = 32;
+const DEFAULT_TIMEZONE = 'Europe/Istanbul';
 
 function bool(v, def = false) {
   if (v === undefined || v === null || v === '') return def;
@@ -16,22 +23,44 @@ function num(v, def) {
   return Number.isFinite(n) ? n : def;
 }
 
+function isValidTimeZone(tz) {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+const rawTimezone = process.env.APP_TIMEZONE || DEFAULT_TIMEZONE;
+
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: num(process.env.PORT, 3000),
+  // Interface to bind. CloudPanel/Nginx proxies to 127.0.0.1, so the Node
+  // port is not reachable from outside by default. Use 0.0.0.0 only if you
+  // really need direct access (e.g. testing from another LAN device).
+  host: process.env.HOST || '127.0.0.1',
+  // Zone used for every human-facing time (exports, history, logs) and for
+  // what a "day" means in the history/log pickers. Storage is always UTC.
+  appTimezone: isValidTimeZone(rawTimezone) ? rawTimezone : DEFAULT_TIMEZONE,
 
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
     port: num(process.env.DB_PORT, 3306),
     name: process.env.DB_NAME || 'btranslate',
-    user: process.env.DB_USER || 'root',
+    // No 'root' fallback: the app should use its own least-privilege user.
+    user: process.env.DB_USER || '',
     password: process.env.DB_PASSWORD || '',
   },
 
   auth: {
-    jwtSecret: process.env.JWT_SECRET || 'change-me-to-a-long-random-string',
+    // Validated by assertSecureConfig() when the server starts.
+    jwtSecret: process.env.JWT_SECRET || '',
     jwtExpiresIn: '7d',
-    adminPassword: process.env.ADMIN_PASSWORD || 'admin123',
+    // Only used by `npm run migrate` (first seed) and set-admin-password.
+    // No default: a well-known password must never be seeded.
+    adminPassword: process.env.ADMIN_PASSWORD || '',
   },
 
   openai: {
@@ -65,4 +94,45 @@ const config = {
   },
 };
 
+/**
+ * Startup checks for the HTTP server only (the migrate / set-admin-password
+ * scripts load this config too but never sign tokens).
+ *
+ * Throws on a fatal problem (production with a missing/placeholder/short
+ * JWT_SECRET). In development a missing or placeholder secret is replaced by a
+ * random per-process one, so tokens simply stop working after a restart.
+ * Returns a list of warnings for the caller to log.
+ */
+function assertSecureConfig() {
+  const warnings = [];
+  const secret = config.auth.jwtSecret;
+  const isPlaceholder = !secret || secret === PLACEHOLDER_JWT_SECRET;
+  const isShort = secret.length < MIN_JWT_SECRET_LENGTH;
+
+  if (config.env === 'production') {
+    if (isPlaceholder || isShort) {
+      throw new Error(
+        `JWT_SECRET is missing, the example placeholder, or shorter than ${MIN_JWT_SECRET_LENGTH} characters. ` +
+          "Set a long random value in .env, e.g. `node -e \"console.log(require('crypto').randomBytes(48).toString('base64url'))\"`."
+      );
+    }
+  } else if (isPlaceholder) {
+    config.auth.jwtSecret = crypto.randomBytes(48).toString('base64url');
+    warnings.push('JWT_SECRET is not set — using a random per-process secret (development only; tokens reset on restart).');
+  } else if (isShort) {
+    warnings.push(`JWT_SECRET is shorter than ${MIN_JWT_SECRET_LENGTH} characters — this would be refused in production.`);
+  }
+
+  if (!config.db.user) {
+    warnings.push('DB_USER is empty — set the MySQL user for this app in .env.');
+  }
+  if (rawTimezone !== config.appTimezone) {
+    warnings.push(`APP_TIMEZONE "${rawTimezone}" is not a valid IANA time zone — using ${config.appTimezone}.`);
+  }
+  return warnings;
+}
+
 module.exports = config;
+// Non-enumerable so the plain config object (and anything that dumps it)
+// stays data-only.
+Object.defineProperty(config, 'assertSecureConfig', { value: assertSecureConfig, enumerable: false });

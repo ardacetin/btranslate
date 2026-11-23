@@ -22,29 +22,32 @@
       gap: 3.5rem;
       align-items: center;
     }
+    /* BoardUI display type: Inter semibold, near-zero tracking */
     .hero-copy h1 {
-      font-size: clamp(2.6rem, 5vw, 4.1rem);
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      line-height: 1.02;
+      font-size: clamp(2.4rem, 5vw, 3.75rem);
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      line-height: 1.08;
       margin: 1.1rem 0 1.2rem;
     }
     .hero-copy p.lede {
-      font-size: 1.15rem;
+      font-size: 1.0625rem;
       color: var(--text-secondary);
       line-height: 1.6;
       max-width: 34rem;
       margin-bottom: 2rem;
     }
     .hero-ctas { display: flex; gap: 0.85rem; flex-wrap: wrap; align-items: center; }
-    .btn-lg { padding: 0.9rem 1.6rem; font-size: 1.02rem; border-radius: var(--r-md); }
+    .btn-lg { min-height: 2.75rem; padding: 0.625rem 1.25rem; font-size: 0.9375rem; border-radius: 12px; }
+    /* BoardUI secondary button */
     .btn-ghost {
       display: inline-flex; align-items: center; gap: 0.5rem;
-      padding: 0.9rem 1.1rem; font-weight: 600; font-size: 1.02rem;
-      color: var(--text-primary); text-decoration: none; border-radius: var(--r-md);
-      transition: background var(--dur), transform var(--dur);
+      min-height: 2.75rem; padding: 0.625rem 1.1rem; font-weight: 500; font-size: 0.9375rem;
+      color: var(--text-primary); text-decoration: none; border-radius: 12px;
+      background: var(--surface-color); border: 1px solid var(--border-color); box-shadow: var(--shadow-xs);
+      transition: background var(--dur), border-color var(--dur);
     }
-    .btn-ghost:hover { background: var(--surface-2); transform: translateY(-1px); }
+    .btn-ghost:hover { background: var(--surface-2); border-color: var(--border-strong); }
     .hero-note { margin-top: 1.4rem; font-size: 0.82rem; color: var(--text-muted); display: flex; gap: 1.2rem; flex-wrap: wrap; }
     .hero-note span { display: inline-flex; align-items: center; gap: 0.4rem; }
 
@@ -57,25 +60,21 @@
       box-shadow: var(--shadow-lg);
       overflow: hidden;
     }
-    .preview::before {
-      content: ''; position: absolute; inset: 0 0 auto 0; height: 4px;
-      background: var(--accent-grad);
-    }
     .pv-head {
       display: flex; align-items: center; justify-content: space-between;
       padding: 1rem 1.2rem; border-bottom: 1px solid var(--border-color);
-      background: linear-gradient(180deg, rgba(122,32,33,0.03), transparent);
+      background: var(--surface-2);
     }
-    .pv-title { display: flex; align-items: center; gap: 0.55rem; font-weight: 700; font-size: 0.95rem; }
+    .pv-title { display: flex; align-items: center; gap: 0.55rem; font-weight: 600; font-size: 0.9375rem; }
     .pv-live { width: 9px; height: 9px; border-radius: 50%; background: var(--success-color); box-shadow: 0 0 0 3px var(--success-soft); animation: pulseDot 1.8s infinite; }
     .pv-dir {
-      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
-      color: var(--accent-color); background: var(--accent-soft);
-      padding: 0.28rem 0.6rem; border-radius: 999px;
+      font-size: 0.75rem; font-weight: 600;
+      color: var(--accent-700); background: var(--accent-100);
+      padding: 0.125rem 0.5rem; border-radius: var(--r-xs);
     }
     .pv-body { padding: 1.2rem; display: flex; flex-direction: column; gap: 1rem; min-height: 220px; }
     .pv-seg { animation: floatUp 0.5s var(--ease) both; }
-    .pv-seg .t { font-size: 1.15rem; font-weight: 650; color: var(--text-primary); line-height: 1.4; }
+    .pv-seg .t { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); line-height: 1.4; }
     .pv-seg .o { font-size: 0.82rem; color: var(--text-muted); margin-top: 0.25rem; font-style: italic; }
     .pv-seg.tentative { opacity: 0.55; }
     .pv-caret { display: inline-block; width: 2px; height: 1.05em; background: var(--accent-color); margin-left: 2px; vertical-align: text-bottom; animation: blink 1s steps(2) infinite; }
@@ -84,10 +83,11 @@
       display: flex; gap: 0.5rem; flex-wrap: wrap;
       padding: 0.9rem 1.2rem; border-top: 1px solid var(--border-color); background: var(--surface-2);
     }
+    /* BoardUI Chip (subtle) */
     .chip {
-      font-size: 0.74rem; font-weight: 600; color: var(--text-secondary);
+      font-size: 0.75rem; line-height: 1rem; font-weight: 500; color: var(--text-secondary);
       background: var(--surface-color); border: 1px solid var(--border-color);
-      padding: 0.32rem 0.65rem; border-radius: 999px; display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.25rem 0.5rem; border-radius: var(--r-xs); display: inline-flex; align-items: center; gap: 0.35rem;
     }
 
     /* ── Stat strip ───────────────────────────────────── */
@@ -97,47 +97,47 @@
     }
     .stat {
       background: var(--surface-color); border: 1px solid var(--border-color);
-      border-radius: var(--r-md); padding: 1.3rem 1.4rem; box-shadow: var(--shadow-sm);
+      border-radius: var(--r-xl); padding: 1.25rem 1.5rem; box-shadow: var(--shadow-sm);
     }
-    .stat .n { font-family: 'Outfit', sans-serif; font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; color: var(--accent-color); }
+    .stat .n { font-size: 1.75rem; line-height: 2.25rem; font-weight: 600; letter-spacing: -0.02em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
     .stat .l { font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.2rem; }
 
     /* ── Bento features ───────────────────────────────── */
     .section { max-width: 1120px; margin: 5.5rem auto 0; padding: 0 1.5rem; }
     .section-head { text-align: center; max-width: 40rem; margin: 0 auto 2.5rem; }
-    .section-head h2 { font-size: clamp(1.8rem, 3.5vw, 2.4rem); letter-spacing: -0.03em; }
+    .section-head h2 { font-size: clamp(1.75rem, 3.5vw, 2.25rem); letter-spacing: -0.02em; }
     .section-head p { color: var(--text-secondary); margin-top: 0.7rem; font-size: 1.02rem; line-height: 1.6; }
 
     .bento { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1.1rem; }
     .card {
       background: var(--surface-color); border: 1px solid var(--border-color);
-      border-radius: var(--r-lg); padding: 1.7rem; box-shadow: var(--shadow-sm);
-      transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), border-color var(--dur);
+      border-radius: var(--r-xl); padding: 1.5rem; box-shadow: var(--shadow-sm);
+      transition: box-shadow var(--dur) var(--ease), border-color var(--dur);
       display: flex; flex-direction: column; gap: 0.6rem;
     }
-    .card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--border-strong); }
+    .card:hover { box-shadow: var(--shadow); border-color: var(--border-strong); }
     .card.span3 { grid-column: span 3; }
     .card.span2 { grid-column: span 2; }
-    .card.feature { background: var(--accent-grad); border: none; color: #fff; }
+    .card.feature { background: var(--accent-grad); border: none; color: #fff; box-shadow: var(--shadow-selected), var(--shadow); }
     .card.feature h3, .card.feature p { color: #fff; }
     .card .ic {
-      width: 46px; height: 46px; border-radius: 13px; display: flex; align-items: center; justify-content: center;
-      background: var(--accent-soft); color: var(--accent-color); margin-bottom: 0.4rem;
+      width: 40px; height: 40px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center;
+      background: var(--surface-2); border: 1px solid var(--border-color); color: var(--accent-color); margin-bottom: 0.4rem;
     }
-    .card.feature .ic { background: rgba(255,255,255,0.16); color: #fff; }
-    .card h3 { font-size: 1.12rem; letter-spacing: -0.01em; }
-    .card p { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+    .card.feature .ic { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.2); color: #fff; }
+    .card h3 { font-size: 1rem; line-height: 1.375rem; }
+    .card p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.55; margin: 0; }
 
     /* ── Steps ────────────────────────────────────────── */
     .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem; counter-reset: s; }
     .step { position: relative; padding-top: 0.5rem; }
     .step .num {
-      width: 38px; height: 38px; border-radius: 12px; background: var(--ink-grad); color: #fff;
-      font-family: 'Outfit', sans-serif; font-weight: 700; display: flex; align-items: center; justify-content: center;
-      margin-bottom: 0.9rem; font-size: 1rem;
+      width: 32px; height: 32px; border-radius: 8px; background: var(--accent-grad); color: #fff;
+      box-shadow: var(--shadow-selected); font-weight: 600; display: flex; align-items: center; justify-content: center;
+      margin-bottom: 0.9rem; font-size: 0.875rem;
     }
-    .step h4 { font-size: 1.05rem; margin-bottom: 0.35rem; }
-    .step p { font-size: 0.92rem; color: var(--text-secondary); line-height: 1.55; }
+    .step h4 { font-size: 1rem; margin-bottom: 0.35rem; }
+    .step p { font-size: 0.875rem; color: var(--text-secondary); line-height: 1.55; }
 
     /* ── CTA band ─────────────────────────────────────── */
     .cta-band { max-width: 1120px; margin: 5.5rem auto 4rem; padding: 0 1.5rem; }
@@ -147,19 +147,15 @@
       padding: 3.5rem 2rem; text-align: center; color: #fff;
       box-shadow: var(--shadow-lg);
     }
-    .cta-inner::after {
-      content: ''; position: absolute; inset: 0; pointer-events: none;
-      background: radial-gradient(30rem 20rem at 80% -20%, rgba(255,255,255,0.10), transparent 60%);
-    }
-    .cta-inner h2 { color: #fff; font-size: clamp(1.8rem, 3.5vw, 2.5rem); letter-spacing: -0.03em; position: relative; }
+    .cta-inner h2 { color: #fff; font-size: clamp(1.75rem, 3.5vw, 2.25rem); letter-spacing: -0.02em; position: relative; }
     .cta-inner p { color: rgba(255,255,255,0.82); max-width: 34rem; margin: 0.8rem auto 1.8rem; line-height: 1.6; position: relative; }
     .btn-on-dark {
       position: relative; display: inline-flex; align-items: center; gap: 0.5rem;
-      background: #fff; color: var(--accent-color); font-weight: 700; font-size: 1.02rem;
-      padding: 0.9rem 1.7rem; border-radius: var(--r-md); text-decoration: none;
-      transition: transform var(--dur), box-shadow var(--dur);
+      background: var(--accent-grad); color: #fff; font-weight: 500; font-size: 0.9375rem;
+      min-height: 2.75rem; padding: 0.625rem 1.4rem; border-radius: 12px; text-decoration: none;
+      box-shadow: var(--shadow-selected); transition: background var(--dur);
     }
-    .btn-on-dark:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.25); }
+    .btn-on-dark:hover { background: linear-gradient(180deg, var(--accent-400) 0%, var(--accent-500) 100%); }
 
     /* ── Responsive ───────────────────────────────────── */
     @media (max-width: 900px) {
@@ -185,9 +181,9 @@
   <nav class="navbar">
     <a href="/" class="nav-brand" data-i18n="nav_title">B-Translate</a>
     <div class="lang-switcher">
-      <span class="lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')">EN</span>
-      <span>|</span>
-      <span class="lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')">TR</span>
+      <button type="button" class="lang-toggle" data-lang="en" onclick="changeSiteLanguage('en')" aria-label="English">EN</button>
+      <span aria-hidden="true">|</span>
+      <button type="button" class="lang-toggle" data-lang="tr" onclick="changeSiteLanguage('tr')" aria-label="Türkçe">TR</button>
     </div>
   </nav>
 
@@ -204,7 +200,7 @@
           <span data-i18n="card_host_btn">Log In as Host</span>
         </a>
       </div>
-      <div id="no-live" style="display:none; margin-top:0.9rem; font-size:0.9rem; color:var(--text-secondary); display:none; align-items:center; gap:0.5rem;">
+      <div id="no-live" style="display:none; margin-top:0.9rem; font-size:0.9rem; color:var(--text-secondary); align-items:center; gap:0.5rem;">
         <span style="width:8px;height:8px;border-radius:50%;background:var(--text-muted);display:inline-block;"></span>
         <span data-i18n="no_live_note">No live broadcast right now. A host can start one from the host login.</span>
       </div>
@@ -327,19 +323,23 @@
 
   <footer class="site-footer" data-i18n="footer_copy">B-Translate | Licensed under CC BY-NC-SA 4.0 — Beykoz University IT Directorate</footer>
 
-  <script src="/static/lang.js?v=3"></script>
+  <script src="/static/lang.js?v=4"></script>
   <script>
     function joinEvent() {
       window.location.href = `/participant?code=LIVE`;
     }
 
     // Only show the "Join" CTAs when a host is actually broadcasting.
+    let lastLive = false;
     async function refreshLiveState() {
-      let live = false;
+      let live = lastLive;
       try {
         const res = await fetch('/api/sessions/LIVE/live', { cache: 'no-store' });
+        // On errors (e.g. 429 behind a busy campus NAT) keep the last known
+        // state instead of hiding the Join button.
         if (res.ok) live = (await res.json()).live === true;
-      } catch (e) { /* treat as not live */ }
+      } catch (e) { /* keep last known state */ }
+      lastLive = live;
       document.querySelectorAll('.join-cta').forEach(el => el.style.display = live ? '' : 'none');
       document.querySelectorAll('.join-off').forEach(el => el.style.display = live ? 'none' : '');
       const note = document.getElementById('no-live');

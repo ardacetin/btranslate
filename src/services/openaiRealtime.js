@@ -60,6 +60,7 @@ class OpenAIRealtimeSession {
   }
 
   _connect() {
+    if (this.closedByUs) return;
     let ws;
     try {
       ws = new WebSocket(this._url(), {
@@ -154,11 +155,19 @@ class OpenAIRealtimeSession {
   stop() {
     this.closedByUs = true;
     clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     if (this.ws) {
-      try { this.ws.close(); } catch (e) { /* ignore */ }
+      // Detach first so late frames / the close event of this socket can't
+      // leak into a newer session; keep a no-op error handler so a late
+      // socket error doesn't become an uncaught 'error' event.
+      const ws = this.ws;
+      ws.removeAllListeners();
+      ws.on('error', () => {});
+      try { ws.terminate(); } catch (e) { /* ignore */ }
     }
     this.ws = null;
     this.connected = false;
+    this.onEvent = () => {};
   }
 }
 

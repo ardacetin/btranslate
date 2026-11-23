@@ -10,6 +10,12 @@ const logger = require('../utils/logger');
  */
 let pool = null;
 
+// Every connection works in UTC so DEFAULT CURRENT_TIMESTAMP columns, NOW(),
+// UTC_TIMESTAMP() and the JS Dates mysql2 writes (timezone: 'Z') all agree,
+// whatever the MySQL server's own time zone is. Human-facing formatting in
+// APP_TIMEZONE happens in utils/time.js.
+const UTC_SESSION_SQL = "SET time_zone = '+00:00'";
+
 function getPool() {
   if (!pool) {
     pool = mysql.createPool({
@@ -23,6 +29,13 @@ function getPool() {
       queueLimit: 0,
       charset: 'utf8mb4',
       timezone: 'Z',
+    });
+    // Runs on each new physical connection before it is handed out; mysql2
+    // queues commands per connection, so this precedes the first real query.
+    pool.on('connection', (conn) => {
+      conn.query(UTC_SESSION_SQL, (err) => {
+        if (err) logger.error('Failed to set UTC session time zone', err);
+      });
     });
   }
   return pool;
@@ -50,4 +63,4 @@ async function close() {
   }
 }
 
-module.exports = { getPool, query, ping, close, logger };
+module.exports = { getPool, query, ping, close, logger, UTC_SESSION_SQL };
