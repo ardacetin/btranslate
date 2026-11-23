@@ -273,11 +273,6 @@ p, li, dd { text-wrap: pretty; }
 .chip { display: inline-flex; align-items: center; gap: var(--s-50); padding: var(--s-50) var(--s-75); border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); color: var(--text-2); }
 .chip svg { width: 14px; height: 14px; }
 
-/* ── Facts strip ─────────────────────────────────────────── */
-.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-200); }
-.fact { padding: var(--s-300); border: 1px solid var(--line); border-radius: var(--r-2xl); background: var(--surface); display: grid; gap: var(--s-75); }
-.fact .n { color: var(--text); }
-
 /* ── Problem → solution ──────────────────────────────────── */
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-700); align-items: start; }
 .split .body-3 + .body-3 { margin-top: var(--s-200); }
@@ -333,6 +328,13 @@ p, li, dd { text-wrap: pretty; }
 .footer nav { display: flex; flex-wrap: wrap; gap: var(--s-300); }
 .footer a { color: var(--text-2); text-decoration: none; border-radius: var(--r-sm); }
 .footer a:hover { color: var(--text); }
+/* "Made with ♥": Phosphor heart (fill) drawn via mask so it can sit inside translated text */
+.heart {
+  display: inline-block; width: 14px; height: 14px; vertical-align: -2px;
+  background: var(--accent);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Cpath d='M240,102c0,70-103.79,126.66-108.21,129a8,8,0,0,1-7.58,0C119.79,228.66,16,172,16,102A62.07,62.07,0,0,1,78,40c20.65,0,38.73,8.88,50,23.89C139.27,48.88,157.35,40,178,40A62.07,62.07,0,0,1,240,102Z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 
 /* ── Scroll reveal ───────────────────────────────────────── */
 .js [data-reveal] { opacity: 0; transform: translateY(var(--s-400)); transition: opacity 700ms var(--ease), transform 700ms var(--ease); }
@@ -358,7 +360,7 @@ p, li, dd { text-wrap: pretty; }
   .heading-1 { font-size: 2.25rem; line-height: 2.5rem; }  /* Heading 3 size on phones */
   .heading-2 { font-size: 1.875rem; line-height: 2.25rem; } /* Heading 4 size on phones */
   .heading-3 { font-size: 1.5rem; line-height: 2rem; }      /* Heading 5 size on phones */
-  .facts, .benefits { grid-template-columns: 1fr; }
+  .benefits { grid-template-columns: 1fr; }
   .hero-cta .btn { width: 100%; }
   .cta-band { padding: var(--s-600) var(--s-200); }
 }

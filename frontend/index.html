@@ -19,7 +19,7 @@
   <meta property="og:image:alt" content="B-Translate live feed showing a talk translated from Turkish to English">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preload" href="/static/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/landing.css?v=5">
+  <link rel="stylesheet" href="/static/landing.css?v=7">
   <script>document.documentElement.classList.add('js');</script>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-BKKE9K5FN1"></script>
@@ -108,14 +108,6 @@
         </div>
       </div>
 
-      <!-- Facts (all true of the product; no invented numbers) -->
-      <div class="wrap" style="margin-top: var(--s-700);">
-        <ul class="facts" style="list-style: none;" data-reveal>
-          <li class="fact"><span class="n heading-5">TR ⇄ EN</span><span class="caption-2 muted" data-i18n="lp_fact_1">Both directions, switched by the host in one tap</span></li>
-          <li class="fact"><span class="n heading-5" data-i18n="lp_fact_2_n">QR code</span><span class="caption-2 muted" data-i18n="lp_fact_2">Scan and read in your browser, nothing to install</span></li>
-          <li class="fact"><span class="n heading-5">TXT · CSV · JSON</span><span class="caption-2 muted" data-i18n="lp_fact_3">Every final sentence is saved for the event record</span></li>
-        </ul>
-      </div>
     </section>
 
     <!-- ── Problem → solution ── -->
@@ -213,9 +205,7 @@
           <details><summary class="title-3"><span data-i18n="lp_q4">How accurate is it?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a4">Speech is recognised automatically and translated by DeepL, so names, technical terms and fast or unclear speech can come out wrong. Use it as a live aid, not as an official transcript.</p></details>
           <details><summary class="title-3"><span data-i18n="lp_q5">Can I listen instead of reading?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a5">Yes. Turn on audio on the live page and use headphones so you do not disturb the people around you.</p></details>
           <details><summary class="title-3"><span data-i18n="lp_q6">Does the page use my microphone?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a6">No. As a participant your device only receives the broadcast. Only the host’s computer captures sound.</p></details>
-          <details><summary class="title-3"><span data-i18n="lp_q7">Is what is said stored?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a7">The final sentences and their translations are kept on the university server so organisers can download the transcript after the event. Audio is not recorded on the server.</p></details>
           <details><summary class="title-3"><span data-i18n="lp_q8">Why is there no join button right now?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a8">The button only appears while a host is broadcasting. The page checks regularly, so keep it open and the button appears when the session starts.</p></details>
-          <details><summary class="title-3"><span data-i18n="lp_q9">How can I use it at my own event?</span><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="currentColor"><path d="M213.66,101.66l-80,80a8,8,0,0,1-11.32,0l-80-80A8,8,0,0,1,53.66,90.34L128,164.69l74.34-74.35a8,8,0,0,1,11.32,11.32Z"/></svg></summary><p class="answer body-6" data-i18n="lp_a9">Contact the Beykoz University IT Directorate for a host account. Hosts sign in from the host login and start the broadcast from a laptop at the lectern.</p></details>
         </div>
       </div>
     </section>
@@ -240,7 +230,7 @@
 
   <footer class="footer">
     <div class="wrap caption-2">
-      <span data-i18n="lp_footer">B-Translate · Beykoz University IT Directorate · CC BY-NC-SA 4.0</span>
+      <span data-i18n="lp_footer">Made with <span class="heart" role="img" aria-label="love"></span> by Beykoz University IT Directorate</span>
       <nav aria-label="Footer">
         <a href="/participant?code=LIVE" data-i18n="lp_footer_live">Live page</a>
         <a href="/host" data-i18n="lp_nav_host">Host login</a>
@@ -249,7 +239,7 @@
     </div>
   </footer>
 
-  <script src="/static/lang.js?v=6"></script>
+  <script src="/static/lang.js?v=8"></script>
   <script>
     (function () {
       const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
