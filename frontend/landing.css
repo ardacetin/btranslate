@@ -273,11 +273,6 @@ p, li, dd { text-wrap: pretty; }
 .chip { display: inline-flex; align-items: center; gap: var(--s-50); padding: var(--s-50) var(--s-75); border-radius: var(--r-lg); background: var(--surface); border: 1px solid var(--line); color: var(--text-2); }
 .chip svg { width: 14px; height: 14px; }
 
-/* ── Facts strip ─────────────────────────────────────────── */
-.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-200); }
-.fact { padding: var(--s-300); border: 1px solid var(--line); border-radius: var(--r-2xl); background: var(--surface); display: grid; gap: var(--s-75); }
-.fact .n { color: var(--text); }
-
 /* ── Problem → solution ──────────────────────────────────── */
 .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-700); align-items: start; }
 .split .body-3 + .body-3 { margin-top: var(--s-200); }
@@ -365,7 +360,7 @@ p, li, dd { text-wrap: pretty; }
   .heading-1 { font-size: 2.25rem; line-height: 2.5rem; }  /* Heading 3 size on phones */
   .heading-2 { font-size: 1.875rem; line-height: 2.25rem; } /* Heading 4 size on phones */
   .heading-3 { font-size: 1.5rem; line-height: 2rem; }      /* Heading 5 size on phones */
-  .facts, .benefits { grid-template-columns: 1fr; }
+  .benefits { grid-template-columns: 1fr; }
   .hero-cta .btn { width: 100%; }
   .cta-band { padding: var(--s-600) var(--s-200); }
 }
