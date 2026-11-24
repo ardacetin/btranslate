@@ -30,7 +30,7 @@ export function UsersView({ me, onSelfChanged, onChangeOwnPassword }: { me: Me; 
 
   const shown = useMemo(() => {
     const q = query.trim().toLocaleLowerCase('tr');
-    return (users || []).filter((u) => !q || u.username.toLocaleLowerCase('tr').includes(q) || (u.display_name || '').toLocaleLowerCase('tr').includes(q));
+    return (users || []).filter((u) => !q || [u.username, u.display_name, u.email].some((f) => (f || '').toLocaleLowerCase('tr').includes(q)));
   }, [users, query]);
   const activeCount = (users || []).filter((u) => u.is_active).length;
   const adminCount = (users || []).filter((u) => u.role === 'admin' && u.is_active).length;
@@ -54,6 +54,7 @@ export function UsersView({ me, onSelfChanged, onChangeOwnPassword }: { me: Me; 
               <TableHeader>
                 <TableColumn isRowHeader>Kullanıcı</TableColumn>
                 <TableColumn>Rol</TableColumn>
+                <TableColumn>Giriş</TableColumn>
                 <TableColumn>Durum</TableColumn>
                 <TableColumn>Son giriş</TableColumn>
                 <TableColumn>Oluşturulma</TableColumn>
@@ -71,13 +72,20 @@ export function UsersView({ me, onSelfChanged, onChangeOwnPassword }: { me: Me; 
                             {self && <Chip variant="caption" color="neutral">Siz</Chip>}
                           </div>
                           {u.display_name && <div className="text-caption-1-regular text-text-tertiary">{u.display_name}</div>}
+                          {u.email && <div className="text-caption-1-regular text-text-tertiary">{u.email}</div>}
                         </div>
                       </TableCell>
                       <TableCell>
                         <Chip variant="subtle" color={u.role === 'admin' ? 'rose' : 'neutral'}>{u.role === 'admin' ? 'Yönetici' : 'Kullanıcı'}</Chip>
                       </TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center gap-1.5 text-body-medium text-text-primary">
+                        <div className="flex flex-wrap gap-1">
+                          {u.email && <Chip variant="subtle" color="blue">Google</Chip>}
+                          {u.has_password && <Chip variant="subtle" color="neutral">Parola</Chip>}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1.5 text-body-2-medium text-text-secondary">
                           <StatusDot color={u.is_active ? 'green' : 'yellow'} />
                           {u.is_active ? 'Aktif' : 'Devre dışı'}
                         </span>
@@ -87,8 +95,10 @@ export function UsersView({ me, onSelfChanged, onChangeOwnPassword }: { me: Me; 
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="small" variant="secondary" iconOnly leadingIcon={RiPencilLine} aria-label={`${u.username} düzenle`} onClick={() => setModal({ kind: 'edit', user: u })} />
-                          <Button size="small" variant="secondary" iconOnly leadingIcon={RiKey2Line} aria-label={`${u.username} parola`}
-                            onClick={() => (self ? onChangeOwnPassword() : setModal({ kind: 'reset', user: u }))} />
+                          {!(self && !u.has_password) && (
+                            <Button size="small" variant="secondary" iconOnly leadingIcon={RiKey2Line} aria-label={`${u.username} parola`}
+                              onClick={() => (self ? onChangeOwnPassword() : setModal({ kind: 'reset', user: u }))} />
+                          )}
                           {!self && (
                             <Button size="small" variant="secondary" iconOnly leadingIcon={RiDeleteBinLine} aria-label={`${u.username} sil`}
                               className="text-text-error-primary" onClick={() => setModal({ kind: 'delete', user: u })} />
@@ -130,6 +140,7 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
   const toast = useToast();
   const [username, setUsername] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [role, setRole] = useState<'user' | 'admin'>('user');
@@ -149,12 +160,13 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
     e.preventDefault();
     const u = username.trim();
     if (!USERNAME_RE.test(u)) { toast(ERR_TR.invalid_username, 'error'); return; }
-    if (password.length < 8) { toast(ERR_TR.password_too_short, 'error'); return; }
+    if (!password && !email.trim()) { toast(ERR_TR.login_method_required, 'error'); return; }
+    if (password && password.length < 8) { toast(ERR_TR.password_too_short, 'error'); return; }
     setBusy(true);
     try {
-      await apiJson('/api/users', jsonBody({ username: u, password, role, display_name: displayName.trim() }));
+      await apiJson('/api/users', jsonBody({ username: u, password, email: email.trim(), role, display_name: displayName.trim() }));
       toast(`"${u}" eklendi`, 'success');
-      setUsername(''); setDisplayName(''); setPassword(''); setShowPw(false); setRole('user');
+      setUsername(''); setDisplayName(''); setEmail(''); setPassword(''); setShowPw(false); setRole('user');
       onCreated();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Eklenemedi', 'error');
@@ -165,12 +177,28 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
 
   return (
     <Card>
-      <CardHeader title="Kullanıcı Ekle" description="Yeni yönetici veya yayıncı hesabı oluşturun. Parola en az 8 karakter olmalı ve kullanıcı adıyla aynı olmamalı." />
-      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.2fr_auto_auto] xl:items-end">
+      <CardHeader
+        title="Kullanıcı Ekle"
+        description="Kurumsal e-posta girilen kullanıcılar Google ile giriş yapabilir; bu durumda parola isteğe bağlıdır. Parola en az 8 karakter olmalı ve kullanıcı adıyla aynı olmamalı."
+      />
+      <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:items-end">
         <Input label="Kullanıcı adı" placeholder="kullanici_adi" value={username} onChange={setUsername} maxLength={64} autoComplete="off" />
         <Input label="Ad Soyad (isteğe bağlı)" placeholder="Ad Soyad" value={displayName} onChange={setDisplayName} maxLength={128} />
+        <Input
+          label="Kurumsal e-posta (Google ile giriş)"
+          type="email"
+          placeholder="ad.soyad@beykoz.edu.tr"
+          value={email}
+          onChange={(v) => {
+            setEmail(v);
+            // Suggest a username from the address while the field is still empty.
+            if (!username) { const local = v.split('@')[0]; if (/^[A-Za-z0-9_.-]{3,}$/.test(local)) setUsername(local.toLowerCase()); }
+          }}
+          maxLength={255}
+          autoComplete="off"
+        />
         <div className="flex items-end gap-2">
-          <Input label="Parola" type={showPw ? 'text' : 'password'} placeholder="En az 8 karakter" value={password}
+          <Input label={email.trim() ? 'Parola (isteğe bağlı)' : 'Parola'} type={showPw ? 'text' : 'password'} placeholder={email.trim() ? 'Yalnızca Google için boş bırakın' : 'En az 8 karakter'} value={password}
             onChange={(v) => { setPassword(v); }} autoComplete="new-password" className="min-w-0 flex-1" />
           <Button type="button" variant="secondary" iconOnly leadingIcon={RiShuffleLine} aria-label="Rastgele güçlü parola üret" title="Rastgele güçlü parola üret" onClick={generate} />
         </div>
@@ -189,6 +217,7 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
 
 function EditUserDialog({ user, self, onClose, onSaved }: { user: User; self: boolean; onClose: () => void; onSaved: () => void }) {
   const [displayName, setDisplayName] = useState(user.display_name || '');
+  const [email, setEmail] = useState(user.email || '');
   const [role, setRole] = useState(user.role);
   const [active, setActive] = useState(user.is_active);
   return (
@@ -199,13 +228,22 @@ function EditUserDialog({ user, self, onClose, onSaved }: { user: User; self: bo
         ? 'Kendi rolünüzü değiştiremez ve hesabınızı devre dışı bırakamazsınız.'
         : 'Devre dışı bırakılan kullanıcı giriş yapamaz ve açık oturumları hemen kapanır.'}
       onSubmit={async () => {
-        const patch: Record<string, unknown> = { display_name: displayName.trim() };
+        const patch: Record<string, unknown> = { display_name: displayName.trim(), email: email.trim() };
         if (!self) { patch.role = role; patch.is_active = active; }
         await apiJson(`/api/users/${user.id}`, jsonBody(patch, 'PATCH'));
         onSaved();
       }}
     >
       <Input label="Ad Soyad" value={displayName} onChange={setDisplayName} maxLength={128} autoFocus />
+      <Input
+        label="Kurumsal e-posta (Google ile giriş)"
+        type="email"
+        placeholder="ad.soyad@beykoz.edu.tr"
+        value={email}
+        onChange={setEmail}
+        maxLength={255}
+        hint={user.has_password ? 'Boş bırakırsanız kullanıcı yalnızca parolayla giriş yapar.' : 'Bu hesabın parolası yok; Google ile giriş için e-posta gerekli.'}
+      />
       <div className="flex flex-col gap-1.5">
         <span className="text-body-medium text-text-primary">Rol</span>
         <Select aria-label="Rol" selectedKey={role} isDisabled={self} onSelectionChange={(k) => setRole(k === 'admin' ? 'admin' : 'user')}>
@@ -225,9 +263,11 @@ function ResetPasswordDialog({ user, onClose, onSaved }: { user: User; onClose: 
   const [show, setShow] = useState(false);
   return (
     <Dialog
-      isOpen onClose={onClose} submitLabel="Parolayı Sıfırla"
-      title={`Parola sıfırla: ${user.username}`}
-      description="Yeni parola belirlendiğinde kullanıcının tüm açık oturumları kapatılır."
+      isOpen onClose={onClose} submitLabel={user.has_password ? 'Parolayı Sıfırla' : 'Parola Belirle'}
+      title={`${user.has_password ? 'Parola sıfırla' : 'Parola belirle'}: ${user.username}`}
+      description={user.has_password
+        ? 'Yeni parola belirlendiğinde kullanıcının tüm açık oturumları kapatılır.'
+        : 'Bu hesap şu an yalnızca Google ile giriş yapıyor. Parola belirlerseniz kullanıcı adı ve parolayla da giriş yapabilir.'}
       onSubmit={async () => {
         if (pw.length < 8) throw new Error(ERR_TR.password_too_short);
         if (pw !== confirm) throw new Error('Parolalar eşleşmiyor');

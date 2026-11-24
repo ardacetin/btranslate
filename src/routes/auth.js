@@ -27,7 +27,9 @@ router.post('/login', async (req, res) => {
   }
   try {
     const user = await users.findByUsernameWithHash(username);
-    const ok = await comparePassword(password, user ? user.password_hash : DUMMY_HASH);
+    // Google-only accounts have no password: compare against the dummy hash so
+    // they fail exactly like a wrong password (same message, same timing).
+    const ok = await comparePassword(password, (user && user.password_hash) || DUMMY_HASH) && Boolean(user && user.password_hash);
     if (!user || !ok) {
       logger.warn(`Failed login for "${username.slice(0, 64)}"`);
       return res.status(401).json({ error: 'Incorrect username or password' });
@@ -59,6 +61,8 @@ router.get('/me', requireAuth, (req, res) => {
     id: req.user.uid,
     username: req.user.sub,
     display_name: req.user.display_name,
+    email: req.user.email,
+    has_password: req.user.has_password,
     role: req.user.role,
   });
 });
@@ -73,6 +77,9 @@ router.post('/change-password', requireAuth, async (req, res) => {
   const next = String(req.body.new_password || '');
   try {
     const user = await users.findByIdWithHash(req.user.uid);
+    if (user && !user.password_hash) {
+      return res.status(400).json({ code: 'no_password', error: 'This account signs in with Google and has no password' });
+    }
     if (!user || !(await comparePassword(current, user.password_hash))) {
       return res.status(400).json({ code: 'wrong_current_password', error: 'Current password is incorrect' });
     }

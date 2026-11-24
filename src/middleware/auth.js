@@ -51,7 +51,14 @@ async function authenticateToken(token) {
   if ((Number(claims.tv) || 0) !== (Number(user.token_version) || 0)) {
     throw new AuthError('Session expired, please sign in again');
   }
-  return { uid: user.id, sub: user.username, role: user.role, display_name: user.display_name || '' };
+  return {
+    uid: user.id,
+    sub: user.username,
+    role: user.role,
+    display_name: user.display_name || '',
+    email: user.email || '',
+    has_password: Boolean(user.has_password),
+  };
 }
 
 /** Express middleware: require a valid Bearer token for an active account. */

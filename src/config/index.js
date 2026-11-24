@@ -34,6 +34,24 @@ function isValidTimeZone(tz) {
 
 const rawTimezone = process.env.APP_TIMEZONE || DEFAULT_TIMEZONE;
 
+/** Google's IdP certificate: inline (PEM or bare base64, \n allowed) or a file path. */
+function readIdpCert() {
+  const inline = process.env.SAML_IDP_CERT || '';
+  if (inline.trim()) return inline.replace(/\\n/g, '\n').trim();
+  const file = process.env.SAML_IDP_CERT_FILE || '';
+  if (!file) return '';
+  try {
+    return require('fs').readFileSync(file, 'utf8').trim();
+  } catch (e) {
+    return '';
+  }
+}
+
+const publicBaseUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
+const samlIdpSsoUrl = process.env.SAML_IDP_SSO_URL || '';
+const samlIdpEntityId = process.env.SAML_IDP_ENTITY_ID || '';
+const samlIdpCert = readIdpCert();
+
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: num(process.env.PORT, 3000),
@@ -61,6 +79,21 @@ const config = {
     // Only used by `npm run migrate` (first seed) and set-admin-password.
     // No default: a well-known password must never be seeded.
     adminPassword: process.env.ADMIN_PASSWORD || '',
+  },
+
+  // Google Workspace SAML sign-in for the admin panel. Enabled only when the
+  // public URL and Google's IdP details (SSO URL, entity ID, certificate) are
+  // all set. Only accounts added in the panel with an email on `emailDomain`
+  // can sign in this way.
+  sso: {
+    enabled: Boolean(publicBaseUrl && samlIdpSsoUrl && samlIdpEntityId && samlIdpCert),
+    publicBaseUrl,
+    emailDomain: (process.env.SSO_EMAIL_DOMAIN || 'beykoz.edu.tr').toLowerCase().replace(/^@/, ''),
+    idpSsoUrl: samlIdpSsoUrl,
+    idpEntityId: samlIdpEntityId,
+    idpCert: samlIdpCert,
+    spEntityId: process.env.SAML_SP_ENTITY_ID || (publicBaseUrl ? `${publicBaseUrl}/api/auth/saml/metadata` : ''),
+    acsUrl: publicBaseUrl ? `${publicBaseUrl}/api/auth/saml/acs` : '',
   },
 
   openai: {
@@ -125,6 +158,13 @@ function assertSecureConfig() {
 
   if (!config.db.user) {
     warnings.push('DB_USER is empty — set the MySQL user for this app in .env.');
+  }
+  const ssoParts = [config.sso.publicBaseUrl, config.sso.idpSsoUrl, config.sso.idpEntityId, config.sso.idpCert];
+  if (!config.sso.enabled && ssoParts.some(Boolean)) {
+    warnings.push('Google SAML sign-in is partially configured and stays OFF: set PUBLIC_BASE_URL, SAML_IDP_SSO_URL, SAML_IDP_ENTITY_ID and SAML_IDP_CERT (or SAML_IDP_CERT_FILE).');
+  }
+  if (config.sso.enabled && !/^https:\/\//.test(config.sso.publicBaseUrl) && config.env === 'production') {
+    warnings.push('PUBLIC_BASE_URL should be https:// — Google only posts SAML responses to secure URLs.');
   }
   if (rawTimezone !== config.appTimezone) {
     warnings.push(`APP_TIMEZONE "${rawTimezone}" is not a valid IANA time zone — using ${config.appTimezone}.`);

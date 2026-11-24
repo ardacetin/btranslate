@@ -173,12 +173,66 @@ password from `ADMIN_PASSWORD`, re-enables it and restores its admin role.
 | Endpoint | Who | Purpose |
 |----------|-----|---------|
 | `GET /api/users` | admin | List accounts |
-| `POST /api/users` | admin | Create `{ username, password, role, display_name }` |
-| `PATCH /api/users/:id` | admin | Update `{ display_name?, role?, is_active? }` |
+| `POST /api/users` | admin | Create `{ username, password?, email?, role, display_name }` (password or `@beykoz.edu.tr` email required) |
+| `PATCH /api/users/:id` | admin | Update `{ display_name?, email?, role?, is_active? }` |
 | `PUT /api/users/:id/password` | admin | Reset `{ new_password }` |
 | `DELETE /api/users/:id` | admin | Delete |
 | `GET /api/auth/me` | signed in | Current account |
 | `POST /api/auth/change-password` | signed in | `{ current_password, new_password }` → fresh token |
+| `GET /api/auth/saml/login` · `POST /api/auth/saml/acs` · `POST /api/auth/saml/exchange` | public | Google sign-in flow |
+| `GET /api/auth/saml/metadata` | public | SP metadata for the Google Admin console |
+| `GET /api/auth/saml/config` | admin | Values to enter in Google, what is missing |
+
+## Google sign-in (SAML)
+
+Admins and hosts can sign in to the panel with their **Google Workspace**
+account. Only people an admin has added in **Kullanıcılar** with an
+`@beykoz.edu.tr` email can do so. A Google account that is not in the panel,
+is disabled, or is on another domain is refused. Password login stays
+available, for example for the built-in `admin` account.
+
+**1. Create the app in Google.** Google Admin console → *Apps* → *Web and
+mobile apps* → *Add app* → *Add custom SAML app* (name it *B-Translate*). On
+the *Google Identity Provider details* step, copy the **SSO URL** and the
+**Entity ID**, and **download the certificate**.
+
+**2. Service provider details.** The values are also shown, with copy
+buttons, under *Panel → Ayarlar → Google ile giriş (SAML)*:
+
+| Field | Value |
+|---|---|
+| ACS URL | `https://btranslate.beykoz.edu.tr/api/auth/saml/acs` |
+| Entity ID | `https://btranslate.beykoz.edu.tr/api/auth/saml/metadata` |
+| Name ID format | `EMAIL` |
+| Name ID | *Basic Information › Primary email* |
+
+Leave *Signed response* off; the assertion is always signed. No attribute
+mapping is needed. Finally, set **User access** to *ON* for the organizational
+units that should be able to use it.
+
+**3. Configure the server** (`.env`), then restart:
+
+```bash
+PUBLIC_BASE_URL=https://btranslate.beykoz.edu.tr
+SAML_IDP_SSO_URL=https://accounts.google.com/o/saml2/idp?idpid=XXXXXXX
+SAML_IDP_ENTITY_ID=https://accounts.google.com/o/saml2?idpid=XXXXXXX
+SAML_IDP_CERT_FILE=/home/btranslate/google-saml.pem
+```
+
+**4. Add people.** In *Kullanıcılar*, enter their institutional email. The
+password is optional: without one, the account can only sign in with Google.
+
+What is checked on every sign-in:
+
+- the assertion is signed with Google's certificate;
+- issuer and audience match;
+- it answers a request this server issued in the last 10 minutes (Google
+  app-launcher / IdP-initiated sign-in is therefore not accepted);
+- it was never used before and is inside its validity window;
+- the email is on `SSO_EMAIL_DOMAIN` and belongs to an active panel account.
+
+The panel token is then handed over with a single-use 60-second code in the
+URL fragment, never in a URL the server logs.
 
 ## Environment
 
@@ -192,6 +246,8 @@ See [`.env.example`](.env.example). Key variables:
 | `DB_HOST/PORT/NAME/USER/PASSWORD` | MySQL connection. `DB_USER` is required (no `root` fallback). |
 | `JWT_SECRET` | **Required in production**, ≥ 32 random chars: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
 | `ADMIN_PASSWORD` | Optional initial admin password for the first migrate (else a random one is printed). |
+| `PUBLIC_BASE_URL`, `SAML_IDP_SSO_URL`, `SAML_IDP_ENTITY_ID`, `SAML_IDP_CERT_FILE` / `SAML_IDP_CERT` | Google sign-in (see *Google sign-in (SAML)*). All four needed to turn it on. |
+| `SSO_EMAIL_DOMAIN` | Email domain allowed for Google sign-in (default `beykoz.edu.tr`). |
 | `DEEPL_API_KEY` | **Server-only.** Never sent to the browser. Free keys (`…:fx`) auto-use api-free.deepl.com. |
 | `DEEPL_API_URL` | Optional REST base override (proxy). Auto-detected when empty. |
 | `ENABLE_TRANSLATED_AUDIO` | `true`/`false` — offer spoken translation (browser TTS). |
