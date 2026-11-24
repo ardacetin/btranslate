@@ -40,13 +40,17 @@ export const ERR_TR: Record<string, string> = {
   login_method_required: 'Parola ya da kurumsal e-posta (Google ile giriş) gerekli',
   no_password: 'Bu hesap Google ile giriş yapıyor; parolası yok',
   sso_code_invalid: 'Google girişinin süresi doldu, lütfen tekrar deneyin',
+  not_admin: 'Google ile giriş yalnızca yöneticiler içindir',
+  email_admin_only: 'Google ile giriş (kurumsal e-posta) yalnızca yönetici hesapları içindir',
+  env_managed: 'Bu yönetici hesabı .env dosyasından yönetiliyor (ADMIN_USERNAME / ADMIN_PASSWORD)',
 };
 
 /** Why a Google sign-in was refused (the server redirects with #sso_error=…). */
 export const SSO_ERR_TR: Record<string, string> = {
   invalid: 'Google girişi doğrulanamadı. Lütfen tekrar deneyin.',
   domain: 'Yalnızca @beykoz.edu.tr hesaplarıyla giriş yapılabilir.',
-  not_registered: 'Bu Google hesabı panelde tanımlı değil. Bir yöneticiden e-postanızı eklemesini isteyin.',
+  not_registered: 'Bu Google hesabı panelde bir yöneticiye tanımlı değil.',
+  not_admin: 'Google ile giriş yalnızca yöneticiler içindir. Kullanıcı adı ve parolanızla giriş yapın.',
   disabled_account: 'Bu hesap devre dışı bırakılmış. Bir yöneticiye başvurun.',
   disabled: 'Google ile giriş bu sunucuda henüz yapılandırılmamış.',
 };
@@ -112,9 +116,9 @@ export async function download(path: string) {
 }
 
 // ── Types shared by views ───────────────────────────────────────────────
-export interface Me { id: number; username: string; display_name: string; email: string; has_password: boolean; role: 'admin' | 'user'; }
+export interface Me { id: number; username: string; display_name: string; email: string; has_password: boolean; env_managed: boolean; role: 'admin' | 'user'; }
 export interface User {
-  id: number; username: string; display_name: string; email: string; has_password: boolean; role: 'admin' | 'user';
+  id: number; username: string; display_name: string; email: string; has_password: boolean; env_managed: boolean; role: 'admin' | 'user';
   is_active: boolean; last_login_at: string | null; created_at: string | null;
 }
 export interface DayCount { day: string; count: number; }

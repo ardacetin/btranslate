@@ -9,8 +9,9 @@ const { wrap } = require('../utils/asyncHandler');
 const logger = require('../utils/logger');
 
 /**
- * Google Workspace SAML sign-in (see services/sso.js for the flow and the
- * checks applied to every response).
+ * Google Workspace SAML sign-in, for ADMIN accounts only (see services/sso.js
+ * for the flow and the checks applied to every response). Hosts with the
+ * `user` role sign in with their password.
  */
 const router = express.Router();
 
@@ -56,6 +57,10 @@ router.post('/acs', express.urlencoded({ extended: false, limit: '512kb' }), wra
     logger.warn(`Google sign-in refused: account disabled (${user.username})`);
     return backToPanel(res, 'sso_error=disabled_account');
   }
+  if (user.role !== 'admin') {
+    logger.warn(`Google sign-in refused: ${user.username} is not an admin`);
+    return backToPanel(res, 'sso_error=not_admin');
+  }
 
   logger.info(`Google sign-in verified: ${user.username}`);
   return backToPanel(res, `sso=${sso.issueCode(user.id)}`);
@@ -68,6 +73,7 @@ router.post('/exchange', express.json({ limit: '4kb' }), wrap(async (req, res) =
   // Re-check: the account may have been disabled in the last seconds.
   const user = await users.findById(uid);
   if (!user || !user.is_active) return res.status(403).json({ code: 'account_disabled', error: 'This account is disabled' });
+  if (user.role !== 'admin') return res.status(403).json({ code: 'not_admin', error: 'Google sign-in is for admins only' });
   await users.touchLastLogin(user.id);
   logger.info(`Host login (Google): ${user.username}`);
   return res.json({

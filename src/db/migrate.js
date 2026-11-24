@@ -16,11 +16,11 @@ const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 const config = require('../config');
 const { UTC_SESSION_SQL } = require('../config/database');
-const { validatePassword } = require('../services/users');
 const logger = require('../utils/logger');
 
 // Passwords that were shipped as defaults and must never be (re)used.
-const KNOWN_DEFAULT_PASSWORDS = ['admin123'];
+const { KNOWN_DEFAULT_PASSWORDS, adminPasswordProblem: sharedAdminPasswordProblem } = require('../services/users');
+const ADMIN_USERNAME = config.auth.adminUsername;
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
@@ -46,10 +46,7 @@ async function appliedSet(conn) {
 
 /** Why ADMIN_PASSWORD cannot be used, or null when it is acceptable. */
 function adminPasswordProblem(pw) {
-  if (!pw) return 'ADMIN_PASSWORD is not set';
-  if (KNOWN_DEFAULT_PASSWORDS.includes(pw.toLowerCase())) return 'ADMIN_PASSWORD is a well-known default';
-  const invalid = validatePassword(pw, 'admin');
-  return invalid ? `ADMIN_PASSWORD rejected: ${invalid.error}` : null;
+  return sharedAdminPasswordProblem(pw, ADMIN_USERNAME);
 }
 
 /**
@@ -61,11 +58,11 @@ function announceGeneratedPassword(password) {
   console.log(`\n${bar}`);
   console.log('  Admin account created with a RANDOM password (shown only once):');
   console.log('');
-  console.log('    username: admin');
+  console.log(`    username: ${ADMIN_USERNAME}`);
   console.log(`    password: ${password}`);
   console.log('');
-  console.log('  Store it now, then change it in the dashboard, or set a new one');
-  console.log('  with `npm run set-admin-password`.');
+  console.log('  Store it now. To manage it from .env instead, set ADMIN_PASSWORD');
+  console.log('  there and restart the server.');
   console.log(`${bar}\n`);
 }
 
@@ -86,7 +83,7 @@ async function seedAdmin(conn) {
   const hash = await bcrypt.hash(password, 10);
   await conn.execute(
     'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
-    ['admin', hash, 'admin']
+    [ADMIN_USERNAME, hash, 'admin']
   );
   if (problem) {
     announceGeneratedPassword(password);
@@ -101,12 +98,12 @@ async function seedAdmin(conn) {
  * loudly on every migrate run.
  */
 async function warnIfDefaultAdminPassword(conn) {
-  const [rows] = await conn.execute('SELECT password_hash FROM users WHERE username = ? LIMIT 1', ['admin']);
+  const [rows] = await conn.execute('SELECT password_hash FROM users WHERE username = ? LIMIT 1', [ADMIN_USERNAME]);
   if (!rows.length) return;
   for (const pw of KNOWN_DEFAULT_PASSWORDS) {
     if (await bcrypt.compare(pw, rows[0].password_hash)) {
       logger.warn(
-        "The 'admin' account still uses the default password — change it now (dashboard or `npm run set-admin-password`)."
+        `The '${ADMIN_USERNAME}' account still uses the default password — set ADMIN_PASSWORD in .env and restart.`
       );
       return;
     }

@@ -63,6 +63,7 @@ router.get('/me', requireAuth, (req, res) => {
     display_name: req.user.display_name,
     email: req.user.email,
     has_password: req.user.has_password,
+    env_managed: req.user.env_managed,
     role: req.user.role,
   });
 });
@@ -77,6 +78,9 @@ router.post('/change-password', requireAuth, async (req, res) => {
   const next = String(req.body.new_password || '');
   try {
     const user = await users.findByIdWithHash(req.user.uid);
+    if (user && users.isEnvManaged(user)) {
+      return res.status(400).json({ code: 'env_managed', error: 'This admin password is managed in .env (ADMIN_PASSWORD)' });
+    }
     if (user && !user.password_hash) {
       return res.status(400).json({ code: 'no_password', error: 'This account signs in with Google and has no password' });
     }

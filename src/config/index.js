@@ -79,6 +79,9 @@ const config = {
     // Only used by `npm run migrate` (first seed) and set-admin-password.
     // No default: a well-known password must never be seeded.
     adminPassword: process.env.ADMIN_PASSWORD || '',
+    // The account ADMIN_PASSWORD manages. With ADMIN_PASSWORD set, .env is the
+    // source of truth: the server syncs this account's password on every start.
+    adminUsername: (process.env.ADMIN_USERNAME || 'admin').trim(),
   },
 
   // Google Workspace SAML sign-in for the admin panel. Enabled only when the

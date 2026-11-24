@@ -68,7 +68,7 @@ function Root() {
   const loadMe = useCallback(async () => {
     try {
       const d = await apiJson<Me & { status: string }>('/api/auth/me');
-      setMe({ id: d.id, username: d.username, display_name: d.display_name, email: d.email || '', has_password: d.has_password !== false, role: d.role });
+      setMe({ id: d.id, username: d.username, display_name: d.display_name, email: d.email || '', has_password: d.has_password !== false, env_managed: Boolean(d.env_managed), role: d.role });
     } catch {
       clearSession();
       setMe(null);
@@ -140,21 +140,32 @@ function LoginScreen({ onLoggedIn, initialError = '' }: { onLoggedIn: () => void
         <Brand className="mb-6" />
         <h1 className="text-title-2-semibold text-text-primary">Yönetim Paneli</h1>
         <p className="mt-1 mb-6 text-body-regular text-text-secondary">Yayını başlatmak için giriş yapın.</p>
-        {google?.enabled && (
-          <>
-            <a
-              href="/api/auth/saml/login"
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-2lg border border-border-button-default bg-background-primary-default text-body-medium text-text-primary shadow-xs outline-none hover:bg-background-primary-hover focus-visible:ring-2 focus-visible:ring-border-focus-ring focus-visible:ring-offset-2"
-            >
-              <GoogleMark />
-              Google ile giriş yap
-            </a>
-            <p className="mt-2 text-center text-caption-1-regular text-text-tertiary">@{google.domain} hesabınızla</p>
-            <div className="my-5 flex items-center gap-3 text-caption-1-medium text-text-tertiary" aria-hidden>
-              <span className="h-px flex-1 bg-separator-border" /> veya <span className="h-px flex-1 bg-separator-border" />
-            </div>
-          </>
+        {/* Admins: Google sign-in. Always shown; explains itself when the server isn't set up for it. */}
+        {google?.enabled ? (
+          <a
+            href="/api/auth/saml/login"
+            className="flex h-10 w-full items-center justify-center gap-2 rounded-2lg border border-border-button-default bg-background-primary-default text-body-medium text-text-primary shadow-xs outline-none hover:bg-background-primary-hover focus-visible:ring-2 focus-visible:ring-border-focus-ring focus-visible:ring-offset-2"
+          >
+            <GoogleMark />
+            Google ile giriş yap
+          </a>
+        ) : (
+          <button
+            type="button"
+            aria-disabled="true"
+            onClick={() => setError('Google ile giriş bu sunucuda henüz yapılandırılmamış (.env dosyasındaki SAML ayarları eksik).')}
+            className="flex h-10 w-full cursor-not-allowed items-center justify-center gap-2 rounded-2lg border border-border-button-default bg-background-primary-default text-body-medium text-text-tertiary opacity-70 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring focus-visible:ring-offset-2"
+          >
+            <GoogleMark />
+            Google ile giriş yap
+          </button>
         )}
+        <p className="mt-2 text-center text-caption-1-regular text-text-tertiary">
+          {google === null ? 'Yöneticiler için' : google.enabled ? `Yöneticiler için · @${google.domain} hesabınızla` : 'Yöneticiler için · henüz yapılandırılmadı'}
+        </p>
+        <div className="my-5 flex items-center gap-3 text-caption-1-medium text-text-tertiary" aria-hidden>
+          <span className="h-px flex-1 bg-separator-border" /> veya parola ile <span className="h-px flex-1 bg-separator-border" />
+        </div>
         <div className="flex flex-col gap-4">
           <Input label="Kullanıcı adı" value={username} onChange={setUsername} autoComplete="username" autoFocus />
           <Input label="Parola" type="password" value={password} onChange={setPassword} autoComplete="current-password" />
@@ -205,7 +216,7 @@ function Shell({ me, onLogout, onMeChanged }: { me: Me; onLogout: () => void; on
         <div className="flex items-center justify-between px-1 py-1">
           <Brand />
           <div className="flex items-center gap-1 lg:hidden">
-            {me.has_password && <Button variant="secondary" size="small" iconOnly leadingIcon={RiLockPasswordLine} aria-label="Parolamı değiştir" onClick={() => setPwOpen(true)} />}
+            {me.has_password && !me.env_managed && <Button variant="secondary" size="small" iconOnly leadingIcon={RiLockPasswordLine} aria-label="Parolamı değiştir" onClick={() => setPwOpen(true)} />}
             <Button variant="secondary" size="small" iconOnly leadingIcon={RiLogoutBoxRLine} aria-label="Çıkış yap" onClick={onLogout} />
           </div>
         </div>
@@ -224,7 +235,7 @@ function Shell({ me, onLogout, onMeChanged }: { me: Me; onLogout: () => void; on
               <div className="truncate text-caption-1-regular text-text-tertiary">{isAdmin ? 'Yönetici' : 'Kullanıcı'}{me.email ? ` · ${me.email}` : ''}</div>
             </div>
           </div>
-          {me.has_password && <NavRow icon={RiLockPasswordLine} label="Parolamı Değiştir" onClick={() => setPwOpen(true)} />}
+          {me.has_password && !me.env_managed && <NavRow icon={RiLockPasswordLine} label="Parolamı Değiştir" onClick={() => setPwOpen(true)} />}
           <NavRow icon={RiLogoutBoxRLine} label="Çıkış Yap" onClick={onLogout} />
         </div>
       </aside>

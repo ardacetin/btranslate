@@ -13,6 +13,8 @@ const PASSWORD_MIN = 8;
 const PASSWORD_MAX_BYTES = 72; // bcrypt ignores everything past 72 bytes
 const DISPLAY_NAME_MAX = 128;
 const EMAIL_MAX = 255;
+// Passwords that must never protect the admin account.
+const KNOWN_DEFAULT_PASSWORDS = ['admin123'];
 
 const PUBLIC_COLUMNS =
   'id, username, display_name, email, role, is_active, token_version, last_login_at, created_at, ' +
@@ -26,6 +28,7 @@ function toPublic(u) {
     display_name: u.display_name || '',
     email: u.email || '',
     has_password: Boolean(u.has_password),
+    env_managed: isEnvManaged(u),
     role: u.role,
     is_active: Boolean(u.is_active),
     last_login_at: u.last_login_at || null,
@@ -66,6 +69,23 @@ function normalizeEmail(raw) {
 async function findByEmail(email) {
   const rows = await db.query(`SELECT ${PUBLIC_COLUMNS} FROM users WHERE email = ? LIMIT 1`, [email]);
   return rows[0] || null;
+}
+
+/** Why a password cannot protect the .env admin account, or null when it is acceptable. */
+function adminPasswordProblem(pw, username = 'admin') {
+  if (!pw) return 'ADMIN_PASSWORD is not set';
+  if (KNOWN_DEFAULT_PASSWORDS.includes(String(pw).toLowerCase())) return 'ADMIN_PASSWORD is a well-known default';
+  const invalid = validatePassword(pw, username);
+  return invalid ? `ADMIN_PASSWORD rejected: ${invalid.error}` : null;
+}
+
+// Username whose password is managed by ADMIN_PASSWORD in .env (set by
+// services/envAdmin.js once the value has been validated), or null.
+let envAdminUsername = null;
+function setEnvAdminUsername(name) { envAdminUsername = name || null; }
+/** Is this account the one whose password comes from .env? */
+function isEnvManaged(u) {
+  return Boolean(envAdminUsername && u && u.username === envAdminUsername);
 }
 
 /** Trim + clamp a display name; empty becomes null. */
@@ -146,6 +166,10 @@ module.exports = {
   cleanDisplayName,
   normalizeEmail,
   findByEmail,
+  KNOWN_DEFAULT_PASSWORDS,
+  adminPasswordProblem,
+  setEnvAdminUsername,
+  isEnvManaged,
   list,
   findById,
   findByUsernameWithHash,
