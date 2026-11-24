@@ -40,42 +40,57 @@ function duplicateCode(e) {
 }
 
 /**
- * POST /api/users — { username, password?, email?, role, display_name }
- * An account needs at least one way to sign in: a password, an institutional
- * email (Google sign-in), or both. Email-only accounts have no password.
+ * Username for a new account, from its email's local part (made valid and
+ * unique: "ad.soyad", then "ad.soyad-2", …).
+ */
+async function usernameFromEmail(email) {
+  let base = email.split('@')[0].replace(/[^a-z0-9._-]/g, '').slice(0, 60);
+  if (base.length < 3) base = base.padEnd(3, '_');
+  for (let n = 1; n < 1000; n += 1) {
+    const candidate = n === 1 ? base : `${base}-${n}`;
+    const taken = await db.query('SELECT id FROM users WHERE username = ? LIMIT 1', [candidate]);
+    if (!taken.length) return candidate;
+  }
+  return `${base.slice(0, 50)}-${Date.now().toString(36)}`;
+}
+
+/**
+ * POST /api/users — { email, display_name?, username?, password? }
+ * Panel accounts are added by their institutional email only: every account
+ * is an admin that signs in with Google. The username is derived from the
+ * email unless given; a password is optional (API only).
  */
 router.post('/', wrap(async (req, res) => {
-  const username = String(req.body.username || '').trim();
   const password = String(req.body.password || '');
-  const role = req.body.role === 'admin' ? 'admin' : 'user';
+  const role = 'admin';
   const displayName = users.cleanDisplayName(req.body.display_name);
   const mail = users.normalizeEmail(req.body.email);
 
-  if (!users.USERNAME_RE.test(username)) {
-    return fail(res, 400, 'invalid_username', 'Invalid username (3-64 chars: letters, digits, . _ -)');
-  }
   if (mail.code) return res.status(400).json({ code: mail.code, error: mail.error });
-  if (mail.email && role !== 'admin') {
-    return fail(res, 400, 'email_admin_only', 'Google sign-in (email) is only for admin accounts');
-  }
-  if (!password && !mail.email) {
-    return fail(res, 400, 'login_method_required', 'Set a password or an institutional email (Google sign-in)');
+  if (!mail.email) return fail(res, 400, 'email_required', 'An institutional email is required');
+  if (await users.findByEmail(mail.email)) return fail(res, 409, 'email_taken', 'Email already registered');
+
+  let username = String(req.body.username || '').trim();
+  if (username) {
+    if (!users.USERNAME_RE.test(username)) {
+      return fail(res, 400, 'invalid_username', 'Invalid username (3-64 chars: letters, digits, . _ -)');
+    }
+    const existing = await db.query('SELECT id FROM users WHERE username = ?', [username]);
+    if (existing.length) return fail(res, 409, 'username_taken', 'Username already registered');
+  } else {
+    username = await usernameFromEmail(mail.email);
   }
   if (password) {
     const invalid = users.validatePassword(password, username);
     if (invalid) return res.status(400).json(invalid);
   }
 
-  const existing = await db.query('SELECT id FROM users WHERE username = ?', [username]);
-  if (existing.length) return fail(res, 409, 'username_taken', 'Username already registered');
-  if (mail.email && (await users.findByEmail(mail.email))) return fail(res, 409, 'email_taken', 'Email already registered');
-
   try {
     const result = await db.query(
       'INSERT INTO users (username, display_name, email, password_hash, role) VALUES (?, ?, ?, ?, ?)',
       [username, displayName, mail.email, password ? await hashPassword(password) : null, role]
     );
-    logger.info(`User created: ${username} (${role}${mail.email ? ', Google sign-in' : ''}) by ${req.user.sub}`);
+    logger.info(`User created: ${username} <${mail.email}> by ${req.user.sub}`);
     const created = await users.findById(result.insertId);
     return res.status(201).json(users.toPublic(created));
   } catch (e) {

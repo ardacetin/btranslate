@@ -137,9 +137,9 @@ the social sharing image. Unknown pages get the branded `frontend/404.html`.
   exists, is an active admin and has exactly that password. To change it, edit
   `.env` and restart — the old password stops working and its sessions are
   signed out. The panel shows this account with a `.env` tag and cannot change
-  its password, role or status, or delete it. Hosts (`user` role) also sign in
-  here with the password an admin gave them.
-- **Google ile giriş yap** — for admins only (see *Google sign-in (SAML)*).
+  its password, role or status, or delete it.
+- **Google ile giriş yap** — for everyone added in *Kullanıcılar* (see
+  *Google sign-in (SAML)*).
 
 Without `ADMIN_PASSWORD`, the first `npm run migrate` creates `admin` with a
 strong random password **printed once**, and `npm run set-admin-password`
@@ -162,19 +162,20 @@ new numbered `.sql` file in that folder and re-run `npm run migrate`.
 
 Admins manage accounts from **Panel → Kullanıcılar**:
 
-- **Create** an account with username, optional display name, password and role
-  (`admin` / `user`). Passwords must be at least 8 characters and differ from
-  the username.
-- **Edit** display name and role, or **disable** an account instead of deleting
-  it. A disabled user cannot sign in and their open sessions (including a live
-  host WebSocket attempt) are rejected immediately.
-- **Reset password** — signs the user out on every device.
+- **Add** someone by their `@beykoz.edu.tr` address — nothing else. The
+  username is derived from the address (`ad.soyad`, `ad.soyad-2` on a clash),
+  the account is an admin and signs in with Google; it has no password.
+- **Edit** the display name and email, or **disable** an account instead of
+  deleting it. A disabled account cannot sign in and its open sessions
+  (including a live host WebSocket attempt) are rejected immediately.
 - **Delete** an account.
-- Guard rails: an admin cannot change their own role, disable or delete
-  themselves, and the last active admin can never be demoted, disabled or
-  deleted.
-- Every signed-in user can change their own password via **Parolamı Değiştir**
-  (requires the current password; other devices are signed out).
+- Guard rails: an admin cannot disable or delete themselves, and the last
+  active admin can never be disabled or deleted.
+- Accounts with a password (the `.env` admin, and older accounts) sign in with
+  username + password; older ones can still reset or change it.
+
+There are no roles to choose in the panel. Older `user`-role host accounts keep
+working with their password and become admins if an email is set on them.
 
 Each token is checked against the database on every request, so role changes,
 disabling and password changes take effect without waiting for the 7-day token
@@ -184,7 +185,7 @@ account is re-enabled with that password and its admin role.
 | Endpoint | Who | Purpose |
 |----------|-----|---------|
 | `GET /api/users` | admin | List accounts |
-| `POST /api/users` | admin | Create `{ username, password?, email?, role, display_name }` (password required; admins may use an `@beykoz.edu.tr` email instead) |
+| `POST /api/users` | admin | Create `{ email, display_name?, username?, password? }` — always an admin; username derived from the email when omitted |
 | `PATCH /api/users/:id` | admin | Update `{ display_name?, email?, role?, is_active? }` |
 | `PUT /api/users/:id/password` | admin | Reset `{ new_password }` |
 | `DELETE /api/users/:id` | admin | Delete |
@@ -196,14 +197,14 @@ account is re-enabled with that password and its admin role.
 
 ## Google sign-in (SAML)
 
-**Admins** can sign in to the panel with their **Google Workspace** account.
-Only *Yönetici* accounts that have an `@beykoz.edu.tr` email set in
-**Kullanıcılar** can do so; an email can only be set on admin accounts. Hosts
-(`user` role), Google accounts that are not in the panel, disabled accounts and
-other domains are refused. Password login stays available, for example for the
+Everyone added in **Kullanıcılar** signs in to the panel with their **Google
+Workspace** account. Google accounts that are not in the panel, disabled
+accounts and other domains are refused. Password login stays available for the
 `.env` admin. The *Google ile giriş yap* button is always on the login screen;
 until the four settings below are in `.env` it only says that it is not
-configured yet.
+configured yet. When it stays off, the server log line `Google sign-in: OFF — …`
+and *Panel → Ayarlar → Google ile giriş* name the missing setting, or why the
+certificate file could not be read (not found, no permission, not a PEM).
 
 **1. Create the app in Google.** Google Admin console → *Apps* → *Web and
 mobile apps* → *Add app* → *Add custom SAML app* (name it *B-Translate*). On
@@ -233,9 +234,8 @@ SAML_IDP_ENTITY_ID=https://accounts.google.com/o/saml2?idpid=XXXXXXX
 SAML_IDP_CERT_FILE=/home/btranslate/google-saml.pem
 ```
 
-**4. Add admins.** In *Kullanıcılar*, choose the *Yönetici* role and enter
-their institutional email. The password is optional: without one, the account
-can only sign in with Google.
+**4. Add people.** In *Kullanıcılar*, enter their institutional email and
+press *Ekle*. That is all: they can now sign in with Google.
 
 What is checked on every sign-in:
 

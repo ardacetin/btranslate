@@ -4,7 +4,9 @@
  * Central configuration. Everything reads from process.env with sane
  * defaults so the app boots even with a partial .env during development.
  */
-require('dotenv').config();
+const path = require('path');
+// Always the app's own .env, whatever directory the process was started from.
+require('dotenv').config({ path: path.join(__dirname, '..', '..', '.env') });
 const crypto = require('crypto');
 
 // The placeholder shipped in old .env.example files. A server signing tokens
@@ -34,17 +36,39 @@ function isValidTimeZone(tz) {
 
 const rawTimezone = process.env.APP_TIMEZONE || DEFAULT_TIMEZONE;
 
+/** .env settings Google sign-in still needs (the certificate counts as missing when unreadable). */
+function ssoMissing(s) {
+  return [
+    !s.publicBaseUrl && 'PUBLIC_BASE_URL',
+    !s.idpSsoUrl && 'SAML_IDP_SSO_URL',
+    !s.idpEntityId && 'SAML_IDP_ENTITY_ID',
+    !s.idpCert && 'SAML_IDP_CERT_FILE',
+  ].filter(Boolean);
+}
+
+// Why the IdP certificate could not be used (shown in the log and the panel).
+let idpCertError = '';
+
 /** Google's IdP certificate: inline (PEM or bare base64, \n allowed) or a file path. */
 function readIdpCert() {
   const inline = process.env.SAML_IDP_CERT || '';
   if (inline.trim()) return inline.replace(/\\n/g, '\n').trim();
-  const file = process.env.SAML_IDP_CERT_FILE || '';
+  const file = (process.env.SAML_IDP_CERT_FILE || '').trim();
   if (!file) return '';
+  let text;
   try {
-    return require('fs').readFileSync(file, 'utf8').trim();
+    text = require('fs').readFileSync(file, 'utf8').trim();
   } catch (e) {
+    idpCertError = e.code === 'ENOENT' ? `SAML_IDP_CERT_FILE not found: ${file}`
+      : e.code === 'EACCES' ? `SAML_IDP_CERT_FILE is not readable by this user: ${file}`
+        : `SAML_IDP_CERT_FILE could not be read (${e.code || e.message}): ${file}`;
     return '';
   }
+  if (!/-----BEGIN CERTIFICATE-----/.test(text)) {
+    idpCertError = `SAML_IDP_CERT_FILE is not a PEM certificate (no "BEGIN CERTIFICATE" line): ${file}`;
+    return '';
+  }
+  return text;
 }
 
 const publicBaseUrl = (process.env.PUBLIC_BASE_URL || '').replace(/\/+$/, '');
@@ -95,6 +119,7 @@ const config = {
     idpSsoUrl: samlIdpSsoUrl,
     idpEntityId: samlIdpEntityId,
     idpCert: samlIdpCert,
+    idpCertError,
     spEntityId: process.env.SAML_SP_ENTITY_ID || (publicBaseUrl ? `${publicBaseUrl}/api/auth/saml/metadata` : ''),
     acsUrl: publicBaseUrl ? `${publicBaseUrl}/api/auth/saml/acs` : '',
   },
@@ -162,9 +187,10 @@ function assertSecureConfig() {
   if (!config.db.user) {
     warnings.push('DB_USER is empty — set the MySQL user for this app in .env.');
   }
-  const ssoParts = [config.sso.publicBaseUrl, config.sso.idpSsoUrl, config.sso.idpEntityId, config.sso.idpCert];
-  if (!config.sso.enabled && ssoParts.some(Boolean)) {
-    warnings.push('Google SAML sign-in is partially configured and stays OFF: set PUBLIC_BASE_URL, SAML_IDP_SSO_URL, SAML_IDP_ENTITY_ID and SAML_IDP_CERT (or SAML_IDP_CERT_FILE).');
+  if (config.sso.idpCertError) warnings.push(`Google sign-in stays OFF: ${config.sso.idpCertError}`);
+  const missingSso = ssoMissing(config.sso);
+  if (!config.sso.enabled && missingSso.length < 4 && !config.sso.idpCertError) {
+    warnings.push(`Google sign-in stays OFF — missing in .env: ${missingSso.join(', ')}`);
   }
   if (config.sso.enabled && !/^https:\/\//.test(config.sso.publicBaseUrl) && config.env === 'production') {
     warnings.push('PUBLIC_BASE_URL should be https:// — Google only posts SAML responses to secure URLs.');
@@ -179,3 +205,4 @@ module.exports = config;
 // Non-enumerable so the plain config object (and anything that dumps it)
 // stays data-only.
 Object.defineProperty(config, 'assertSecureConfig', { value: assertSecureConfig, enumerable: false });
+Object.defineProperty(config, 'ssoMissing', { value: () => ssoMissing(config.sso), enumerable: false });

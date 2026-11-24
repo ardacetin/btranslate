@@ -161,7 +161,7 @@ function LoginScreen({ onLoggedIn, initialError = '' }: { onLoggedIn: () => void
           </button>
         )}
         <p className="mt-2 text-center text-caption-1-regular text-text-tertiary">
-          {google === null ? 'Yöneticiler için' : google.enabled ? `Yöneticiler için · @${google.domain} hesabınızla` : 'Yöneticiler için · henüz yapılandırılmadı'}
+          {google === null ? '' : google.enabled ? `@${google.domain} hesabınızla` : 'Henüz yapılandırılmadı'}
         </p>
         <div className="my-5 flex items-center gap-3 text-caption-1-medium text-text-tertiary" aria-hidden>
           <span className="h-px flex-1 bg-separator-border" /> veya parola ile <span className="h-px flex-1 bg-separator-border" />
@@ -232,7 +232,7 @@ function Shell({ me, onLogout, onMeChanged }: { me: Me; onLogout: () => void; on
             </span>
             <div className="min-w-0">
               <div className="truncate text-body-medium text-text-primary">{me.display_name || me.username}</div>
-              <div className="truncate text-caption-1-regular text-text-tertiary">{isAdmin ? 'Yönetici' : 'Kullanıcı'}{me.email ? ` · ${me.email}` : ''}</div>
+              <div className="truncate text-caption-1-regular text-text-tertiary">{me.email || (me.env_managed ? 'Yerel yönetici (.env)' : 'Parola ile giriş')}</div>
             </div>
           </div>
           {me.has_password && !me.env_managed && <NavRow icon={RiLockPasswordLine} label="Parolamı Değiştir" onClick={() => setPwOpen(true)} />}

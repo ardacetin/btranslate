@@ -102,12 +102,8 @@ router.get('/config', requireAuth, requireAdmin, (req, res) => {
     entity_id: s.spEntityId,
     metadata_url: s.publicBaseUrl ? `${s.publicBaseUrl}/api/auth/saml/metadata` : '',
     name_id_format: 'EMAIL',
-    missing: [
-      !s.publicBaseUrl && 'PUBLIC_BASE_URL',
-      !s.idpSsoUrl && 'SAML_IDP_SSO_URL',
-      !s.idpEntityId && 'SAML_IDP_ENTITY_ID',
-      !s.idpCert && 'SAML_IDP_CERT',
-    ].filter(Boolean),
+    missing: config.ssoMissing(),
+    cert_error: s.idpCertError || '',
   });
 });
 
