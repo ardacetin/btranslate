@@ -58,6 +58,7 @@ async function authenticateToken(token) {
     display_name: user.display_name || '',
     email: user.email || '',
     has_password: Boolean(user.has_password),
+    env_managed: users.isEnvManaged(user),
   };
 }
 

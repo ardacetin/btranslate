@@ -55,6 +55,9 @@ router.post('/', wrap(async (req, res) => {
     return fail(res, 400, 'invalid_username', 'Invalid username (3-64 chars: letters, digits, . _ -)');
   }
   if (mail.code) return res.status(400).json({ code: mail.code, error: mail.error });
+  if (mail.email && role !== 'admin') {
+    return fail(res, 400, 'email_admin_only', 'Google sign-in (email) is only for admin accounts');
+  }
   if (!password && !mail.email) {
     return fail(res, 400, 'login_method_required', 'Set a password or an institutional email (Google sign-in)');
   }
@@ -101,22 +104,11 @@ router.patch('/:id', wrap(async (req, res) => {
     params.push(users.cleanDisplayName(req.body.display_name));
   }
 
+  let nextEmail = target.email || null;
   if ('email' in req.body) {
     const mail = users.normalizeEmail(req.body.email);
     if (mail.code) return res.status(400).json({ code: mail.code, error: mail.error });
-    // Never leave an account without any way to sign in.
-    if (!mail.email && !target.has_password) {
-      return fail(res, 400, 'login_method_required', 'This account has no password; it needs its email for Google sign-in');
-    }
-    if (mail.email !== (target.email || null)) {
-      if (mail.email) {
-        const other = await users.findByEmail(mail.email);
-        if (other && other.id !== id) return fail(res, 409, 'email_taken', 'Email already registered');
-      }
-      sets.push('email = ?');
-      params.push(mail.email);
-      changes.push(mail.email ? 'email set' : 'email removed');
-    }
+    nextEmail = mail.email;
   }
 
   let nextRole = target.role;
@@ -128,6 +120,27 @@ router.patch('/:id', wrap(async (req, res) => {
   if ('is_active' in req.body) {
     if (typeof req.body.is_active !== 'boolean') return fail(res, 400, 'invalid_status', 'is_active must be boolean');
     nextActive = req.body.is_active;
+  }
+
+  // The .env admin's role and status come from .env.
+  if (users.isEnvManaged(target) && (nextRole !== 'admin' || !nextActive)) {
+    return fail(res, 400, 'env_managed', 'This admin account is managed in .env (ADMIN_USERNAME / ADMIN_PASSWORD)');
+  }
+  // Google sign-in is for admins only, and an account must keep a way in.
+  if (nextEmail && nextRole !== 'admin') {
+    return fail(res, 400, 'email_admin_only', 'Google sign-in (email) is only for admin accounts; remove the email first');
+  }
+  if (!nextEmail && !target.has_password) {
+    return fail(res, 400, 'login_method_required', 'This account has no password; it needs its email for Google sign-in');
+  }
+  if (nextEmail !== (target.email || null)) {
+    if (nextEmail) {
+      const other = await users.findByEmail(nextEmail);
+      if (other && other.id !== id) return fail(res, 409, 'email_taken', 'Email already registered');
+    }
+    sets.push('email = ?');
+    params.push(nextEmail);
+    changes.push(nextEmail ? 'email set' : 'email removed');
   }
 
   const isSelf = id === req.user.uid;
@@ -174,6 +187,9 @@ router.put('/:id/password', wrap(async (req, res) => {
   if (id === null) return undefined;
   const target = await users.findById(id);
   if (!target) return fail(res, 404, 'not_found', 'User not found');
+  if (users.isEnvManaged(target)) {
+    return fail(res, 400, 'env_managed', 'This admin password is managed in .env (ADMIN_PASSWORD)');
+  }
 
   const newPassword = String(req.body.new_password || '');
   const invalid = users.validatePassword(newPassword, target.username);
@@ -195,6 +211,9 @@ router.delete('/:id', wrap(async (req, res) => {
   if (id === req.user.uid) return fail(res, 400, 'self_delete', 'You cannot delete yourself');
   const target = await users.findById(id);
   if (!target) return fail(res, 404, 'not_found', 'User not found');
+  if (users.isEnvManaged(target)) {
+    return fail(res, 400, 'env_managed', 'This admin account is managed in .env (ADMIN_USERNAME / ADMIN_PASSWORD)');
+  }
   const blocked = await users.withAdminLock(async (conn, adminIds) => {
     if (adminIds.includes(id) && adminIds.length === 1) return true;
     await conn.query('DELETE FROM users WHERE id = ?', [id]);

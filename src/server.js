@@ -22,6 +22,7 @@ const logsRoutes = require('./routes/logs');
 const settingsRoutes = require('./routes/settings');
 const systemRoutes = require('./routes/system');
 const logStore = require('./services/logStore');
+const { syncEnvAdmin } = require('./services/envAdmin');
 
 const app = express();
 
@@ -196,6 +197,7 @@ async function start() {
   try {
     await db.ping();
     logger.info(`MySQL connected (${config.db.host}:${config.db.port}/${config.db.name})`);
+    await syncEnvAdmin().catch((e) => logger.error('Could not sync the .env admin account', e));
     await logStore.cleanup();
   } catch (e) {
     logger.error('MySQL connection failed — did you run `npm run migrate`?', e);

@@ -129,10 +129,21 @@ in `frontend/lang.js` (`lp_*` keys, English and Turkish). Fonts (Geist, Inter)
 and icons (Phosphor, inlined SVG) are self-hosted; `frontend/og-image.png` is
 the social sharing image. Unknown pages get the branded `frontend/404.html`.
 
-**First admin login:** the first `npm run migrate` creates the `admin` account.
-If `ADMIN_PASSWORD` is set (min. 8 characters, not `admin123`) it is used;
-otherwise a strong random password is generated and **printed once** — store it.
-`npm run set-admin-password` resets it later (reads `ADMIN_PASSWORD`, or prompts).
+**Admin login:** the panel at `/host` offers two ways in:
+
+- **Username + password.** The built-in admin is managed from `.env`: with
+  `ADMIN_PASSWORD` set (min. 8 characters, not the username, not `admin123`),
+  every server start makes sure the `ADMIN_USERNAME` account (default `admin`)
+  exists, is an active admin and has exactly that password. To change it, edit
+  `.env` and restart — the old password stops working and its sessions are
+  signed out. The panel shows this account with a `.env` tag and cannot change
+  its password, role or status, or delete it. Hosts (`user` role) also sign in
+  here with the password an admin gave them.
+- **Google ile giriş yap** — for admins only (see *Google sign-in (SAML)*).
+
+Without `ADMIN_PASSWORD`, the first `npm run migrate` creates `admin` with a
+strong random password **printed once**, and `npm run set-admin-password`
+resets it (prompts for the new one).
 
 **Production refuses to start** without a `JWT_SECRET` of at least 32 characters
 (the old placeholder value is rejected too).
@@ -167,13 +178,13 @@ Admins manage accounts from **Panel → Kullanıcılar**:
 
 Each token is checked against the database on every request, so role changes,
 disabling and password changes take effect without waiting for the 7-day token
-expiry. Locked out? `npm run set-admin-password` resets the `admin` account's
-password from `ADMIN_PASSWORD`, re-enables it and restores its admin role.
+expiry. Locked out? Set `ADMIN_PASSWORD` in `.env` and restart: the admin
+account is re-enabled with that password and its admin role.
 
 | Endpoint | Who | Purpose |
 |----------|-----|---------|
 | `GET /api/users` | admin | List accounts |
-| `POST /api/users` | admin | Create `{ username, password?, email?, role, display_name }` (password or `@beykoz.edu.tr` email required) |
+| `POST /api/users` | admin | Create `{ username, password?, email?, role, display_name }` (password required; admins may use an `@beykoz.edu.tr` email instead) |
 | `PATCH /api/users/:id` | admin | Update `{ display_name?, email?, role?, is_active? }` |
 | `PUT /api/users/:id/password` | admin | Reset `{ new_password }` |
 | `DELETE /api/users/:id` | admin | Delete |
@@ -185,11 +196,14 @@ password from `ADMIN_PASSWORD`, re-enables it and restores its admin role.
 
 ## Google sign-in (SAML)
 
-Admins and hosts can sign in to the panel with their **Google Workspace**
-account. Only people an admin has added in **Kullanıcılar** with an
-`@beykoz.edu.tr` email can do so. A Google account that is not in the panel,
-is disabled, or is on another domain is refused. Password login stays
-available, for example for the built-in `admin` account.
+**Admins** can sign in to the panel with their **Google Workspace** account.
+Only *Yönetici* accounts that have an `@beykoz.edu.tr` email set in
+**Kullanıcılar** can do so; an email can only be set on admin accounts. Hosts
+(`user` role), Google accounts that are not in the panel, disabled accounts and
+other domains are refused. Password login stays available, for example for the
+`.env` admin. The *Google ile giriş yap* button is always on the login screen;
+until the four settings below are in `.env` it only says that it is not
+configured yet.
 
 **1. Create the app in Google.** Google Admin console → *Apps* → *Web and
 mobile apps* → *Add app* → *Add custom SAML app* (name it *B-Translate*). On
@@ -219,8 +233,9 @@ SAML_IDP_ENTITY_ID=https://accounts.google.com/o/saml2?idpid=XXXXXXX
 SAML_IDP_CERT_FILE=/home/btranslate/google-saml.pem
 ```
 
-**4. Add people.** In *Kullanıcılar*, enter their institutional email. The
-password is optional: without one, the account can only sign in with Google.
+**4. Add admins.** In *Kullanıcılar*, choose the *Yönetici* role and enter
+their institutional email. The password is optional: without one, the account
+can only sign in with Google.
 
 What is checked on every sign-in:
 
@@ -245,7 +260,7 @@ See [`.env.example`](.env.example). Key variables:
 | `APP_TIMEZONE` | Zone for displayed times and "days" in history/logs (default `Europe/Istanbul`). The DB stores UTC. |
 | `DB_HOST/PORT/NAME/USER/PASSWORD` | MySQL connection. `DB_USER` is required (no `root` fallback). |
 | `JWT_SECRET` | **Required in production**, ≥ 32 random chars: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
-| `ADMIN_PASSWORD` | Optional initial admin password for the first migrate (else a random one is printed). |
+| `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Built-in admin account, synced from `.env` on every start when `ADMIN_PASSWORD` is set (see *Admin login*). |
 | `PUBLIC_BASE_URL`, `SAML_IDP_SSO_URL`, `SAML_IDP_ENTITY_ID`, `SAML_IDP_CERT_FILE` / `SAML_IDP_CERT` | Google sign-in (see *Google sign-in (SAML)*). All four needed to turn it on. |
 | `SSO_EMAIL_DOMAIN` | Email domain allowed for Google sign-in (default `beykoz.edu.tr`). |
 | `DEEPL_API_KEY` | **Server-only.** Never sent to the browser. Free keys (`…:fx`) auto-use api-free.deepl.com. |

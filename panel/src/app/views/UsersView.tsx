@@ -70,6 +70,7 @@ export function UsersView({ me, onSelfChanged, onChangeOwnPassword }: { me: Me; 
                           <div className="flex items-center gap-1.5 text-body-medium text-text-primary">
                             {u.username}
                             {self && <Chip variant="caption" color="neutral">Siz</Chip>}
+                            {u.env_managed && <Chip variant="caption" color="neutral" title="Parolası .env dosyasından (ADMIN_PASSWORD) yönetilir">.env</Chip>}
                           </div>
                           {u.display_name && <div className="text-caption-1-regular text-text-tertiary">{u.display_name}</div>}
                           {u.email && <div className="text-caption-1-regular text-text-tertiary">{u.email}</div>}
@@ -95,11 +96,11 @@ export function UsersView({ me, onSelfChanged, onChangeOwnPassword }: { me: Me; 
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="small" variant="secondary" iconOnly leadingIcon={RiPencilLine} aria-label={`${u.username} düzenle`} onClick={() => setModal({ kind: 'edit', user: u })} />
-                          {!(self && !u.has_password) && (
+                          {!u.env_managed && !(self && !u.has_password) && (
                             <Button size="small" variant="secondary" iconOnly leadingIcon={RiKey2Line} aria-label={`${u.username} parola`}
                               onClick={() => (self ? onChangeOwnPassword() : setModal({ kind: 'reset', user: u }))} />
                           )}
-                          {!self && (
+                          {!self && !u.env_managed && (
                             <Button size="small" variant="secondary" iconOnly leadingIcon={RiDeleteBinLine} aria-label={`${u.username} sil`}
                               className="text-text-error-primary" onClick={() => setModal({ kind: 'delete', user: u })} />
                           )}
@@ -160,11 +161,12 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
     e.preventDefault();
     const u = username.trim();
     if (!USERNAME_RE.test(u)) { toast(ERR_TR.invalid_username, 'error'); return; }
-    if (!password && !email.trim()) { toast(ERR_TR.login_method_required, 'error'); return; }
+    const mail = role === 'admin' ? email.trim() : '';
+    if (!password && !mail) { toast(role === 'admin' ? ERR_TR.login_method_required : 'Parola gerekli', 'error'); return; }
     if (password && password.length < 8) { toast(ERR_TR.password_too_short, 'error'); return; }
     setBusy(true);
     try {
-      await apiJson('/api/users', jsonBody({ username: u, password, email: email.trim(), role, display_name: displayName.trim() }));
+      await apiJson('/api/users', jsonBody({ username: u, password, email: mail, role, display_name: displayName.trim() }));
       toast(`"${u}" eklendi`, 'success');
       setUsername(''); setDisplayName(''); setEmail(''); setPassword(''); setShowPw(false); setRole('user');
       onCreated();
@@ -179,35 +181,37 @@ function CreateUserCard({ onCreated }: { onCreated: () => void }) {
     <Card>
       <CardHeader
         title="Kullanıcı Ekle"
-        description="Kurumsal e-posta girilen kullanıcılar Google ile giriş yapabilir; bu durumda parola isteğe bağlıdır. Parola en az 8 karakter olmalı ve kullanıcı adıyla aynı olmamalı."
+        description="Kullanıcılar kullanıcı adı ve parolayla giriş yapar. Yöneticilere kurumsal e-posta tanımlanırsa Google ile de giriş yapabilirler; bu durumda parola isteğe bağlıdır. Parola en az 8 karakter olmalı ve kullanıcı adıyla aynı olmamalı."
       />
       <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 xl:items-end">
         <Input label="Kullanıcı adı" placeholder="kullanici_adi" value={username} onChange={setUsername} maxLength={64} autoComplete="off" />
         <Input label="Ad Soyad (isteğe bağlı)" placeholder="Ad Soyad" value={displayName} onChange={setDisplayName} maxLength={128} />
-        <Input
-          label="Kurumsal e-posta (Google ile giriş)"
-          type="email"
-          placeholder="ad.soyad@beykoz.edu.tr"
-          value={email}
-          onChange={(v) => {
-            setEmail(v);
-            // Suggest a username from the address while the field is still empty.
-            if (!username) { const local = v.split('@')[0]; if (/^[A-Za-z0-9_.-]{3,}$/.test(local)) setUsername(local.toLowerCase()); }
-          }}
-          maxLength={255}
-          autoComplete="off"
-        />
-        <div className="flex items-end gap-2">
-          <Input label={email.trim() ? 'Parola (isteğe bağlı)' : 'Parola'} type={showPw ? 'text' : 'password'} placeholder={email.trim() ? 'Yalnızca Google için boş bırakın' : 'En az 8 karakter'} value={password}
-            onChange={(v) => { setPassword(v); }} autoComplete="new-password" className="min-w-0 flex-1" />
-          <Button type="button" variant="secondary" iconOnly leadingIcon={RiShuffleLine} aria-label="Rastgele güçlü parola üret" title="Rastgele güçlü parola üret" onClick={generate} />
-        </div>
         <div className="flex flex-col gap-1.5">
           <span className="text-body-medium text-text-primary">Rol</span>
           <Select aria-label="Rol" selectedKey={role} onSelectionChange={(k) => setRole(k === 'admin' ? 'admin' : 'user')}>
             <SelectItem id="user">Kullanıcı</SelectItem>
             <SelectItem id="admin">Yönetici</SelectItem>
           </Select>
+        </div>
+        {role === 'admin' && (
+          <Input
+            label="Kurumsal e-posta (Google ile giriş)"
+            type="email"
+            placeholder="ad.soyad@beykoz.edu.tr"
+            value={email}
+            onChange={(v) => {
+              setEmail(v);
+              // Suggest a username from the address while the field is still empty.
+              if (!username) { const local = v.split('@')[0]; if (/^[A-Za-z0-9_.-]{3,}$/.test(local)) setUsername(local.toLowerCase()); }
+            }}
+            maxLength={255}
+            autoComplete="off"
+          />
+        )}
+        <div className="flex items-end gap-2">
+          <Input label={role === 'admin' && email.trim() ? 'Parola (isteğe bağlı)' : 'Parola'} type={showPw ? 'text' : 'password'} placeholder={role === 'admin' && email.trim() ? 'Yalnızca Google için boş bırakın' : 'En az 8 karakter'} value={password}
+            onChange={(v) => { setPassword(v); }} autoComplete="new-password" className="min-w-0 flex-1" />
+          <Button type="button" variant="secondary" iconOnly leadingIcon={RiShuffleLine} aria-label="Rastgele güçlü parola üret" title="Rastgele güçlü parola üret" onClick={generate} />
         </div>
         <Button type="submit" leadingIcon={RiAddLine} disabled={busy}>Ekle</Button>
       </form>
@@ -220,38 +224,46 @@ function EditUserDialog({ user, self, onClose, onSaved }: { user: User; self: bo
   const [email, setEmail] = useState(user.email || '');
   const [role, setRole] = useState(user.role);
   const [active, setActive] = useState(user.is_active);
+  const locked = self || user.env_managed;
   return (
     <Dialog
       isOpen onClose={onClose}
       title={`Kullanıcıyı düzenle: ${user.username}`}
-      description={self
-        ? 'Kendi rolünüzü değiştiremez ve hesabınızı devre dışı bırakamazsınız.'
-        : 'Devre dışı bırakılan kullanıcı giriş yapamaz ve açık oturumları hemen kapanır.'}
+      description={user.env_managed
+        ? 'Bu yönetici hesabının parolası .env dosyasından (ADMIN_PASSWORD) yönetilir; rolü ve durumu buradan değiştirilemez.'
+        : self
+          ? 'Kendi rolünüzü değiştiremez ve hesabınızı devre dışı bırakamazsınız.'
+          : 'Devre dışı bırakılan kullanıcı giriş yapamaz ve açık oturumları hemen kapanır.'}
       onSubmit={async () => {
-        const patch: Record<string, unknown> = { display_name: displayName.trim(), email: email.trim() };
-        if (!self) { patch.role = role; patch.is_active = active; }
+        // Google sign-in is for admins only: a non-admin keeps no email.
+        const patch: Record<string, unknown> = { display_name: displayName.trim(), email: role === 'admin' ? email.trim() : '' };
+        if (!locked) { patch.role = role; patch.is_active = active; }
         await apiJson(`/api/users/${user.id}`, jsonBody(patch, 'PATCH'));
         onSaved();
       }}
     >
       <Input label="Ad Soyad" value={displayName} onChange={setDisplayName} maxLength={128} autoFocus />
-      <Input
-        label="Kurumsal e-posta (Google ile giriş)"
-        type="email"
-        placeholder="ad.soyad@beykoz.edu.tr"
-        value={email}
-        onChange={setEmail}
-        maxLength={255}
-        hint={user.has_password ? 'Boş bırakırsanız kullanıcı yalnızca parolayla giriş yapar.' : 'Bu hesabın parolası yok; Google ile giriş için e-posta gerekli.'}
-      />
       <div className="flex flex-col gap-1.5">
         <span className="text-body-medium text-text-primary">Rol</span>
-        <Select aria-label="Rol" selectedKey={role} isDisabled={self} onSelectionChange={(k) => setRole(k === 'admin' ? 'admin' : 'user')}>
+        <Select aria-label="Rol" selectedKey={role} isDisabled={locked} onSelectionChange={(k) => setRole(k === 'admin' ? 'admin' : 'user')}>
           <SelectItem id="user">Kullanıcı</SelectItem>
           <SelectItem id="admin">Yönetici</SelectItem>
         </Select>
       </div>
-      <Switch isSelected={active} onChange={setActive} isDisabled={self}>Hesap aktif</Switch>
+      {role === 'admin' ? (
+        <Input
+          label="Kurumsal e-posta (Google ile giriş)"
+          type="email"
+          placeholder="ad.soyad@beykoz.edu.tr"
+          value={email}
+          onChange={setEmail}
+          maxLength={255}
+          hint={user.has_password ? 'Boş bırakırsanız yalnızca parolayla giriş yapılır.' : 'Bu hesabın parolası yok; Google ile giriş için e-posta gerekli.'}
+        />
+      ) : user.email ? (
+        <p className="text-caption-1-regular text-text-tertiary">Google ile giriş yalnızca yöneticiler içindir; kayıtlı e-posta ({user.email}) kaldırılacak.</p>
+      ) : null}
+      <Switch isSelected={active} onChange={setActive} isDisabled={locked}>Hesap aktif</Switch>
     </Dialog>
   );
 }

@@ -121,7 +121,7 @@ function GoogleSsoCard() {
     <Card>
       <CardHeader
         title="Google ile giriş (SAML)"
-        description={`Panelde @${cfg.email_domain} e-postası tanımlı kullanıcılar Google Workspace hesaplarıyla giriş yapar. Diğer hesaplar reddedilir.`}
+        description={`Yalnızca yöneticiler içindir: panelde @${cfg.email_domain} e-postası tanımlı yönetici hesapları Google Workspace ile giriş yapar. Kullanıcı rolündeki hesaplar ve tanımsız adresler reddedilir.`}
         actions={<Chip variant="subtle" color={cfg.enabled ? 'lime' : 'neutral'}>{cfg.enabled ? 'Etkin' : 'Kapalı'}</Chip>}
       />
       <p className="mb-3 text-body-2-regular text-text-secondary">

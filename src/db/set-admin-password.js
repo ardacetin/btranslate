@@ -5,9 +5,9 @@
  *
  *   npm run set-admin-password
  *
- * Why this exists: the migration seeds the admin user only once (on the first
- * `npm run migrate`). Changing ADMIN_PASSWORD in .env afterwards does NOT change
- * an already-seeded admin. This command sets the admin password explicitly.
+ * With ADMIN_PASSWORD set in .env you do not need this: the server syncs the
+ * ADMIN_USERNAME account to it on every start (services/envAdmin.js). This
+ * command is for installs that manage the admin in the panel instead.
  * It also re-enables the account, restores its admin role and signs out all
  * existing sessions, so it doubles as a lock-out recovery tool.
  *
@@ -25,7 +25,9 @@ const config = require('../config');
 const { validatePassword } = require('../services/users');
 const logger = require('../utils/logger');
 
-const KNOWN_DEFAULT_PASSWORDS = ['admin123'];
+const { KNOWN_DEFAULT_PASSWORDS } = require('../services/users');
+
+const ADMIN_USERNAME = config.auth.adminUsername;
 
 /** Read a line from the terminal without echoing it. */
 function promptHidden(question) {
@@ -83,7 +85,7 @@ async function obtainPassword() {
 
 async function run() {
   const { password, source } = await obtainPassword();
-  const invalid = validatePassword(password, 'admin');
+  const invalid = validatePassword(password, ADMIN_USERNAME);
   if (invalid) throw new Error(invalid.error);
   if (KNOWN_DEFAULT_PASSWORDS.includes(password.toLowerCase())) {
     throw new Error('That is a well-known default password — choose another one.');
@@ -99,7 +101,7 @@ async function run() {
 
   try {
     const hash = await bcrypt.hash(password, 10);
-    const [rows] = await conn.execute('SELECT id FROM users WHERE username = ? LIMIT 1', ['admin']);
+    const [rows] = await conn.execute('SELECT id FROM users WHERE username = ? LIMIT 1', [ADMIN_USERNAME]);
     if (rows.length) {
       // Recovery path: also make sure the account is an enabled admin and sign
       // out any existing sessions. Falls back for databases that have not run
@@ -107,21 +109,21 @@ async function run() {
       try {
         await conn.execute(
           "UPDATE users SET password_hash = ?, role = 'admin', is_active = 1, token_version = token_version + 1 WHERE username = ?",
-          [hash, 'admin']
+          [hash, ADMIN_USERNAME]
         );
       } catch (e) {
         if (e.code !== 'ER_BAD_FIELD_ERROR') throw e;
-        await conn.execute("UPDATE users SET password_hash = ?, role = 'admin' WHERE username = ?", [hash, 'admin']);
+        await conn.execute("UPDATE users SET password_hash = ?, role = 'admin' WHERE username = ?", [hash, ADMIN_USERNAME]);
       }
       logger.info(`Admin password reset from ${source} (account enabled, role admin, sessions signed out).`);
     } else {
       await conn.execute(
         'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
-        ['admin', hash, 'admin']
+        [ADMIN_USERNAME, hash, 'admin']
       );
       logger.info(`Admin user created with password from ${source}.`);
     }
-    logger.info('Done. You can now log in as: admin');
+    logger.info(`Done. You can now log in as: ${ADMIN_USERNAME}`);
   } finally {
     await conn.end();
   }
