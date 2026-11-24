@@ -198,6 +198,9 @@ async function start() {
     await db.ping();
     logger.info(`MySQL connected (${config.db.host}:${config.db.port}/${config.db.name})`);
     await syncEnvAdmin().catch((e) => logger.error('Could not sync the .env admin account', e));
+    logger.info(config.sso.enabled
+      ? `Google sign-in: ON (${config.sso.acsUrl})`
+      : `Google sign-in: OFF — ${config.sso.idpCertError || `missing in .env: ${config.ssoMissing().join(', ')}`}`);
     await logStore.cleanup();
   } catch (e) {
     logger.error('MySQL connection failed — did you run `npm run migrate`?', e);

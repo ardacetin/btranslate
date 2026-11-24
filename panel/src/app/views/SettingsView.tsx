@@ -121,7 +121,7 @@ function GoogleSsoCard() {
     <Card>
       <CardHeader
         title="Google ile giriş (SAML)"
-        description={`Yalnızca yöneticiler içindir: panelde @${cfg.email_domain} e-postası tanımlı yönetici hesapları Google Workspace ile giriş yapar. Kullanıcı rolündeki hesaplar ve tanımsız adresler reddedilir.`}
+        description={`Kullanıcılar ekranında eklenen @${cfg.email_domain} adresleri Google Workspace hesaplarıyla giriş yapar. Panelde tanımlı olmayan adresler reddedilir.`}
         actions={<Chip variant="subtle" color={cfg.enabled ? 'lime' : 'neutral'}>{cfg.enabled ? 'Etkin' : 'Kapalı'}</Chip>}
       />
       <p className="mb-3 text-body-2-regular text-text-secondary">
@@ -141,7 +141,12 @@ function GoogleSsoCard() {
           SP meta verisi: <a className="text-accent-700 underline" href={cfg.metadata_url} target="_blank" rel="noopener">{cfg.metadata_url}</a>
         </p>
       )}
-      {cfg.missing.length > 0 && (
+      {cfg.cert_error && (
+        <p className="mt-3 rounded-xl bg-background-secondary-default px-3 py-2 text-body-2-regular text-text-error-primary">
+          Sertifika okunamadı: <span className="font-mono break-all">{cfg.cert_error}</span>
+        </p>
+      )}
+      {cfg.missing.length > 0 && !cfg.cert_error && (
         <p className="mt-3 rounded-xl bg-background-secondary-default px-3 py-2 text-body-2-regular text-text-secondary">
           Etkinleştirmek için sunucu <code className="font-mono">.env</code> dosyasına ekleyin: <b className="font-mono text-text-primary">{cfg.missing.join(', ')}</b> — Google’ın verdiği SSO URL, Entity ID ve sertifika (README’de adım adım).
         </p>

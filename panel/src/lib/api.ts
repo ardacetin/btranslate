@@ -41,6 +41,7 @@ export const ERR_TR: Record<string, string> = {
   no_password: 'Bu hesap Google ile giriş yapıyor; parolası yok',
   sso_code_invalid: 'Google girişinin süresi doldu, lütfen tekrar deneyin',
   not_admin: 'Google ile giriş yalnızca yöneticiler içindir',
+  email_required: 'Kurumsal e-posta gerekli',
   email_admin_only: 'Google ile giriş (kurumsal e-posta) yalnızca yönetici hesapları içindir',
   env_managed: 'Bu yönetici hesabı .env dosyasından yönetiliyor (ADMIN_USERNAME / ADMIN_PASSWORD)',
 };
@@ -49,7 +50,7 @@ export const ERR_TR: Record<string, string> = {
 export const SSO_ERR_TR: Record<string, string> = {
   invalid: 'Google girişi doğrulanamadı. Lütfen tekrar deneyin.',
   domain: 'Yalnızca @beykoz.edu.tr hesaplarıyla giriş yapılabilir.',
-  not_registered: 'Bu Google hesabı panelde bir yöneticiye tanımlı değil.',
+  not_registered: 'Bu Google hesabı panelde tanımlı değil. Bir yöneticiden e-postanızı eklemesini isteyin.',
   not_admin: 'Google ile giriş yalnızca yöneticiler içindir. Kullanıcı adı ve parolanızla giriş yapın.',
   disabled_account: 'Bu hesap devre dışı bırakılmış. Bir yöneticiye başvurun.',
   disabled: 'Google ile giriş bu sunucuda henüz yapılandırılmamış.',
@@ -132,6 +133,6 @@ export interface Settings {
 }
 export interface SsoConfig {
   enabled: boolean; email_domain: string; acs_url: string; entity_id: string;
-  metadata_url: string; name_id_format: string; missing: string[];
+  metadata_url: string; name_id_format: string; missing: string[]; cert_error?: string;
 }
 export interface Direction { id: string; source: string; target: string; label: string; }
