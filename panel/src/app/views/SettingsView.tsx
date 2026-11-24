@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { RiRestartLine } from '@remixicon/react';
+import { RiFileCopyLine, RiRestartLine } from '@remixicon/react';
 import { Button } from '@/components/base/buttons/button';
 import { Input } from '@/components/base/input/input';
 import { Select, SelectItem } from '@/components/base/select/select';
 import { Switch } from '@/components/base/switch/switch';
-import { apiJson, jsonBody, type Settings } from '@/lib/api';
+import { apiJson, jsonBody, type Settings, type SsoConfig } from '@/lib/api';
+import { Chip } from '@/components/base/badges/chip';
 import { broadcast } from '@/lib/broadcast';
 import { Card, CardHeader, Dialog, useToast } from '../ui';
 
@@ -84,6 +85,8 @@ export function SettingsView() {
         </div>
       </Card>
 
+      <GoogleSsoCard />
+
       <Card>
         <CardHeader title="Sunucu" description="Uygulamayı yeniden başlatır (systemd/PM2 birkaç saniye içinde tekrar ayağa kaldırır). Aktif yayın ve bağlantılar kısa süre kesilir." />
         <Button variant="danger" leadingIcon={RiRestartLine} onClick={() => setRestartOpen(true)}>Servisi Yeniden Başlat</Button>
@@ -98,5 +101,51 @@ export function SettingsView() {
         }}
       />
     </div>
+  );
+}
+
+/** Google Workspace SAML: status and the values to enter in the Google Admin console. */
+function GoogleSsoCard() {
+  const toast = useToast();
+  const [cfg, setCfg] = useState<SsoConfig | null>(null);
+  useEffect(() => { apiJson<SsoConfig>('/api/auth/saml/config').then(setCfg).catch(() => setCfg(null)); }, []);
+  if (!cfg) return null;
+  const copy = (v: string) => navigator.clipboard?.writeText(v).then(() => toast('Kopyalandı', 'success'), () => {});
+  const rows: [string, string][] = [
+    ['ACS URL', cfg.acs_url],
+    ['Entity ID', cfg.entity_id],
+    ['Name ID biçimi', 'EMAIL'],
+    ['Name ID', 'Basic Information > Primary email'],
+  ];
+  return (
+    <Card>
+      <CardHeader
+        title="Google ile giriş (SAML)"
+        description={`Panelde @${cfg.email_domain} e-postası tanımlı kullanıcılar Google Workspace hesaplarıyla giriş yapar. Diğer hesaplar reddedilir.`}
+        actions={<Chip variant="subtle" color={cfg.enabled ? 'lime' : 'neutral'}>{cfg.enabled ? 'Etkin' : 'Kapalı'}</Chip>}
+      />
+      <p className="mb-3 text-body-2-regular text-text-secondary">
+        Google Yönetici Konsolu → Uygulamalar → Web ve mobil uygulamalar → Özel SAML uygulaması ekle. Hizmet sağlayıcı ayrıntılarına şunları girin:
+      </p>
+      <dl className="grid gap-2">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border-button-default px-3 py-2">
+            <dt className="w-32 shrink-0 text-body-2-medium text-text-secondary">{k}</dt>
+            <dd className="min-w-0 flex-1 font-mono text-body-2-regular break-all text-text-primary">{v || '—'}</dd>
+            {v && k !== 'Name ID' && <Button size="xs" variant="ghost" leadingIcon={RiFileCopyLine} onClick={() => copy(v)}>Kopyala</Button>}
+          </div>
+        ))}
+      </dl>
+      {cfg.metadata_url && (
+        <p className="mt-3 text-body-2-regular text-text-secondary">
+          SP meta verisi: <a className="text-accent-700 underline" href={cfg.metadata_url} target="_blank" rel="noopener">{cfg.metadata_url}</a>
+        </p>
+      )}
+      {cfg.missing.length > 0 && (
+        <p className="mt-3 rounded-xl bg-background-secondary-default px-3 py-2 text-body-2-regular text-text-secondary">
+          Etkinleştirmek için sunucu <code className="font-mono">.env</code> dosyasına ekleyin: <b className="font-mono text-text-primary">{cfg.missing.join(', ')}</b> — Google’ın verdiği SSO URL, Entity ID ve sertifika (README’de adım adım).
+        </p>
+      )}
+    </Card>
   );
 }

@@ -12,6 +12,7 @@ const lifecycle = require('./utils/lifecycle');
 const { attachWebSocket } = require('./websocket');
 
 const authRoutes = require('./routes/auth');
+const samlRoutes = require('./routes/saml');
 const userRoutes = require('./routes/users');
 const sessionRoutes = require('./routes/sessions');
 const exportRoutes = require('./routes/exports');
@@ -114,8 +115,14 @@ app.use('/api/', (req, res, next) => (isPublicRead(req) ? publicReadLimiter(req,
 app.use('/api/', apiLimiter);
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/change-password', authLimiter);
+// Google sign-in. The assertion endpoint always answers with a redirect, so
+// it uses the limiter that counts every request; the code exchange returns
+// 4xx on failure, so failures-only counting works there.
+app.use('/api/auth/saml/acs', authLimiter);
+app.use('/api/auth/saml/exchange', loginLimiter);
 
 // ── API routes ─────────────────────────────────────────────────────────────
+app.use('/api/auth/saml', samlRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);

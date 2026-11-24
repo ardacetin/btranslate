@@ -35,6 +35,20 @@ export const ERR_TR: Record<string, string> = {
   wrong_current_password: 'Mevcut parola hatalı',
   password_unchanged: 'Yeni parola mevcut paroladan farklı olmalı',
   account_disabled: 'Bu hesap devre dışı bırakılmış. Bir yöneticiye başvurun.',
+  invalid_email: 'E-posta @beykoz.edu.tr uzantılı olmalı',
+  email_taken: 'Bu e-posta başka bir kullanıcıya ait',
+  login_method_required: 'Parola ya da kurumsal e-posta (Google ile giriş) gerekli',
+  no_password: 'Bu hesap Google ile giriş yapıyor; parolası yok',
+  sso_code_invalid: 'Google girişinin süresi doldu, lütfen tekrar deneyin',
+};
+
+/** Why a Google sign-in was refused (the server redirects with #sso_error=…). */
+export const SSO_ERR_TR: Record<string, string> = {
+  invalid: 'Google girişi doğrulanamadı. Lütfen tekrar deneyin.',
+  domain: 'Yalnızca @beykoz.edu.tr hesaplarıyla giriş yapılabilir.',
+  not_registered: 'Bu Google hesabı panelde tanımlı değil. Bir yöneticiden e-postanızı eklemesini isteyin.',
+  disabled_account: 'Bu hesap devre dışı bırakılmış. Bir yöneticiye başvurun.',
+  disabled: 'Google ile giriş bu sunucuda henüz yapılandırılmamış.',
 };
 
 export class ApiError extends Error {
@@ -98,9 +112,9 @@ export async function download(path: string) {
 }
 
 // ── Types shared by views ───────────────────────────────────────────────
-export interface Me { id: number; username: string; display_name: string; role: 'admin' | 'user'; }
+export interface Me { id: number; username: string; display_name: string; email: string; has_password: boolean; role: 'admin' | 'user'; }
 export interface User {
-  id: number; username: string; display_name: string; role: 'admin' | 'user';
+  id: number; username: string; display_name: string; email: string; has_password: boolean; role: 'admin' | 'user';
   is_active: boolean; last_login_at: string | null; created_at: string | null;
 }
 export interface DayCount { day: string; count: number; }
@@ -111,5 +125,9 @@ export interface Settings {
   flush_on_punctuation: boolean;
   max_words: number;
   silence_ms: number;
+}
+export interface SsoConfig {
+  enabled: boolean; email_domain: string; acs_url: string; entity_id: string;
+  metadata_url: string; name_id_format: string; missing: string[];
 }
 export interface Direction { id: string; source: string; target: string; label: string; }

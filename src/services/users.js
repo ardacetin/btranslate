@@ -1,6 +1,7 @@
 'use strict';
 
 const db = require('../config/database');
+const config = require('../config');
 
 /**
  * User account data access + validation rules, shared by the auth middleware,
@@ -11,9 +12,11 @@ const ROLES = ['admin', 'user'];
 const PASSWORD_MIN = 8;
 const PASSWORD_MAX_BYTES = 72; // bcrypt ignores everything past 72 bytes
 const DISPLAY_NAME_MAX = 128;
+const EMAIL_MAX = 255;
 
 const PUBLIC_COLUMNS =
-  'id, username, display_name, role, is_active, token_version, last_login_at, created_at';
+  'id, username, display_name, email, role, is_active, token_version, last_login_at, created_at, ' +
+  '(password_hash IS NOT NULL) AS has_password';
 
 /** Shape a DB row for API responses (never includes the password hash). */
 function toPublic(u) {
@@ -21,6 +24,8 @@ function toPublic(u) {
     id: u.id,
     username: u.username,
     display_name: u.display_name || '',
+    email: u.email || '',
+    has_password: Boolean(u.has_password),
     role: u.role,
     is_active: Boolean(u.is_active),
     last_login_at: u.last_login_at || null,
@@ -40,6 +45,27 @@ function validatePassword(password, username) {
     return { code: 'password_equals_username', error: 'Password must not be the same as the username' };
   }
   return null;
+}
+
+/**
+ * Normalize an institutional email for storage/lookup (trim + lowercase).
+ * Returns { email } (null when empty) or { code, error } when it is not an
+ * address on the allowed Google Workspace domain.
+ */
+function normalizeEmail(raw) {
+  const email = String(raw == null ? '' : raw).trim().toLowerCase();
+  if (!email) return { email: null };
+  const domain = config.sso.emailDomain;
+  const local = email.endsWith(`@${domain}`) ? email.slice(0, -(domain.length + 1)) : '';
+  if (!local || email.length > EMAIL_MAX || !/^[a-z0-9._%+-]+$/.test(local)) {
+    return { code: 'invalid_email', error: `Email must be an address on @${domain}` };
+  }
+  return { email };
+}
+
+async function findByEmail(email) {
+  const rows = await db.query(`SELECT ${PUBLIC_COLUMNS} FROM users WHERE email = ? LIMIT 1`, [email]);
+  return rows[0] || null;
 }
 
 /** Trim + clamp a display name; empty becomes null. */
@@ -118,6 +144,8 @@ module.exports = {
   toPublic,
   validatePassword,
   cleanDisplayName,
+  normalizeEmail,
+  findByEmail,
   list,
   findById,
   findByUsernameWithHash,
